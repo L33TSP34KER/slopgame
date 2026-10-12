@@ -1,0 +1,16 @@
+[workspace]
+members = ["core", "platforms/linux"]
+# The original Bevy prototype is kept for reference but deliberately outside the
+# workspace so that a normal `cargo build` never pulls the Bevy dependency tree.
+default-members = ["core", "platforms/linux"]
+exclude = ["prototype-bevy"]
+resolver = "2"
+
+[profile.dev]
+opt-level = 1
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true

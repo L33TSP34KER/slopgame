@@ -1,0 +1,396 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		DEADBEEF0000000000000013 /* GameCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEADBEEF000000000000002A /* GameCore.swift */; };
+		DEADBEEF0000000000000014 /* MetalRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEADBEEF000000000000002B /* MetalRenderer.swift */; };
+		DEADBEEF0000000000000015 /* TextureStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEADBEEF000000000000002C /* TextureStore.swift */; };
+		DEADBEEF0000000000000016 /* Input.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEADBEEF000000000000002D /* Input.swift */; };
+		DEADBEEF0000000000000017 /* AudioHaptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEADBEEF000000000000002E /* AudioHaptics.swift */; };
+		DEADBEEF0000000000000018 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEADBEEF000000000000002F /* AppDelegate.swift */; };
+		DEADBEEF0000000000000019 /* GameViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEADBEEF0000000000000030 /* GameViewController.swift */; };
+		DEADBEEF000000000000001A /* MetalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEADBEEF0000000000000031 /* MetalView.swift */; };
+		DEADBEEF000000000000001B /* TouchControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEADBEEF0000000000000032 /* TouchControls.swift */; };
+		DEADBEEF0000000000000012 /* shim.c in Sources */ = {isa = PBXBuildFile; fileRef = DEADBEEF000000000000000E /* shim.c */; };
+		DEADBEEF000000000000001C /* libgame_core.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DEADBEEF0000000000000010 /* libgame_core.dylib */; };
+		DEADBEEF000000000000001D /* libgame_core.dylib in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = DEADBEEF0000000000000010 /* libgame_core.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, );}; };
+		DEADBEEF000000000000001E /* Assets in Resources */ = {isa = PBXBuildFile; fileRef = DEADBEEF0000000000000011 /* Assets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		DEADBEEF0000000000000023 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				DEADBEEF000000000000001D /* libgame_core.dylib in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		DEADBEEF0000000000000003 /* SlimeArenaIOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SlimeArenaIOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DEADBEEF000000000000000C /* game_core.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = game_core.h; sourceTree = "<group>"; };
+		DEADBEEF000000000000000D /* module.modulemap */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.module-map"; path = module.modulemap; sourceTree = "<group>"; };
+		DEADBEEF000000000000000E /* shim.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = shim.c; sourceTree = "<group>"; };
+		DEADBEEF000000000000000F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		DEADBEEF0000000000000010 /* libgame_core.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libgame_core.dylib; path = build/ios/current/libgame_core.dylib; sourceTree = SOURCE_ROOT; };
+		DEADBEEF0000000000000011 /* Assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Assets; path = ../../assets/dist; sourceTree = SOURCE_ROOT; };
+		DEADBEEF000000000000002A /* GameCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameCore.swift; sourceTree = "<group>"; };
+		DEADBEEF000000000000002B /* MetalRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalRenderer.swift; sourceTree = "<group>"; };
+		DEADBEEF000000000000002C /* TextureStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextureStore.swift; sourceTree = "<group>"; };
+		DEADBEEF000000000000002D /* Input.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Input.swift; sourceTree = "<group>"; };
+		DEADBEEF000000000000002E /* AudioHaptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioHaptics.swift; sourceTree = "<group>"; };
+		DEADBEEF000000000000002F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		DEADBEEF0000000000000030 /* GameViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameViewController.swift; sourceTree = "<group>"; };
+		DEADBEEF0000000000000031 /* MetalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalView.swift; sourceTree = "<group>"; };
+		DEADBEEF0000000000000032 /* TouchControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchControls.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		DEADBEEF0000000000000021 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DEADBEEF000000000000001C /* libgame_core.dylib in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		DEADBEEF0000000000000004 /* SlimeArena */ = {
+			isa = PBXGroup;
+			children = (
+				DEADBEEF0000000000000007 /* CGameCore */,
+				DEADBEEF0000000000000009 /* SlimeArenaRenderer */,
+				DEADBEEF000000000000000A /* SlimeArenaIOS */,
+				DEADBEEF000000000000000B /* Packaging */,
+				DEADBEEF0000000000000011 /* Assets */,
+				DEADBEEF0000000000000006 /* Frameworks */,
+				DEADBEEF0000000000000005 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		DEADBEEF0000000000000005 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				DEADBEEF0000000000000003 /* SlimeArenaIOS.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		DEADBEEF0000000000000006 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				DEADBEEF0000000000000010 /* libgame_core.dylib */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		DEADBEEF0000000000000007 /* CGameCore */ = {
+			isa = PBXGroup;
+			children = (
+				DEADBEEF0000000000000008 /* include */,
+				DEADBEEF000000000000000E /* shim.c */,
+			);
+			path = Sources/CGameCore;
+			sourceTree = "<group>";
+		};
+		DEADBEEF0000000000000008 /* include */ = {
+			isa = PBXGroup;
+			children = (
+				DEADBEEF000000000000000C /* game_core.h */,
+				DEADBEEF000000000000000D /* module.modulemap */,
+			);
+			path = include;
+			sourceTree = "<group>";
+		};
+		DEADBEEF0000000000000009 /* SlimeArenaRenderer */ = {
+			isa = PBXGroup;
+			children = (
+				DEADBEEF000000000000002A /* GameCore.swift */,
+				DEADBEEF000000000000002B /* MetalRenderer.swift */,
+				DEADBEEF000000000000002C /* TextureStore.swift */,
+				DEADBEEF000000000000002D /* Input.swift */,
+				DEADBEEF000000000000002E /* AudioHaptics.swift */,
+			);
+			path = Sources/SlimeArenaRenderer;
+			sourceTree = "<group>";
+		};
+		DEADBEEF000000000000000A /* SlimeArenaIOS */ = {
+			isa = PBXGroup;
+			children = (
+				DEADBEEF000000000000002F /* AppDelegate.swift */,
+				DEADBEEF0000000000000030 /* GameViewController.swift */,
+				DEADBEEF0000000000000031 /* MetalView.swift */,
+				DEADBEEF0000000000000032 /* TouchControls.swift */,
+			);
+			path = Sources/SlimeArenaIOS;
+			sourceTree = "<group>";
+		};
+		DEADBEEF000000000000000B /* Packaging */ = {
+			isa = PBXGroup;
+			children = (
+				DEADBEEF000000000000000F /* Info.plist */,
+			);
+			path = Packaging/iOS;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		DEADBEEF0000000000000002 /* SlimeArenaIOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DEADBEEF0000000000000025 /* Build configuration list for PBXNativeTarget "SlimeArenaIOS" */;
+			buildPhases = (
+				DEADBEEF000000000000001F /* Select core slice */,
+				DEADBEEF0000000000000020 /* Sources */,
+				DEADBEEF0000000000000021 /* Frameworks */,
+				DEADBEEF0000000000000022 /* Resources */,
+				DEADBEEF0000000000000023 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SlimeArenaIOS;
+			productName = SlimeArenaIOS;
+			productReference = DEADBEEF0000000000000003 /* SlimeArenaIOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		DEADBEEF0000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					DEADBEEF0000000000000002 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = DEADBEEF0000000000000024 /* Build configuration list for PBXProject "SlimeArena" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = DEADBEEF0000000000000004;
+			productRefGroup = DEADBEEF0000000000000005 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				DEADBEEF0000000000000002 /* SlimeArenaIOS */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		DEADBEEF0000000000000022 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DEADBEEF000000000000001E /* Assets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		DEADBEEF000000000000001F /* Select core slice */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Select core slice";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\n# Copy the libgame_core.dylib slice that matches the SDK being built into\n# build/ios/current/, which is the path the \"Link Binary With Libraries\" and\n# \"Embed Frameworks\" phases reference.  A single file reference cannot vary per\n# SDK, so this phase selects it.  It must run before those phases (it is first\n# in the target's buildPhases list).\nCORE_DIR=\"${SRCROOT}/build/ios\"\nmkdir -p \"${CORE_DIR}/current\"\nif [ \"${PLATFORM_NAME}\" = \"iphonesimulator\" ]; then\n  SLICE=\"${CORE_DIR}/simulator/libgame_core.dylib\"\nelse\n  SLICE=\"${CORE_DIR}/device/libgame_core.dylib\"\nfi\nif [ ! -f \"${SLICE}\" ]; then\n  echo \"error: ${SLICE} is missing. Run platforms/apple/build_ios_core.sh first.\" >&2\n  exit 1\nfi\ncp -f \"${SLICE}\" \"${CORE_DIR}/current/libgame_core.dylib\"\nASSETS_DIR=\"${SRCROOT}/../../assets/dist\"\nif [ ! -d \"${ASSETS_DIR}\" ]; then\n  echo \"warning: ${ASSETS_DIR} is missing, so the Assets folder reference cannot be copied. Run the asset pipeline, or re-point the blue Assets folder in Xcode at assets/sprites.\" >&2\nfi\necho \"SlimeArenaCore: using ${SLICE}\"";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		DEADBEEF0000000000000020 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DEADBEEF0000000000000013 /* GameCore.swift in Sources */,
+				DEADBEEF0000000000000014 /* MetalRenderer.swift in Sources */,
+				DEADBEEF0000000000000015 /* TextureStore.swift in Sources */,
+				DEADBEEF0000000000000016 /* Input.swift in Sources */,
+				DEADBEEF0000000000000017 /* AudioHaptics.swift in Sources */,
+				DEADBEEF0000000000000018 /* AppDelegate.swift in Sources */,
+				DEADBEEF0000000000000019 /* GameViewController.swift in Sources */,
+				DEADBEEF000000000000001A /* MetalView.swift in Sources */,
+				DEADBEEF000000000000001B /* TouchControls.swift in Sources */,
+				DEADBEEF0000000000000012 /* shim.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		DEADBEEF0000000000000026 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				COPY_PHASE_STRIP = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		DEADBEEF0000000000000027 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				COPY_PHASE_STRIP = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		DEADBEEF0000000000000028 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/Sources/CGameCore/include",
+				);
+				INFOPLIST_FILE = "Packaging/iOS/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.slimearena;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_INCLUDE_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/Sources/CGameCore/include",
+				);
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		DEADBEEF0000000000000029 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/Sources/CGameCore/include",
+				);
+				INFOPLIST_FILE = "Packaging/iOS/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.slimearena;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_INCLUDE_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/Sources/CGameCore/include",
+				);
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		DEADBEEF0000000000000024 /* Build configuration list for PBXProject "SlimeArena" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DEADBEEF0000000000000026 /* Debug */,
+				DEADBEEF0000000000000027 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		DEADBEEF0000000000000025 /* Build configuration list for PBXNativeTarget "SlimeArenaIOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DEADBEEF0000000000000028 /* Debug */,
+				DEADBEEF0000000000000029 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = DEADBEEF0000000000000001 /* Project object */;
+}

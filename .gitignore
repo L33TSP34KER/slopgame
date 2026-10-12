@@ -1,0 +1,56 @@
+# Rust
+/target
+/.cargo-home
+# The original Bevy prototype is a separate, non-workspace crate.
+/prototype-bevy/target
+
+# Session/scratch
+/.probe
+/.tmp
+
+# Generated assets -- rebuild with ./tools/build_assets.sh
+/assets/.fontbuild/
+/assets/font_verify.png
+/assets/dist/
+
+# Screenshots produced by the Linux renderer's headless mode
+/screenshots/
+
+# C ABI harness binary
+/tools/harness/build/
+
+# Android
+/android
+*.apk
+*.keystore
+/platforms/android/local.properties
+/platforms/android/host-selfcheck/build/
+/platforms/android/host-selfcheck/cmake-build/
+/platforms/android/app/.cxx/
+/platforms/android/app/build/
+/platforms/android/build/
+/platforms/android/.gradle/
+/platforms/android/app/src/main/jniLibs/
+/platforms/android/gradle/wrapper/gradle-wrapper.jar
+/platforms/android/gradlew
+/platforms/android/gradlew.bat
+
+# Apple
+/platforms/apple/.build/
+/platforms/apple/build/
+/platforms/apple/DerivedData/
+*.xcuserstate
+xcuserdata/
+/platforms/apple/SlimeArena.xcodeproj/project.xcworkspace/
+
+# Android toolchain fetched by tools/android/fetch_sdk.sh
+/.android-sdk/
+/.android-dl/
+/.gradle-home/
+/.android-keystore/
+/.gradle-dist/
+/.android-user/
+/.android-home/
+/.android/
+/.android-rust-sysroot/
+/.jni_probe.so

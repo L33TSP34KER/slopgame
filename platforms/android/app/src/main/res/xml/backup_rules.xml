@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Pre-API-31 backup rules.  The only thing worth backing up is the opaque gc_save
+  blob, which lives in the game_native_save SharedPreferences file (see
+  SaveStore.PREFS_NAME).
+-->
+<full-backup-content>
+    <include
+        domain="sharedpref"
+        path="game_native_save.xml" />
+</full-backup-content>

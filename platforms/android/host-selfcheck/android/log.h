@@ -1,0 +1,13 @@
+/* Host-only syntax-check stub for <android/log.h>. NOT part of the Android build. */
+#ifndef STUB_ANDROID_LOG_H
+#define STUB_ANDROID_LOG_H
+#define ANDROID_LOG_INFO  4
+#define ANDROID_LOG_ERROR 6
+#ifdef __cplusplus
+extern "C" {
+#endif
+int __android_log_print(int prio, const char *tag, const char *fmt, ...);
+#ifdef __cplusplus
+}
+#endif
+#endif

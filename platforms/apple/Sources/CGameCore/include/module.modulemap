@@ -1,0 +1,15 @@
+// Module map for the frozen game-core C ABI.
+//
+// The same module name ("CGameCore") is used by:
+//   * SwiftPM   -- this directory is the C target's publicHeadersPath, so SwiftPM
+//                  compiles the module map found here instead of generating one;
+//   * Xcode     -- SlimeArena.xcodeproj puts this directory on HEADER_SEARCH_PATHS
+//                  *and* on SWIFT_INCLUDE_PATHS, which is what lets the shared
+//                  Swift sources write `import CGameCore` in both builds.
+//
+// Keeping the module name stable is what makes Sources/SlimeArenaRenderer
+// buildable, unmodified, from either build system.
+module CGameCore {
+    header "game_core.h"
+    export *
+}

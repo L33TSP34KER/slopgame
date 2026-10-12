@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Base theme: no action bar, no title, black background (the renderer clears to
+  black anyway, this only avoids a white flash between window creation and the
+  first frame).  The API 27+ variant adds the display-cutout mode, because that
+  attribute does not exist below 27.
+-->
+<resources>
+    <style name="Theme.GameNative" parent="@android:style/Theme.Material.NoActionBar.Fullscreen">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowContentTransitions">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+</resources>

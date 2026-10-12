@@ -1,0 +1,31 @@
+# ---------------------------------------------------------------------------
+# Gradle / Android
+# ---------------------------------------------------------------------------
+.gradle/
+build/
+/local.properties
+*.iml
+.idea/
+captures/
+.cxx/
+
+# ---------------------------------------------------------------------------
+# Prebuilt Rust core, produced by ./build_core.sh
+#
+# 3 ABIs x ~4.5 MB is not something to commit; a fresh checkout runs
+#   ./build_core.sh && ./gradlew assembleDebug
+# and CMakeLists.txt fails with an explicit message if it is missing.
+# ---------------------------------------------------------------------------
+app/src/main/jniLibs/
+
+# ---------------------------------------------------------------------------
+# Host self-check artefacts (host-selfcheck/run.sh rebuilds them)
+# ---------------------------------------------------------------------------
+host-selfcheck/build/
+host-selfcheck/cmake-build/
+host-selfcheck/test_pack
+host-selfcheck/test_real_core
+
+# NOTE: app/src/main/assets/*.png are deliberately NOT ignored -- they are the
+# packaged art (see copy_assets.sh / `./gradlew copyAssets`).  They are
+# generated from ../../assets/dist/ but shipped in the APK.

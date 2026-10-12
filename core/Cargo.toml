@@ -1,0 +1,18 @@
+[package]
+name = "game_core"
+version = "0.1.0"
+edition = "2021"
+description = "Slime Arena game logic. Built as a shared library and driven by thin native renderers."
+license = "MIT"
+
+[lib]
+name = "game_core"
+# cdylib -> .so / .dylib / .dll for the native renderers
+# staticlib -> for iOS/Android builds that prefer static linking
+# rlib -> so `cargo test` and the renderer test harness can link it directly
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+# Deliberately dependency free: the game logic must cross-compile to every
+# platform (including iOS/Android) without pulling in a single crate.
+[dependencies]
+

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  API 31+ backup/transfer rules: same single SharedPreferences file as
+  res/xml/backup_rules.xml, in the newer format.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <include
+            domain="sharedpref"
+            path="game_native_save.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <include
+            domain="sharedpref"
+            path="game_native_save.xml" />
+    </device-transfer>
+</data-extraction-rules>

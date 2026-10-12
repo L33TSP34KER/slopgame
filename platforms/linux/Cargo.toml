@@ -1,0 +1,16 @@
+[package]
+name = "slime_arena"
+version = "0.1.0"
+edition = "2021"
+description = "Linux renderer for Slime Arena. Owns the window, GPU context, textures, input and screenshots; all game logic lives in libgame_core."
+
+[[bin]]
+name = "slime_arena"
+path = "src/main.rs"
+
+# Only used for the *static* fallback path (see src/core_api.rs).  When
+# libgame_core.so is present next to the binary it is loaded dynamically and no
+# game logic is linked into this executable.
+[dependencies]
+game_core = { path = "../../core" }
+
