@@ -116,6 +116,51 @@ fn draw_enemies(w: &World, r: &mut Renderer) {
         let height = sprite.design_height() * scale;
         let alpha = if e.is_materialising() { 0.35 + 0.65 * spawn_t } else { 1.0 };
 
+        // Aura tells: one glance says what this one is for.
+        if !e.is_materialising() {
+            use crate::enemy_def::Behaviour as B;
+            let spot = r.world_to_screen(e.pos);
+            match e.kind.behaviour() {
+                B::Healer => {
+                    let pulse = 0.10 + 0.05 * (w.time * 3.0).sin();
+                    r.rect_screen(spot, e.radius * 3.0 * r.zoom, e.radius * 3.0 * r.zoom,
+                                  0.0, fade(color::MONEY_GREEN, pulse), GC_FLAG_FLASH);
+                }
+                B::Drainer => {
+                    let pulse = 0.10 + 0.05 * (w.time * 5.0).sin();
+                    r.rect_screen(spot, e.radius * 2.2 * r.zoom, e.radius * 2.2 * r.zoom,
+                                  0.0, fade(color::HP, pulse), GC_FLAG_FLASH);
+                }
+                B::Bomber => {
+                    let pulse = 0.14 + 0.10 * (w.time * 6.0).sin();
+                    r.rect_screen(spot, e.radius * 1.8 * r.zoom, e.radius * 1.8 * r.zoom,
+                                  0.0, fade(color::rgb(0xff, 0xb0, 0x3a), pulse),
+                                  GC_FLAG_FLASH);
+                }
+                B::Grower => {
+                    // Its aura tracks how much it has grown: leave it alone and
+                    // the tell gets louder.
+                    let heat = (e.growth_bonus / (e.kind.def().growth * 18.0)).clamp(0.0, 1.0);
+                    r.rect_screen(spot, e.radius * (2.0 + heat) * r.zoom,
+                                  e.radius * (2.0 + heat) * r.zoom, 0.0,
+                                  fade(color::rgb(0xff, 0x50, 0x30), 0.08 + 0.14 * heat),
+                                  GC_FLAG_FLASH);
+                }
+                B::Orbiter => {
+                    r.rect_screen(spot, e.radius * 2.6 * r.zoom, e.radius * 0.5 * r.zoom,
+                                  0.0, fade(color::rgb(0x8f, 0xe8, 0xff), 0.10),
+                                  GC_FLAG_FLASH);
+                }
+                _ => {}
+            }
+            // A grower also gets physically bigger, which is the real warning.
+            if e.kind.behaviour() == crate::enemy_def::Behaviour::Grower && e.growth_bonus > 0.0 {
+                let extra = 1.0 + e.growth_bonus * 0.5;
+                r.sprite(sprite, e.pos, height * extra, 0.0,
+                         fade(color::WHITE, 0.0), GC_FLAG_NONE);
+            }
+        }
+
         // A boss announces itself: a breath of gold under it, and a slow pulse.
         if e.boss {
             let pulse = 0.16 + 0.06 * (w.time * 2.4).sin();
@@ -176,7 +221,7 @@ fn draw_enemies(w: &World, r: &mut Renderer) {
                 }
             }
         }
-        if e.kind.is_spitter() && !e.is_materialising() {
+        if e.kind.behaviour() == crate::enemy_def::Behaviour::Shooter && !e.is_materialising() {
             // The sac brightens as the throw approaches.
             let interval = e.kind.throw_interval();
             let ready = 1.0 - (e.shoot_cd / interval).clamp(0.0, 1.0);
@@ -225,17 +270,33 @@ fn draw_enemy_shots(w: &World, r: &mut Renderer) {
     for s in &w.shots {
         let p = r.world_to_screen(s.pos);
         for k in 1..4 {
+            if s.stationary {
+                break; // a caltrop does not trail
+            }
             let back = s.pos - s.vel.normalize_or_zero() * (k as f32 * 7.0);
             let q = r.world_to_screen(back);
             r.rect_screen(q, s.radius * 1.5 * r.zoom, s.radius * 1.5 * r.zoom, 0.0,
                           fade(color::rgb(0x6e, 0x10, 0x1c), 0.20 / k as f32), GC_FLAG_NONE);
         }
-        // Wobbling blob (the command set has no circles, so a rotated square
-        // plus a highlight reads as a droplet at this size).
-        r.rect_screen(p, s.radius * 2.2 * r.zoom, s.radius * 2.2 * r.zoom,
-                      s.spin, color::rgb(0x8e, 0x14, 0x24), GC_FLAG_NONE);
-        r.rect_screen(p, s.radius * 0.9 * r.zoom, s.radius * 0.9 * r.zoom,
-                      -s.spin, fade(color::WHITE, 0.25), GC_FLAG_NONE);
+        if s.stationary {
+            // A caltrop: three crossed spikes, dimming as it expires.
+            let life_frac = (s.life / 9.0).clamp(0.2, 1.0);
+            for k in 0..3 {
+                let a = k as f32 * (std::f32::consts::PI / 3.0) + s.spin * 0.15;
+                r.rect_screen(p, s.radius * 2.4 * r.zoom, (s.radius * 0.34).max(2.0) * r.zoom,
+                              a, fade(color::rgb(0x4d, 0x5a, 0x4d), 0.85 * life_frac),
+                              GC_FLAG_NONE);
+            }
+            r.rect_screen(p, s.radius * 0.7 * r.zoom, s.radius * 0.7 * r.zoom, 0.0,
+                          fade(color::rgb(0xc9, 0xd6, 0xc0), 0.7 * life_frac), GC_FLAG_NONE);
+        } else {
+            // Wobbling blob (the command set has no circles, so a rotated square
+            // plus a highlight reads as a droplet at this size).
+            r.rect_screen(p, s.radius * 2.2 * r.zoom, s.radius * 2.2 * r.zoom,
+                          s.spin, color::rgb(0x8e, 0x14, 0x24), GC_FLAG_NONE);
+            r.rect_screen(p, s.radius * 0.9 * r.zoom, s.radius * 0.9 * r.zoom,
+                          -s.spin, fade(color::WHITE, 0.25), GC_FLAG_NONE);
+        }
     }
 }
 

@@ -373,6 +373,7 @@ impl World {
             stolen: 0,
             leak_cd: 0.0,
             boss: true,
+            growth_bonus: 0.0,
         });
         self.boss_id = id;
         self.boss_hp = hp;
@@ -775,14 +776,18 @@ impl World {
         if index >= self.enemies.len() {
             return;
         }
-        let (pos, died, hp_frac) = {
+        let (pos, died, hp_frac, dealt) = {
             let e = &mut self.enemies[index];
-            e.hp -= amount;
+            // Armour is a flat cut, so a bulwark shrugs off chip damage and only
+            // respects real hits -- and the floating number shows what landed.
+            let cut = (amount * (1.0 - e.kind.def().armor)).max(1.0);
+            e.hp -= cut;
             e.hurt_flash = 0.14;
             e.knock += knock;
-            (e.pos, e.hp <= 0.0, (e.hp / e.hp_max).clamp(0.0, 1.0))
+            (e.pos, e.hp <= 0.0, (e.hp / e.hp_max).clamp(0.0, 1.0), cut)
         };
         let _ = hp_frac;
+        let amount = dealt;
         self.floater(pos + Vec2::new(0.0, -18.0), FloaterKind::Damage(amount.round() as i32),
                      if crit { color::GOLD } else { color::WHITE },
                      if crit { 24.0 } else { 18.0 });
@@ -819,6 +824,60 @@ impl World {
         self.add_event(GC_EVT_REVIVED, at.x, at.y, 2.0);
     }
 
+    /// Splitter children and a bomber's last word, applied where the corpse is.
+    fn on_enemy_death(&mut self, pos: Vec2, kind: EnemyKind) {
+        use crate::enemy_def::Behaviour as B;
+        let def = kind.def();
+        match def.behaviour {
+            B::Splitter => {
+                if let Some(child) = def.splits_into {
+                    for k in 0..def.split_count.max(1) {
+                        let angle = self.rng.angle();
+                        let at = pos + Vec2::from_angle(angle) * (28.0 + 14.0 * k as f32);
+                        let hp = child.hp_at(self.wave);
+                        self.next_id += 1;
+                        self.enemies.push(Enemy {
+                            id: self.next_id,
+                            kind: child,
+                            pos: Vec2::new(at.x.clamp(20.0, ARENA_W - 20.0),
+                                           at.y.clamp(20.0, ARENA_H - 20.0)),
+                            vel: Vec2::ZERO,
+                            hp, hp_max: hp,
+                            radius: child.radius(),
+                            spawn_t: 0.3,
+                            hurt_flash: 0.0,
+                            knock: Vec2::ZERO,
+                            slow_t: 0.0,
+                            bob_phase: self.rng.angle(),
+                            attack_cd: 0.0,
+                            dash_cd: 0.0,
+                            state_t: 0.0,
+                            shoot_cd: 0.0,
+                            siphon: 0.0,
+                            stolen: 0,
+                            leak_cd: 0.0,
+                            boss: false,
+                            growth_bonus: 0.0,
+                        });
+                    }
+                    let burst_at = pos;
+                    self.burst(burst_at, 14, color::SLIME, 190.0, 6.0, 0.5, false);
+                }
+            }
+            B::Bomber => {
+                let radius = def.sigil_radius;
+                let damage = def.sigil_power * (1.0 + 0.06 * self.wave as f32);
+                self.burst(pos, 26, color::SLIME_HOT, 260.0, 9.0, 0.6, true);
+                self.burst(pos, 10, color::WHITE, 180.0, 6.0, 0.35, true);
+                self.shake = (self.shake + 8.0).min(20.0);
+                if self.player.pos.distance_sq(pos) <= (radius + self.player.radius).powi(2) {
+                    self.hurt_player(damage);
+                }
+            }
+            _ => {}
+        }
+    }
+
     pub(crate) fn kill_enemy(&mut self, index: usize) {
         let e = self.enemies.remove(index);
         let pos = e.pos;
@@ -830,6 +889,7 @@ impl World {
         if leech > 0.0 && self.player.hp < self.player.hp_max() {
             self.player.hp = (self.player.hp + leech).min(self.player.hp_max());
         }
+        self.on_enemy_death(pos, kind);
         self.burst(pos, if kind.is_brute() { 26 } else { 14 }, color::SLIME, 260.0,
                    if kind.is_brute() { 9.0 } else { 6.0 }, 0.6, false);
         self.burst(pos, 6, color::WHITE, 180.0, 5.0, 0.35, true);
@@ -1091,11 +1151,12 @@ impl World {
                             attack_cd: 0.0,
                             dash_cd: 0.0,
                             state_t: if kind.is_charger() { k as f32 * 0.9 } else { 0.0 },
-                            shoot_cd: if kind.is_spitter() { 0.3 + k as f32 * 0.5 } else { 0.0 },
+                            shoot_cd: if crate::entities::is_thrower(kind) { 0.3 + k as f32 * 0.5 } else { 0.0 },
                             siphon: 0.0,
                             stolen: 0,
                             leak_cd: 0.0,
                             boss: false,
+                            growth_bonus: 0.0,
                         });
                     }
                 }
@@ -1442,15 +1503,18 @@ pub fn is_boss_wave(wave: i32) -> bool {
 /// Bosses cycle through the kinds, so each boss wave teaches its escort's tells
 /// before turning them up to eleven.
 pub fn boss_kind_for_wave(wave: i32) -> EnemyKind {
-    const ROTATION: [EnemyKind; 5] = [
-        EnemyKind::Brute,
-        EnemyKind::Charger,
-        EnemyKind::Spitter,
-        EnemyKind::Miser,
-        EnemyKind::Grunt,
-    ];
-    let step = (wave / BOSS_EVERY - 1).max(0) as usize;
-    ROTATION[step % ROTATION.len()]
+    // Straight from the catalogue: anything marked `boss_ok`, in table order,
+    // and gated so a boss cannot arrive before its kind is unlocked.
+    let step = (wave / BOSS_EVERY - 1).max(0);
+    let candidates: Vec<EnemyKind> = crate::entities::ALL_KINDS
+        .iter()
+        .copied()
+        .filter(|k| k.def().boss_ok && k.def().min_wave <= wave)
+        .collect();
+    if candidates.is_empty() {
+        return EnemyKind::Grunt;
+    }
+    candidates[step as usize % candidates.len()]
 }
 
 fn kind_index(kind: EnemyKind) -> i32 {
@@ -1542,12 +1606,24 @@ mod tests {
         assert!(is_boss_wave(5));
         assert!(is_boss_wave(10));
         assert!(is_boss_wave(50));
-        // The rotation visits every kind before repeating.
-        let kinds: Vec<EnemyKind> = (1..=5).map(|i| boss_kind_for_wave(i * BOSS_EVERY)).collect();
-        for (i, k) in kinds.iter().enumerate() {
-            assert!(!kinds[..i].contains(k), "boss kind {:?} repeats too early", k);
+        // A boss is always something the catalogue marks as boss-worthy and
+        // that has actually unlocked by then -- never an early-game grunt wave
+        // bossing a wave 40 run, and never a kind that does not exist yet.
+        for wave in (BOSS_EVERY..=120).step_by(BOSS_EVERY as usize) {
+            let kind = boss_kind_for_wave(wave);
+            let def = kind.def();
+            assert!(def.boss_ok, "{} is not a boss candidate (wave {})", def.name, wave);
+            assert!(def.min_wave <= wave, "{} unlocked after wave {}", def.name, wave);
         }
-        assert_eq!(boss_kind_for_wave(BOSS_EVERY), boss_kind_for_wave(BOSS_EVERY * 6));
+        // And the rotation spreads: a long run sees several different bosses.
+        let mut seen: Vec<EnemyKind> = Vec::new();
+        for wave in (BOSS_EVERY..=120).step_by(BOSS_EVERY as usize) {
+            let k = boss_kind_for_wave(wave);
+            if !seen.contains(&k) {
+                seen.push(k);
+            }
+        }
+        assert!(seen.len() >= 4, "only {} distinct bosses in 24 boss waves", seen.len());
     }
 
     #[test]

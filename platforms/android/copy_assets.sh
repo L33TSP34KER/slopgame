@@ -39,6 +39,16 @@ SPRITE_FILES=(
     charger.png
     spitter.png
     miser.png
+    wisp.png
+    blob.png
+    bulwark.png
+    mender.png
+    boomslime.png
+    shade.png
+    lancer.png
+    devourer.png
+    leech.png
+    spiker.png
 )
 
 # Must match core/src/sprite.rs::FONT_ATLAS_FILE.

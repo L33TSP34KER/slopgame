@@ -29,7 +29,10 @@ GEN_RS = os.path.join(ROOT, "core", "src", "generated", "sprites.rs")
 SPRITE_NAMES = ["player", "enemy_a", "enemy_b", "gun", "bow", "sword",
                 "money", "xp",
                 # New enemy kinds: the charger, the spitter and the miser.
-                "charger", "spitter", "miser"]
+                "charger", "spitter", "miser",
+                # The ten-kind expansion.
+                "wisp", "blob", "bulwark", "mender", "boomslime",
+                "shade", "lancer", "devourer", "leech", "spiker"]
 
 RASTER_WIDTH = 512  # plenty for a 720-unit design height, even on 3x displays
 

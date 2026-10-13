@@ -16,197 +16,173 @@ use crate::sprite::SpriteId;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum EnemyKind {
-    /// Fast, fragile, appears from wave 1.
+    /// Fast, fragile, wave 1 onwards.  The baseline.
     Grunt,
-    /// Slow, tanky, heavy hitter, appears from wave 3.
+    /// Slow, tanky, heavy hitter, from wave 3.
     Brute,
     /// A giant: much more health and damage, but it pays out massively.
-    /// The "bigger risk, bigger reward" spawn.
     Colossus,
-    /// Winds up in place, then crosses the arena in a straight line.  Standing
-    /// still is what kills you; sidestepping is the whole counterplay.
+    /// Winds up in place, then crosses the arena in a straight line.
     Charger,
-    /// Keeps its distance and lobs blood.  Punishes tunnel vision.
+    /// Keeps its distance and lobs blood.
     Spitter,
-    /// Fast, cowardly, and it eats your money.  Kill it before it banks.
+    /// Fast, cowardly pickpocket: eats your money and runs.
     Miser,
+    /// Circles you instead of closing, so it is never where you are aiming.
+    Wisp,
+    /// Bursts into grunts when killed.
+    Blob,
+    /// Heavily armoured and very slow.
+    Bulwark,
+    /// Mends every enemy around it.
+    Mender,
+    /// Explodes when killed.
+    Boomslime,
+    /// Blinks toward you rather than walking.
+    Shade,
+    /// Long-range sniper that refuses to be closed on.
+    Lancer,
+    /// Grows stronger the longer it lives.
+    Devourer,
+    /// Heals itself by hurting you.
+    Leech,
+    /// Leaves caltrops on the floor.
+    Spiker,
 }
 
-/// Every kind, in the order `GC_DBG_SPAWN_ENEMY` indexes them.
-pub const ALL_KINDS: [EnemyKind; 6] = [
+/// Every kind, in the order `GC_DBG_SPAWN_ENEMY` indexes them and `DEFS`
+/// describes them.
+pub const ALL_KINDS: [EnemyKind; 16] = [
     EnemyKind::Grunt, EnemyKind::Brute, EnemyKind::Colossus,
     EnemyKind::Charger, EnemyKind::Spitter, EnemyKind::Miser,
+    EnemyKind::Wisp, EnemyKind::Blob, EnemyKind::Bulwark,
+    EnemyKind::Mender, EnemyKind::Boomslime, EnemyKind::Shade,
+    EnemyKind::Lancer, EnemyKind::Devourer, EnemyKind::Leech,
+    EnemyKind::Spiker,
 ];
+
+/// True when a kind throws something, so spawn sites can stagger its first
+/// throw rather than having a whole wave fire in unison.
+pub fn is_thrower(kind: EnemyKind) -> bool {
+    use crate::enemy_def::Behaviour as B;
+    matches!(kind.behaviour(), B::Shooter | B::Trapper)
+}
 
 pub fn kind_from_index(i: i32) -> Option<EnemyKind> {
     ALL_KINDS.get(i.max(0) as usize).copied()
 }
 
+/// Everything about a kind lives in the catalogue; these are just typed doors
+/// onto it, so adding a kind never means editing eleven matches.
 impl EnemyKind {
-    pub fn sprite(self) -> SpriteId {
-        match self {
-            EnemyKind::Grunt => SpriteId::EnemyA,
-            EnemyKind::Charger => SpriteId::Charger,
-            EnemyKind::Spitter => SpriteId::Spitter,
-            EnemyKind::Miser => SpriteId::Miser,
-            EnemyKind::Brute | EnemyKind::Colossus => SpriteId::EnemyB,
-        }
+    pub fn def(self) -> &'static crate::enemy_def::KindDef {
+        &crate::enemy_def::DEFS[self as usize]
     }
 
-    /// Visual size multiplier over the sprite's design height.
+
+    pub fn sprite(self) -> SpriteId {
+        self.def().sprite
+    }
+
     pub fn scale(self) -> f32 {
-        match self {
-            EnemyKind::Grunt => 1.0,
-            EnemyKind::Charger => 1.12,
-            EnemyKind::Spitter => 1.18,
-            EnemyKind::Miser => 0.86,
-            EnemyKind::Brute => 1.35,
-            EnemyKind::Colossus => 2.35,
-        }
+        self.def().scale
     }
 
     pub fn is_brute(self) -> bool {
-        matches!(self, EnemyKind::Brute | EnemyKind::Colossus)
+        self.def().heavy
     }
 
     pub fn is_colossus(self) -> bool {
-        matches!(self, EnemyKind::Colossus)
+        self.def().colossal
+    }
+
+    pub fn behaviour(self) -> crate::enemy_def::Behaviour {
+        self.def().behaviour
     }
 
     pub fn is_charger(self) -> bool {
-        matches!(self, EnemyKind::Charger)
-    }
-
-    pub fn is_spitter(self) -> bool {
-        matches!(self, EnemyKind::Spitter)
+        matches!(self.behaviour(), crate::enemy_def::Behaviour::Charger)
     }
 
     pub fn is_miser(self) -> bool {
-        matches!(self, EnemyKind::Miser)
+        matches!(self.behaviour(), crate::enemy_def::Behaviour::Miser)
+    }
+
+    pub fn name(self) -> &'static str {
+        self.def().name
+    }
+
+    pub fn base_hp(self) -> f32 {
+        self.def().hp
+    }
+
+    /// HP grows with the wave so late waves stay threatening.  Superlinear:
+    /// linear HP stopped mattering once player damage scaled up.
+    pub fn hp_at(self, wave: i32) -> f32 {
+        let w = (wave - 1).max(0) as f32;
+        self.base_hp() * (1.0 + 0.34 * w + 0.020 * w * w)
+    }
+
+    pub fn speed(self) -> f32 {
+        self.def().speed
+    }
+
+    pub fn damage(self) -> f32 {
+        self.def().damage
+    }
+
+    pub fn radius(self) -> f32 {
+        self.def().radius
+    }
+
+    pub fn xp(self) -> i32 {
+        self.def().xp
+    }
+
+    pub fn money_chance(self) -> f32 {
+        self.def().money_chance
+    }
+
+    pub fn money(self) -> i32 {
+        self.def().money
     }
 
     /// Damage a charging body deals on impact -- deliberately more than its
     /// touch damage, because being hit by the dash should be a real mistake.
     pub fn dash_damage(self) -> f32 {
-        if self.is_charger() { 19.0 } else { 0.0 }
+        if self.is_charger() { self.damage() + 7.0 } else { 0.0 }
     }
 
-    /// Damage of one thrown blood clot.
+    /// Damage of one thrown blood clot (or caltrop).
     pub fn blood_damage(self) -> f32 {
-        if self.is_spitter() { 9.0 } else { 0.0 }
+        self.def().shot_damage
     }
 
-    /// Distance a spitter tries to hold.
+    /// Distance a shooter tries to hold.  Anything with reach keeps its ring.
     pub fn standoff(self) -> f32 {
-        if self.is_spitter() { 250.0 } else { 0.0 }
+        self.def().standoff
     }
 
     pub fn throw_interval(self) -> f32 {
-        if self.is_spitter() { 2.1 } else { f32::INFINITY }
+        self.def().throw_interval
     }
 
     /// Coins a miser can carry before it stops siphoning.
     pub fn purse(self) -> i32 {
-        if self.is_miser() { 22 } else { 0 }
+        self.def().purse
     }
 
     /// Coins per second it lifts off you while close.
     pub fn siphon_rate(self) -> f32 {
-        if self.is_miser() { 2.5 } else { 0.0 }
+        self.def().siphon
     }
 
     /// It only runs once it has a decent haul.
     pub fn flee_threshold(self) -> i32 {
-        if self.is_miser() { 8 } else { i32::MAX }
-    }
-
-    pub fn base_hp(self) -> f32 {
-        match self {
-            EnemyKind::Grunt => 22.0,
-            EnemyKind::Charger => 36.0,
-            EnemyKind::Spitter => 30.0,
-            EnemyKind::Miser => 26.0,
-            EnemyKind::Brute => 62.0,
-            EnemyKind::Colossus => 260.0,
-        }
-    }
-
-    /// HP grows with the wave so late waves stay threatening.
-    pub fn hp_at(self, wave: i32) -> f32 {
-        let w = (wave - 1).max(0) as f32;
-        // Linear HP stopped mattering: it is now superlinear, so wave 20 is not
-        // just "more of wave 5" but genuinely tougher per enemy.
-        self.base_hp() * (1.0 + 0.34 * w + 0.020 * w * w)
-    }
-
-    pub fn speed(self) -> f32 {
-        match self {
-            EnemyKind::Grunt => 124.0,
-            EnemyKind::Charger => 104.0,
-            EnemyKind::Spitter => 86.0,
-            EnemyKind::Miser => 138.0,
-            EnemyKind::Brute => 82.0,
-            EnemyKind::Colossus => 60.0,
-        }
-    }
-
-    pub fn damage(self) -> f32 {
-        match self {
-            EnemyKind::Grunt => 11.0,
-            EnemyKind::Charger => 12.0,
-            EnemyKind::Spitter => 7.0,
-            EnemyKind::Miser => 6.0,
-            EnemyKind::Brute => 24.0,
-            EnemyKind::Colossus => 42.0,
-        }
-    }
-
-    pub fn radius(self) -> f32 {
-        match self {
-            EnemyKind::Grunt => 24.0,
-            EnemyKind::Charger => 26.0,
-            EnemyKind::Spitter => 28.0,
-            EnemyKind::Miser => 21.0,
-            EnemyKind::Brute => 34.0,
-            EnemyKind::Colossus => 58.0,
-        }
-    }
-
-    pub fn xp(self) -> i32 {
-        match self {
-            EnemyKind::Grunt => 4,
-            EnemyKind::Charger => 7,
-            EnemyKind::Spitter => 6,
-            EnemyKind::Miser => 6,
-            EnemyKind::Brute => 11,
-            EnemyKind::Colossus => 70,
-        }
-    }
-
-    pub fn money_chance(self) -> f32 {
-        match self {
-            EnemyKind::Grunt => 0.34,
-            EnemyKind::Charger => 0.5,
-            EnemyKind::Spitter => 0.45,
-            EnemyKind::Miser => 0.4,
-            EnemyKind::Brute => 0.85,
-            EnemyKind::Colossus => 1.0,
-        }
-    }
-
-    pub fn money(self) -> i32 {
-        match self {
-            EnemyKind::Grunt => 1,
-            EnemyKind::Charger => 2,
-            EnemyKind::Spitter => 2,
-            EnemyKind::Miser => 2,
-            EnemyKind::Brute => 3,
-            EnemyKind::Colossus => 22,
-        }
+        self.def().flee_at
     }
 }
 
-#[derive(Clone, Debug)]
 pub struct Enemy {
     pub id: u32,
     pub kind: EnemyKind,
@@ -238,6 +214,8 @@ pub struct Enemy {
     pub leak_cd: f32,
     /// A boss: an enormous version of its kind, and the point of the wave.
     pub boss: bool,
+    /// How much extra health a grower has accumulated (for its tell).
+    pub growth_bonus: f32,
 }
 
 /// A clot of blood thrown by a spitter.  Hostile projectiles live in their own
@@ -250,6 +228,8 @@ pub struct EnemyShot {
     pub radius: f32,
     pub life: f32,
     pub spin: f32,
+    /// Caltrops sit still and wait to be walked on.
+    pub stationary: bool,
 }
 
 impl Enemy {

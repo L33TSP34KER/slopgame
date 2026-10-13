@@ -14,6 +14,7 @@
 
 mod backdrop;
 mod decor;
+mod enemy_def;
 mod entities;
 mod ffi;
 mod generated;
@@ -345,7 +346,7 @@ pub extern "C" fn gc_sprite_file(sprite: i32) -> *const c_char {
     match sprite {
         // Bounds follow SpriteId::all_sprites(), never a hand-written number:
         // adding a sprite must not need an edit here.
-        0..=10 => sprite::all_sprites()[sprite as usize].file_cstr().as_ptr() as *const c_char,
+        0..=20 => sprite::all_sprites()[sprite as usize].file_cstr().as_ptr() as *const c_char,
         _ => std::ptr::null(),
     }
 }

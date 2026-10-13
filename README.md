@@ -143,7 +143,32 @@ prototype-bevy/              the original Bevy prototype, kept for reference
 
 * **Waves.** Enemies spawn off-screen, chase you and deal contact damage. Clear a
   wave → a bonus → **the Hive** → the next wave, bigger and faster.
-* **Enemies.** Six kinds, each with its own answer:
+* **Enemies.** Sixteen kinds, and every one is a row in a catalogue
+  (`core/src/enemy_def.rs`) with a *behaviour* rather than a hand-written code
+  path — so the whole bestiary is data:
+
+  | Kind | Behaviour | Answer |
+  |---|---|---|
+  | Grunt, Brute, Colossus | Chaser | the baseline, and the two heavies |
+  | Charger | Charger | coils, telegraphs, then crosses the arena at 3.4× |
+  | Spitter | Shooter | holds a ring and lobs blood |
+  | Lancer | Shooter | 430-unit standoff, fast 14-damage bolts |
+  | Miser | Miser | lifts coins out of your purse and runs |
+  | Wisp | Orbiter | circles at 155 units and never closes |
+  | Blob | Splitter | bursts into three grunts |
+  | Bulwark | Chaser + 45% armour | shrugs off chip damage; out-walk it |
+  | Mender | Healer | mends every ally within 190 units |
+  | Boomslime | Bomber | explodes for 22+ when killed next to you |
+  | Shade | Blinker | teleports 240 units toward you every 2.6s |
+  | Devourer | Grower | +7%/s health and damage while it lives |
+  | Leech | Drainer | heals itself for 70% of what it takes off you |
+  | Spiker | Trapper | leaves caltrops on the floor |
+
+  Spawning is a weighted draw over the kinds whose `min_wave` has arrived, so
+  the bestiary mixes itself; brutes and colossi stay rationed by the wave plan.
+  Every kind also carries a visual tell — a mender's aura, a leech's red glow,
+  a boomslime's pulsing fuse, a grower that visibly swells, a wisp's streak —
+  plus the older set:
   * **Grunts** — fast, fragile, from wave 1.
   * **Brutes** — slow, 3× HP, from wave 3.
   * **Colossi** — from wave 5: 2.35× the size, huge health and damage, and they
@@ -325,7 +350,7 @@ Everything below was actually executed on the Linux build host.
 
 | Check | Result |
 |---|---|
-| `cargo test` | **81 passed** — 56 core unit (tree structure, tax curve, backdrop and scenery, settings, enemy behaviours, ABI layout, layout maths), 10 renderer unit (audio synthesis, detuned takes, WAV decode, Vorbis decode checked against ffmpeg and against a stutter/rate regression) and 15 end-to-end through the C ABI |
+| `cargo test` | **95 passed** — 70 core unit (tree structure, tax curve, backdrop and scenery, settings, enemy behaviours, ABI layout, layout maths), 10 renderer unit (audio synthesis, detuned takes, WAV decode, Vorbis decode checked against ffmpeg and against a stutter/rate regression) and 15 end-to-end through the C ABI |
 | `tools/run_abi_harness.sh` | **PASSED** — C program `dlopen`s the real `.so`, `_Static_assert`s the ABI, and plays a whole run (~735 frames, 17 838 sprite / 69 784 glyph / 148 648 rect commands) including a hive purchase at exactly the quoted price, a locked node refusing to sell, a drag that must not buy, level-up, pause, save/load and restart |
 | Linux renderer | builds warning-free, loads `libgame_core.so` at runtime (`dlopen`), runs headless |
 | Headless captures | 9 landscape + 9 portrait (1170×2532) PNGs in `screenshots/`, generated from scripted input by clicking the *real* UI rectangles |

@@ -23,9 +23,19 @@ pub enum SpriteId {
     Charger = 8,
     Spitter = 9,
     Miser = 10,
+    Wisp = 11,
+    Blob = 12,
+    Bulwark = 13,
+    Mender = 14,
+    Boomslime = 15,
+    Shade = 16,
+    Lancer = 17,
+    Devourer = 18,
+    Leech = 19,
+    Spiker = 20,
 }
 
-pub const SPRITE_COUNT: usize = 11;
+pub const SPRITE_COUNT: usize = 21;
 
 impl SpriteId {
     pub fn index(self) -> i32 {
@@ -54,6 +64,16 @@ impl SpriteId {
             SpriteId::Charger => "charger.png\0",
             SpriteId::Spitter => "spitter.png\0",
             SpriteId::Miser => "miser.png\0",
+            SpriteId::Wisp => "wisp.png\0",
+            SpriteId::Blob => "blob.png\0",
+            SpriteId::Bulwark => "bulwark.png\0",
+            SpriteId::Mender => "mender.png\0",
+            SpriteId::Boomslime => "boomslime.png\0",
+            SpriteId::Shade => "shade.png\0",
+            SpriteId::Lancer => "lancer.png\0",
+            SpriteId::Devourer => "devourer.png\0",
+            SpriteId::Leech => "leech.png\0",
+            SpriteId::Spiker => "spiker.png\0",
         }
     }
 
@@ -74,6 +94,16 @@ impl SpriteId {
             SpriteId::Charger => 58.0,
             SpriteId::Spitter => 62.0,
             SpriteId::Miser => 46.0,
+            SpriteId::Wisp => 40.0,
+            SpriteId::Blob => 56.0,
+            SpriteId::Bulwark => 68.0,
+            SpriteId::Mender => 52.0,
+            SpriteId::Boomslime => 50.0,
+            SpriteId::Shade => 48.0,
+            SpriteId::Lancer => 52.0,
+            SpriteId::Devourer => 60.0,
+            SpriteId::Leech => 46.0,
+            SpriteId::Spiker => 52.0,
         }
     }
 
@@ -108,6 +138,16 @@ pub fn all_sprites() -> [SpriteId; SPRITE_COUNT] {
         SpriteId::Charger,
         SpriteId::Spitter,
         SpriteId::Miser,
+        SpriteId::Wisp,
+        SpriteId::Blob,
+        SpriteId::Bulwark,
+        SpriteId::Mender,
+        SpriteId::Boomslime,
+        SpriteId::Shade,
+        SpriteId::Lancer,
+        SpriteId::Devourer,
+        SpriteId::Leech,
+        SpriteId::Spiker,
     ]
 }
 

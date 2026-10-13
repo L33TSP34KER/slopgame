@@ -298,6 +298,8 @@ enum Scenario {
     Enemies,
     /// A boss wave: one enormous enemy and an escort of its own kind.
     Boss,
+    /// The whole catalogue on screen at once, a few of each kind.
+    Zoo,
     LevelUp,
     Shop,
     GameOver,
@@ -311,6 +313,7 @@ impl Scenario {
             "options" => Scenario::Options,
             "enemies" => Scenario::Enemies,
             "boss" => Scenario::Boss,
+            "zoo" => Scenario::Zoo,
             "title" => Scenario::Title,
             "survive" => Scenario::Survive,
             "combat" => Scenario::Combat,
@@ -342,6 +345,8 @@ impl Driver {
         let (end, shots) = match scenario {
             Scenario::Title => (8, vec![(6, "01_title")]),
             Scenario::Survive => (90000, vec![]),
+            Scenario::Zoo => (320, vec![(60, "01_zoo_near"), (170, "02_zoo_mid"),
+                                        (290, "03_zoo_far")]),
             Scenario::Boss => (260, vec![(40, "01_boss_arrives"), (140, "02_boss_bar"),
                                          (240, "03_boss_escort")]),
             Scenario::Enemies => (420, vec![(70, "01_enemy_charger"), (170, "02_enemy_spitter"),
@@ -499,6 +504,21 @@ impl Driver {
                 }
                 if self.scenario == Scenario::GameOver && f == 200 {
                     debug(game_core::GC_DBG_KILL_PLAYER, 0.0);
+                }
+            }
+            Scenario::Zoo => {
+                if f == 2 {
+                    let (x, y) = button_center(0);
+                    self.click(x, y);
+                }
+                if f == 6 {
+                    debug(game_core::GC_DBG_GIVE_MONEY, 2000.0);
+                    debug(game_core::GC_DBG_INVULNERABLE, 1.0);
+                    debug(game_core::GC_DBG_SET_WAVE, 18.0);
+                    // Two of each kind, spread round the player.
+                    for kind in 0..16 {
+                        debug(game_core::GC_DBG_SPAWN_ENEMY, kind as f32);
+                    }
                 }
             }
             Scenario::Boss => {
@@ -801,7 +821,10 @@ fn main() {
 fn check_assets(dir: &Path) {
     let names = ["player.png", "enemy_a.png", "enemy_b.png", "gun.png", "bow.png",
                  "sword.png", "money.png", "xp.png",
-                 "charger.png", "spitter.png", "miser.png", "font_atlas.png"];
+                 "charger.png", "spitter.png", "miser.png",
+                 "wisp.png", "blob.png", "bulwark.png", "mender.png", "boomslime.png",
+                 "shade.png", "lancer.png", "devourer.png", "leech.png", "spiker.png",
+                 "font_atlas.png"];
     for name in names {
         let path = dir.join(name);
         match png::load_rgba(&path.to_string_lossy()) {

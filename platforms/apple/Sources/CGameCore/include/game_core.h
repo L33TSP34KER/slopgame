@@ -83,6 +83,16 @@ typedef enum {
     GC_SPR_CHARGER, /* winds up, then dashes */
     GC_SPR_SPITTER, /* keeps its distance, throws blood */
     GC_SPR_MISER,   /* eats your money */
+    GC_SPR_WISP,    /* circles you, never closes */
+    GC_SPR_BLOB,    /* splits into grunts when killed */
+    GC_SPR_BULWARK, /* 45% armour, very slow */
+    GC_SPR_MENDER,  /* mends every enemy around it */
+    GC_SPR_BOOMSLIME, /* explodes when killed */
+    GC_SPR_SHADE,   /* blinks toward you */
+    GC_SPR_LANCER,  /* long-range sniper */
+    GC_SPR_DEVOURER, /* grows stronger while alive */
+    GC_SPR_LEECH,   /* heals itself by hurting you */
+    GC_SPR_SPIKER,  /* leaves caltrops */
     GC_SPR_COUNT
 } gc_sprite_id;
 
@@ -165,7 +175,8 @@ typedef enum {
     GC_EVT_CHECKPOINT_FAILED = 17, /* the quota was missed: run over      */
     GC_EVT_REVIVED     = 18, /* an extra life was spent                 */
     GC_EVT_ENEMY_SHOT  = 19, /* a spitter threw blood  value = damage   */
-    GC_EVT_MONEY_STOLEN = 20 /* a miser took coins     value = amount   */
+    GC_EVT_MONEY_STOLEN = 20, /* a miser took coins    value = amount    */
+    GC_EVT_BOSS_SPAWN  = 21  /* a boss wave's boss arrived              */
 } gc_event_type;
 
 typedef struct {

@@ -7,13 +7,13 @@
 use crate::sprite::SpriteId;
 
 /// Texture file name for each sprite, indexed by SpriteId.
-pub const SPRITE_FILES: [&str; 11] = ["player.png", "enemy_a.png", "enemy_b.png", "gun.png", "bow.png", "sword.png", "money.png", "xp.png", "charger.png", "spitter.png", "miser.png"];
+pub const SPRITE_FILES: [&str; 21] = ["player.png", "enemy_a.png", "enemy_b.png", "gun.png", "bow.png", "sword.png", "money.png", "xp.png", "charger.png", "spitter.png", "miser.png", "wisp.png", "blob.png", "bulwark.png", "mender.png", "boomslime.png", "shade.png", "lancer.png", "devourer.png", "leech.png", "spiker.png"];
 
 /// Source texture size in pixels (informational).
-pub const SPRITE_PIXELS: [(u32, u32); 11] = [(476, 476), (476, 315), (476, 476), (466, 575), (471, 471), (475, 493), (474, 474), (474, 474), (449, 262), (337, 362), (476, 362)];
+pub const SPRITE_PIXELS: [(u32, u32); 21] = [(476, 476), (476, 315), (476, 476), (466, 575), (471, 471), (475, 493), (474, 474), (474, 474), (449, 262), (337, 362), (476, 362), (350, 595), (415, 272), (372, 362), (373, 405), (392, 451), (330, 455), (411, 786), (449, 339), (467, 175), (468, 468)];
 
 /// width / height of each trimmed texture, so quads are never distorted.
-pub const SPRITE_ASPECT: [f32; 11] = [1.000000, 1.511111, 1.000000, 0.810435, 1.000000, 0.963489, 1.000000, 1.000000, 1.713740, 0.930939, 1.314917];
+pub const SPRITE_ASPECT: [f32; 21] = [1.000000, 1.511111, 1.000000, 0.810435, 1.000000, 0.963489, 1.000000, 1.000000, 1.713740, 0.930939, 1.314917, 0.588235, 1.525735, 1.027624, 0.920988, 0.869180, 0.725275, 0.522901, 1.324484, 2.668571, 1.000000];
 
 /// Convenience accessor.
 pub fn aspect_of(id: SpriteId) -> f32 {

@@ -83,6 +83,16 @@ typedef enum {
     GC_SPR_CHARGER, /* winds up, then dashes */
     GC_SPR_SPITTER, /* keeps its distance, throws blood */
     GC_SPR_MISER,   /* eats your money */
+    GC_SPR_WISP,    /* circles you, never closes */
+    GC_SPR_BLOB,    /* splits into grunts when killed */
+    GC_SPR_BULWARK, /* 45% armour, very slow */
+    GC_SPR_MENDER,  /* mends every enemy around it */
+    GC_SPR_BOOMSLIME, /* explodes when killed */
+    GC_SPR_SHADE,   /* blinks toward you */
+    GC_SPR_LANCER,  /* long-range sniper */
+    GC_SPR_DEVOURER, /* grows stronger while alive */
+    GC_SPR_LEECH,   /* heals itself by hurting you */
+    GC_SPR_SPIKER,  /* leaves caltrops */
     GC_SPR_COUNT
 } gc_sprite_id;
 

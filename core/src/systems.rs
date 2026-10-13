@@ -40,6 +40,18 @@ pub fn simulate(w: &mut World, view: &View, input: &InputState, dt: f32) {
 /// How much further than their own radius an enemy can strike.
 pub const ENEMY_REACH: f32 = 1.10;
 
+/// One hostile projectile (or a stationary hazard, for the trapper).
+#[derive(Copy, Clone)]
+struct Throw {
+    pos: Vec2,
+    vel: Vec2,
+    damage: f32,
+    radius: f32,
+    life: f32,
+    /// Caltrops sit still and wait.
+    stationary: bool,
+}
+
 /// Charger timing, in seconds.  The coil is the tell: it stops moving, then
 /// leaves.  Generous, because being one-shot out of nowhere is not a lesson.
 const CHARGER_CYCLE: f32 = 2.6;
@@ -47,11 +59,11 @@ const CHARGER_WINDUP: f32 = 1.35;
 const CHARGER_COIL: f32 = 0.45;
 const CHARGER_DASH: f32 = 0.30;
 const CHARGER_DASH_SPEED: f32 = 3.4;
-/// Blood clot speed, world units per second.
-const BLOOD_SPEED: f32 = 280.0;
 /// How close a miser must be to pick a pocket.
 const MISER_SIPHON_RANGE: f32 = 115.0;
-const MAX_ENEMY_SHOTS: usize = 120;
+const MAX_ENEMY_SHOTS: usize = 160;
+/// How often a mender pulses its aura.
+const HEAL_INTERVAL: f32 = 2.2;
 
 
 
@@ -598,6 +610,7 @@ fn update_projectiles(w: &mut World, dt: f32) {
 fn update_enemies(w: &mut World, dt: f32) {
     let player_pos = w.player.pos;
     let player_radius = w.player.radius;
+    let wave = w.wave;
     let count = w.enemies.len();
 
     // Separation keeps a swarm from collapsing into a single point.  O(n^2) is
@@ -624,9 +637,12 @@ fn update_enemies(w: &mut World, dt: f32) {
     let mut contact_damage = 0.0;
     let mut retaliate: Vec<usize> = Vec::new();
     // Collected during the loop (the enemy list is borrowed) and applied after.
-    let mut throws: Vec<(Vec2, Vec2, f32)> = Vec::new();
+    let mut throws: Vec<Throw> = Vec::new();
     let mut pocket: Vec<usize> = Vec::new();
     let mut leaked: Vec<(Vec2, i32)> = Vec::new();
+    let mut heal_pulses: Vec<(Vec2, f32, f32)> = Vec::new();
+    let mut blinks: Vec<(Vec2, Vec2)> = Vec::new();
+    let mut drains: Vec<(usize, f32)> = Vec::new();
     for (idx, e) in w.enemies.iter_mut().enumerate() {
         if e.spawn_t > 0.0 {
             e.spawn_t -= dt;
@@ -644,69 +660,151 @@ fn update_enemies(w: &mut World, dt: f32) {
         let wobble = Vec2::new((e.bob_phase + e.pos.x * 0.01).sin(),
                                (e.bob_phase + e.pos.y * 0.01).cos()) * 12.0;
 
-        // Per-kind behaviour: how fast it wants to move, and whether it steers
-        // at all, come out of here.
+        // Behaviour: how fast it wants to move, where it wants to be, and what
+        // it does when it gets there.  Every kind is one of these primitives.
+        use crate::enemy_def::Behaviour as B;
+        let def = e.kind.def();
         let mut speed_mul = 1.0;
         let mut steers = true;
         let mut away = false;
-        if e.kind.is_charger() {
-            // A two-and-a-half second cycle: stalk, coil, strike, recover.
-            e.state_t = (e.state_t + dt) % CHARGER_CYCLE;
-            if e.state_t < CHARGER_WINDUP {
-                // Stalking: close the distance, but stop short so the dash has
-                // room to travel.
-                if dist < 120.0 {
-                    speed_mul = 0.0;
+        let mut strafe = Vec2::ZERO;
+        match def.behaviour {
+            B::Charger => {
+                // A two-and-a-half second cycle: stalk, coil, strike, recover.
+                e.state_t = (e.state_t + dt) % CHARGER_CYCLE;
+                if e.state_t < CHARGER_WINDUP {
+                    // Stalking: close, but stop short so the dash has room.
+                    if dist < 120.0 {
+                        speed_mul = 0.0;
+                    }
+                } else if e.state_t < CHARGER_WINDUP + CHARGER_COIL {
+                    // Coiling: nearly stopped, and this is where it locks on.
+                    speed_mul = 0.12;
+                    e.vel = dir * e.kind.speed() * CHARGER_DASH_SPEED;
+                } else if e.state_t < CHARGER_WINDUP + CHARGER_COIL + CHARGER_DASH {
+                    // Dashing: a straight line at anything in the way.
+                    steers = false;
+                } else {
+                    speed_mul = 0.30;
                 }
-            } else if e.state_t < CHARGER_WINDUP + CHARGER_COIL {
-                // Coiling: nearly stopped, and this is where it locks on.
-                speed_mul = 0.12;
-                e.vel = dir * e.kind.speed() * CHARGER_DASH_SPEED;
-            } else if e.state_t < CHARGER_WINDUP + CHARGER_COIL + CHARGER_DASH {
-                // Dashing: a straight line at anything in the way.
-                steers = false;
-            } else {
-                // Blown out, catching its breath.
-                speed_mul = 0.30;
             }
-        } else if e.kind.is_spitter() {
-            // Hold the standoff ring: back off when crowded, close when far.
-            let standoff = e.kind.standoff();
-            if dist < standoff - 55.0 {
-                away = true;
-            } else if dist > standoff + 55.0 {
-                speed_mul = 1.0;
-            } else {
-                speed_mul = 0.25;
-            }
-            e.shoot_cd -= dt;
-            if e.shoot_cd <= 0.0 && dist < 620.0 && dist > 60.0 {
-                e.shoot_cd = e.kind.throw_interval();
-                let aim = if dir.length_sq() > 0.5 { dir } else { Vec2::new(1.0, 0.0) };
-                throws.push((
-                    e.pos + aim * (e.radius + 6.0),
-                    aim * BLOOD_SPEED,
-                    e.kind.blood_damage() * e.damage_mult(),
-                ));
-            }
-        } else if e.kind.is_miser() {
-            // Runs at you, picks your pocket, then legs it with the loot.
-            if e.stolen >= e.kind.flee_threshold() {
-                away = true;
-                e.leak_cd -= dt;
-                if e.leak_cd <= 0.0 && e.stolen > 0 {
-                    e.leak_cd = 1.1;
-                    leaked.push((e.pos, 1));
-                    e.stolen -= 1;
+            B::Shooter => {
+                // Hold the standoff ring: back off when crowded, close when far.
+                let standoff = def.standoff;
+                if dist < standoff - 55.0 {
+                    away = true;
+                } else if dist > standoff + 55.0 {
+                    speed_mul = 1.0;
+                } else {
+                    speed_mul = 0.25;
                 }
-            } else if dist < MISER_SIPHON_RANGE {
-                speed_mul = 0.15;
-                e.siphon += e.kind.siphon_rate() * dt;
+                e.shoot_cd -= dt;
+                if e.shoot_cd <= 0.0 && dist < standoff + 380.0 && dist > 60.0 {
+                    e.shoot_cd = def.throw_interval;
+                    let aim = if dir.length_sq() > 0.5 { dir } else { Vec2::new(1.0, 0.0) };
+                    throws.push(Throw {
+                        pos: e.pos + aim * (e.radius + 6.0),
+                        vel: aim * def.shot_speed,
+                        damage: def.shot_damage * e.damage_mult(),
+                        radius: 9.0,
+                        life: 2.6,
+                        stationary: false,
+                    });
+                }
+            }
+            B::Trapper => {
+                // Keeps its distance and salts the floor behind it.
+                if dist < 150.0 {
+                    away = true;
+                } else {
+                    speed_mul = 0.7;
+                }
+                e.shoot_cd -= dt;
+                if e.shoot_cd <= 0.0 {
+                    e.shoot_cd = def.throw_interval;
+                    throws.push(Throw {
+                        pos: e.pos + Vec2::new(0.0, e.radius * 0.5),
+                        vel: Vec2::ZERO,
+                        damage: def.shot_damage * e.damage_mult(),
+                        radius: 13.0,
+                        life: 9.0,
+                        stationary: true,
+                    });
+                }
+            }
+            B::Miser => {
+                // Runs at you, picks your pocket, then legs it with the loot.
+                if e.stolen >= def.flee_at {
+                    away = true;
+                    e.leak_cd -= dt;
+                    if e.leak_cd <= 0.0 && e.stolen > 0 {
+                        e.leak_cd = 1.1;
+                        leaked.push((e.pos, 1));
+                        e.stolen -= 1;
+                    }
+                } else if dist < MISER_SIPHON_RANGE {
+                    speed_mul = 0.15;
+                    e.siphon += def.siphon * dt;
+                }
+            }
+            B::Orbiter => {
+                // Never arrives: circle at a radius and let the others close.
+                let ring = def.orbit_radius;
+                if dist > ring + 60.0 {
+                    speed_mul = 1.0;
+                } else if dist < ring - 60.0 {
+                    away = true;
+                    speed_mul = 0.8;
+                } else {
+                    // Tangential drift, handed by the enemy's own phase so the
+                    // ring does not degenerate into a conga line.
+                    let side = if e.bob_phase.cos() >= 0.0 { 1.0 } else { -1.0 };
+                    strafe = Vec2::new(-dir.y, dir.x) * side;
+                    speed_mul = 0.9;
+                }
+            }
+            B::Healer => {
+                // Stays back and keeps the swarm alive.
+                if dist < 240.0 {
+                    away = true;
+                } else {
+                    speed_mul = 0.4;
+                }
+                e.state_t += dt;
+                if e.state_t >= HEAL_INTERVAL {
+                    e.state_t = 0.0;
+                    heal_pulses.push((e.pos, def.sigil_radius, def.sigil_power));
+                }
+            }
+            B::Blinker => {
+                // Walks in, then forgets the intervening space.
+                e.state_t += dt;
+                if e.state_t >= def.blink_interval && dist > 90.0 {
+                    e.state_t = 0.0;
+                    blinks.push((e.pos, e.pos + dir * def.blink_step.min(dist - 40.0)));
+                }
+            }
+            B::Grower => {
+                // The longer it lives, the worse the problem gets.
+                e.state_t += dt;
+                let cap = def.growth * 18.0;
+                let bonus = (def.growth * e.state_t).min(cap);
+                let target = e.kind.hp_at(wave) * (1.0 + bonus);
+                if target > e.hp_max {
+                    let gained = target - e.hp_max;
+                    e.hp_max = target;
+                    e.hp += gained;
+                    e.growth_bonus = bonus;
+                }
+            }
+            B::Drainer | B::Chaser | B::Splitter | B::Bomber => {
+                // No special movement: walk at the player and do the work on
+                // contact or on death.
             }
         }
 
         let steering = if away { -dir } else { dir };
-        let desired = steering * e.speed_now() * speed_mul + wobble;
+        let desired = (steering * speed_mul + strafe) * e.speed_now() + wobble;
         if steers {
             e.vel = crate::math::damp_vec(e.vel, desired, 6.0, dt);
         }
@@ -727,7 +825,13 @@ fn update_enemies(w: &mut World, dt: f32) {
                 && e.state_t >= CHARGER_WINDUP + CHARGER_COIL
                 && e.state_t < CHARGER_WINDUP + CHARGER_COIL + CHARGER_DASH;
             let base = if dashing { e.kind.dash_damage() } else { e.kind.damage() };
-            contact_damage += base * e.damage_mult();
+            let dealt = base * e.damage_mult();
+            contact_damage += dealt;
+            // Leeches drink what they spill.
+            let steal = def.lifesteal;
+            if steal > 0.0 {
+                drains.push((idx, dealt * steal));
+            }
             retaliate.push(idx);
             if e.kind.is_miser() && e.stolen < e.kind.purse() {
                 pocket.push(idx);
@@ -737,18 +841,54 @@ fn update_enemies(w: &mut World, dt: f32) {
     if contact_damage > 0.0 {
         w.hurt_player(contact_damage);
     }
-    // Blood in the air.
-    for (pos, vel, damage) in throws {
+    // Blood in the air, and caltrops on the floor.
+    for t in throws {
         if w.shots.len() < MAX_ENEMY_SHOTS {
             w.shots.push(crate::entities::EnemyShot {
-                pos,
-                vel,
-                damage,
-                radius: 9.0,
-                life: 2.6,
+                pos: t.pos,
+                vel: t.vel,
+                damage: t.damage,
+                radius: t.radius,
+                life: t.life,
                 spin: w.rng.range(0.0, 6.28),
+                stationary: t.stationary,
             });
-            w.add_event(GC_EVT_ENEMY_SHOT, pos.x, pos.y, damage);
+            w.add_event(GC_EVT_ENEMY_SHOT, t.pos.x, t.pos.y, t.damage);
+        }
+    }
+    // Menders: every ally in range gets a slice of health back.
+    for (pos, radius, power) in heal_pulses {
+        let mut healed = 0;
+        for e in w.enemies.iter_mut() {
+            if e.hp < e.hp_max && e.pos.distance_sq(pos) <= radius * radius {
+                e.hp = (e.hp + e.hp_max * power).min(e.hp_max);
+                healed += 1;
+            }
+        }
+        if healed > 0 {
+            w.burst(pos, 10, color::MONEY_GREEN, 130.0, 5.0, 0.5, true);
+        }
+    }
+    // Blinkers: in one side, out the other.
+    for (from, to) in blinks {
+        w.burst(from, 8, 0xAA88FF, 130.0, 5.0, 0.35, true);
+        w.burst(to, 8, 0xAA88FF, 130.0, 5.0, 0.35, true);
+        // The enemy that asked for it is the one nearest `from`.
+        let mut best: Option<(usize, f32)> = None;
+        for (i, e) in w.enemies.iter().enumerate() {
+            let d = e.pos.distance_sq(from);
+            if best.map(|(_, bd)| d < bd).unwrap_or(true) {
+                best = Some((i, d));
+            }
+        }
+        if let Some((i, _)) = best {
+            w.enemies[i].pos = to;
+        }
+    }
+    // Leeches: what they take, they keep.
+    for (idx, healed) in drains {
+        if let Some(e) = w.enemies.get_mut(idx) {
+            e.hp = (e.hp + healed).min(e.hp_max);
         }
     }
     // Whole coins lifted off the purse this frame.
@@ -808,16 +948,20 @@ fn update_enemy_shots(w: &mut World, dt: f32) {
     }
     let player_pos = w.player.pos;
     let player_radius = w.player.radius;
+    let _ = player_radius;
     let mut hits = 0.0f32;
     let mut bursts: Vec<(Vec2, bool)> = Vec::new();
     let mut i = 0;
     while i < w.shots.len() {
         let shot = &mut w.shots[i];
         shot.life -= dt;
-        shot.pos += shot.vel * dt;
+        // Caltrops stay where they were dropped; everything else flies.
+        if !shot.stationary {
+            shot.pos += shot.vel * dt;
+        }
         shot.spin += dt * 6.0;
-        let hit_player = shot.pos.distance_sq(player_pos)
-            <= (player_radius * 0.85 + shot.radius).powi(2);
+        let reach = if shot.stationary { player_radius * 0.7 } else { player_radius * 0.85 };
+        let hit_player = shot.pos.distance_sq(player_pos) <= (reach + shot.radius).powi(2);
         if hit_player {
             hits += shot.damage;
             let pos = shot.pos;
@@ -1124,15 +1268,29 @@ fn choose_kind(w: &mut World) -> EnemyKind {
             return EnemyKind::Brute;
         }
     }
-    // The specialists, gated by wave so each one arrives with its own lesson.
-    if w.wave >= 2 && w.rng.chance(0.20) {
-        return EnemyKind::Charger;
+    // Everything else is a weighted draw over the kinds unlocked by this wave,
+    // so the catalogue is data rather than a chain of special cases.
+    let mut total = 0.0;
+    for k in crate::entities::ALL_KINDS {
+        let def = k.def();
+        // Colossi and brutes are rationed by the wave plan and handled above.
+        if def.colossal || k == EnemyKind::Brute || w.wave < def.min_wave {
+            continue;
+        }
+        total += def.weight;
     }
-    if w.wave >= 4 && w.rng.chance(0.16) {
-        return EnemyKind::Spitter;
-    }
-    if w.wave >= 6 && w.rng.chance(0.12) {
-        return EnemyKind::Miser;
+    if total > 0.0 {
+        let mut roll = w.rng.range(0.0, total);
+        for k in crate::entities::ALL_KINDS {
+            let def = k.def();
+            if def.colossal || k == EnemyKind::Brute || w.wave < def.min_wave {
+                continue;
+            }
+            roll -= def.weight;
+            if roll <= 0.0 {
+                return k;
+            }
+        }
     }
     EnemyKind::Grunt
 }
@@ -1166,11 +1324,12 @@ fn spawn_enemy(w: &mut World, view: &View, kind: EnemyKind) {
         dash_cd: 0.0,
         // Stagger the chargers so a wave does not wind up in unison.
         state_t: if kind.is_charger() { w.rng.range(0.0, 2.4) } else { 0.0 },
-        shoot_cd: if kind.is_spitter() { w.rng.range(0.4, 2.1) } else { 0.0 },
+        shoot_cd: if crate::entities::is_thrower(kind) { w.rng.range(0.4, 2.1) } else { 0.0 },
         siphon: 0.0,
         stolen: 0,
         leak_cd: 0.0,
         boss: false,
+        growth_bonus: 0.0,
     });
 }
 
@@ -1350,5 +1509,185 @@ mod specialist_tests {
         assert!(e.kind.dash_damage() > e.kind.damage(),
                 "the dash should be the dangerous part");
         assert!(e.kind.is_charger() && e.state_t < CHARGER_CYCLE);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// the ten-kind expansion: one test per signature mechanic
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod catalogue_tests {
+    use super::*;
+    use crate::entities::EnemyKind;
+    use crate::render::View;
+    use crate::world::World;
+
+    fn a_view() -> View {
+        View::new(1280, 720, [0.0; 4])
+    }
+
+    /// A world with one enemy of `kind` parked next to the player.
+    fn arena_with(kind: EnemyKind, wave: i32, dist: f32) -> (World, View) {
+        let view = a_view();
+        let mut w = World::new(11, 0);
+        w.start_run();
+        w.wave = wave;
+        w.enemies.clear();
+        w.shots.clear();
+        spawn_enemy(&mut w, &view, kind);
+        let target = w.player.pos + Vec2::new(dist, 0.0);
+        w.enemies[0].pos = target;
+        w.enemies[0].spawn_t = 0.0;
+        (w, view)
+    }
+
+    #[test]
+    fn high_waves_can_roll_the_new_kinds() {
+        let mut w = World::new(5, 0);
+        w.start_run();
+        w.wave = 20;
+        let mut seen = [false; 16];
+        for _ in 0..4000 {
+            let k = choose_kind_for_test(&mut w);
+            seen[k as usize] = true;
+        }
+        // Brutes and colossi are deliberately *rationed*: `wave_plan` decides how
+        // many appear per wave and `choose_kind` only hands them out while those
+        // counters last, so they are not part of the weighted draw.
+        for (i, kind) in crate::entities::ALL_KINDS.iter().enumerate() {
+            if kind.def().colossal || *kind == EnemyKind::Brute {
+                continue;
+            }
+            assert!(seen[i], "{} never spawned by wave 20", kind.name());
+        }
+    }
+
+    #[test]
+    fn a_blob_splits_when_killed() {
+        let (mut w, _v) = arena_with(EnemyKind::Blob, 10, 200.0);
+        let before = w.enemies.len();
+        w.kill_enemy(0);
+        let grunts = w.enemies.iter().filter(|e| e.kind == EnemyKind::Grunt).count();
+        assert_eq!(grunts, 3, "the blob did not split ({} -> {})", before, w.enemies.len());
+    }
+
+    #[test]
+    fn a_boomslime_hurts_you_when_it_dies_next_to_you() {
+        let (mut w, _v) = arena_with(EnemyKind::Boomslime, 10, 40.0);
+        w.player.invuln = 0.0;
+        let hp = w.player.hp;
+        w.kill_enemy(0);
+        assert!(w.player.hp < hp, "the blast did nothing");
+
+        // And it is harmless from across the arena.
+        let (mut far, _v2) = arena_with(EnemyKind::Boomslime, 10, 900.0);
+        far.player.invuln = 0.0;
+        let far_hp = far.player.hp;
+        far.kill_enemy(0);
+        assert_eq!(far.player.hp, far_hp, "the blast reached too far");
+    }
+
+    #[test]
+    fn a_bulwark_shrugs_off_most_of_a_hit() {
+        let (mut w, _v) = arena_with(EnemyKind::Bulwark, 10, 300.0);
+        let hp = w.enemies[0].hp;
+        w.damage_enemy(0, 100.0, false, Vec2::ZERO);
+        let taken = hp - w.enemies[0].hp;
+        let armor = EnemyKind::Bulwark.def().armor;
+        assert!(taken < 100.0 * (1.0 - armor) + 1.0 && taken > 100.0 * (1.0 - armor) - 1.0,
+                "armour did not apply as configured (took {})", taken);
+        // A grunt, for contrast, takes all of it.
+        let (mut g, _v2) = arena_with(EnemyKind::Grunt, 10, 300.0);
+        let ghp = g.enemies[0].hp;
+        g.damage_enemy(0, 100.0, false, Vec2::ZERO);
+        assert!((ghp - g.enemies[0].hp - 100.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn a_leech_heals_itself_by_hurting_you() {
+        let (mut w, _v) = arena_with(EnemyKind::Leech, 10, 40.0);
+        // Wound it first, so there is something to heal.
+        w.enemies[0].hp = w.enemies[0].hp_max * 0.4;
+        w.player.invuln = 0.0;
+        let hp = w.enemies[0].hp;
+        for _ in 0..120 {
+            w.player.invuln = 0.0; // let it keep biting
+            w.enemies[0].pos = w.player.pos + Vec2::new(40.0, 0.0);
+            update_enemies(&mut w, 1.0 / 60.0);
+        }
+        assert!(w.enemies[0].hp > hp, "the leech did not feed ({} -> {})", hp, w.enemies[0].hp);
+    }
+
+    #[test]
+    fn a_mender_heals_the_swarm() {
+        let (mut w, _v) = arena_with(EnemyKind::Mender, 10, 260.0);
+        spawn_enemy(&mut w, &_v, EnemyKind::Grunt);
+        w.enemies[1].pos = w.enemies[0].pos + Vec2::new(20.0, 0.0);
+        w.enemies[1].hp = w.enemies[1].hp_max * 0.3;
+        let hurt = w.enemies[1].hp;
+        for _ in 0..180 {
+            update_enemies(&mut w, 1.0 / 60.0);
+        }
+        assert!(w.enemies[1].hp > hurt, "the mender never healed its ally");
+    }
+
+    #[test]
+    fn a_spiker_leaves_caltrops_behind() {
+        let (mut w, _v) = arena_with(EnemyKind::Spiker, 10, 300.0);
+        w.enemies[0].shoot_cd = 0.01;
+        for _ in 0..20 {
+            update_enemies(&mut w, 1.0 / 60.0);
+        }
+        assert!(!w.shots.is_empty(), "the spiker left nothing behind");
+        let caltrop = &w.shots[0];
+        assert!(caltrop.stationary, "a caltrop should not fly");
+        assert!(caltrop.vel.length_sq() < 0.01);
+        // It must hurt when walked over, and then be used up.
+        w.player.invuln = 0.0;
+        let hp = w.player.hp;
+        w.shots[0].pos = w.player.pos;
+        update_enemy_shots(&mut w, 1.0 / 60.0);
+        assert!(w.player.hp < hp, "caltrops are decorative");
+        assert!(w.shots.is_empty());
+    }
+
+    #[test]
+    fn a_wisp_keeps_its_distance() {
+        let (mut w, _v) = arena_with(EnemyKind::Wisp, 10, 400.0);
+        let ring = EnemyKind::Wisp.def().orbit_radius;
+        for _ in 0..240 {
+            update_enemies(&mut w, 1.0 / 60.0);
+        }
+        let dist = w.enemies[0].pos.distance(w.player.pos);
+        assert!(dist > ring * 0.4, "the wisp closed to contact ({})", dist);
+    }
+
+    #[test]
+    fn a_shade_blinks_closer() {
+        let (mut w, _v) = arena_with(EnemyKind::Shade, 10, 700.0);
+        let step = EnemyKind::Shade.def().blink_step;
+        let before = w.enemies[0].pos.distance(w.player.pos);
+        // One blink interval is 2.6s; give it a little more.
+        for _ in 0..200 {
+            update_enemies(&mut w, 1.0 / 60.0);
+        }
+        let after = w.enemies[0].pos.distance(w.player.pos);
+        assert!(after < before - step * 0.3,
+                "the shade did not blink ({} -> {})", before, after);
+    }
+
+    #[test]
+    fn a_devourer_grows_while_it_lives() {
+        let (mut w, _v) = arena_with(EnemyKind::Devourer, 10, 600.0);
+        let hp_max = w.enemies[0].hp_max;
+        for _ in 0..300 {
+            // Keep it at arm's length so it lives long enough to grow.
+            w.enemies[0].pos = w.player.pos + Vec2::new(600.0, 0.0);
+            update_enemies(&mut w, 1.0 / 60.0);
+        }
+        assert!(w.enemies[0].hp_max > hp_max * 1.05,
+                "the devourer did not grow ({} -> {})", hp_max, w.enemies[0].hp_max);
+        assert!(w.enemies[0].growth_bonus > 0.0);
     }
 }
