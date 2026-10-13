@@ -1463,20 +1463,26 @@ pub const GOAL_WAVE_STEP: i32 = 10;
 /// is to invest in the economy (Greed, Interest, Bounty, Scavenger) rather than
 /// pure damage.  Tuning knob, right here.
 const GOAL_BASE: f64 = 750.0;
-const GOAL_GROWTH: f64 = 3.0;
+/// Written as the ratio it is: $750 at wave 10, $7 000 at wave 20, and the same
+/// step every checkpoint after that.
+const GOAL_GROWTH: f64 = 7000.0 / 750.0;
 
 /// The money quota for checkpoint `tier`:
 ///
 /// | wave | tax |
 /// |------|-----|
 /// | 10 | $750 |
-/// | 20 | $2 250 |
-/// | 30 | $6 750 |
-/// | 40 | $20 250 |
-/// | 50 | $60 750 |
-/// | 60 | $182 250 |
-/// | 70 | $546 750 |
-/// | 80 | $1.64M |
+/// | 20 | $7 000 |
+/// | 30 | $65 333 |
+/// | 40 | $609 778 |
+/// | 50 | $5 691 259 |
+/// | 60 | $53 118 415 |
+/// | 70 | clamped to $2B |
+///
+/// A ~x9.3 step every ten waves.  Income has to grow about 25% *per wave* to
+/// keep pace, which only a compounding economy (Interest on a hoarded purse,
+/// plus the wave-scaled coin value and bounty) can do -- see the note in the
+/// README.  Runs are expected to end somewhere in the 30s or 40s.
 ///
 /// Calibrated against what a maxed economy can actually *earn*.  An earlier
 /// x4.5 curve looked fine on paper and was impossible in practice: income is
@@ -1504,23 +1510,29 @@ mod tests {
         let mut prev = 0;
         for tier in 0..12 {
             let g = goal_for_tier(tier);
-            assert!(g > prev, "tier {} did not raise the tax ({} -> {})", tier, prev, g);
+            assert!(g >= prev, "tier {} lowered the tax ({} -> {})", tier, prev, g);
+            // Strictly increasing until it reaches the i32 ceiling, after which
+            // it parks there rather than wrapping around.
+            if prev > 0 && prev < 2_000_000_000 {
+                assert!(g > prev, "tier {} did not raise the tax ({} -> {})", tier, prev, g);
+            }
             prev = g;
         }
         // Really exponential: each step is a bigger *ratio* than the last, i.e.
         // the curve bends upwards rather than flattening into a line.
-        let ratios: Vec<f64> = (0..6)
+        // The two anchors the curve is defined by.
+        assert_eq!(goal_for_tier(0), 750, "wave 10 must ask for 750");
+        assert_eq!(goal_for_tier(1), 7_000, "wave 20 must ask for 7000");
+        // Every step is the same ratio, and it is a big one.
+        let ratios: Vec<f64> = (0..5)
             .map(|t| goal_for_tier(t + 1) as f64 / goal_for_tier(t) as f64)
             .collect();
         for r in &ratios {
-            assert!(*r > 2.8 && *r < 3.2, "ratio {} is not ~3.0", r);
+            assert!(*r > 9.0 && *r < 9.7, "ratio {} is not ~9.33", r);
         }
-        // The first checkpoint is the one that has to be felt immediately.
-        assert_eq!(goal_for_tier(0), 750);
-        assert!(goal_for_tier(1) >= 2_000);
-        assert!(goal_for_tier(2) >= 6_000);
-        assert!(goal_for_tier(5) >= 180_000);
-        assert!(goal_for_tier(7) >= 1_600_000);
+        assert!(goal_for_tier(2) > 60_000);
+        assert!(goal_for_tier(3) > 600_000);
+        assert!(goal_for_tier(4) > 5_000_000);
     }
 
     #[test]

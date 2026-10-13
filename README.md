@@ -179,14 +179,16 @@ prototype-bevy/              the original Bevy prototype, kept for reference
   rotate through the kinds — brute, charger, spitter, miser, grunt — with a
   "BOSS WAVE" banner, a named health bar at the top of the screen, a gold halo
   and a crown marker so it is findable in a crowd. Kill it for a pile of coins.
-* **Every 10 waves: a tax.** You must have *earned* `$750 x 3.0^n` in total by
-  wave 10, 20, 30… — 750, 2.3K, 6.8K, 20.3K, 60.8K, 182K, 547K, 1.6M. It is a real
-  exponential (each checkpoint is ×3 the last, so the jumps grow rather than
-  flatten) but it is calibrated against what an economy build can *earn*: coin
-  value scales with the wave (`x(1 + 0.10 x wave)`), the wave bounty grows with
-  it, and Interest compounds on the purse. An earlier ×4.5 curve was impossible
-  — income is bounded late (the wave caps at 150 enemies) so even a fully maxed
-  money build failed at wave 50. Meeting it is a checkpoint: a tier, a full heal and
+* **Every 10 waves: a tax.** You must have *earned* in total by wave 10, 20,
+  30… — **$750, $7 000, $65 333, $609 778, $5.69M, $53.1M** (clamped to $2B).
+  That is a ×9.33 step per checkpoint, written into the source as the ratio
+  `7000.0 / 750.0` so the two anchors are obvious.
+  A step that steep demands compounding income — roughly +25% per *wave*. Coin
+  value (`x(1 + 0.10 x wave)`) and the wave bounty grow linearly, so they cannot
+  do it alone: the lever that can is **Interest**, which pays a cut of your
+  *purse* every wave. The intended late game is therefore to stop buying and
+  bank, letting the purse compound faster than the tax. Expect runs to end
+  somewhere in the 30s or 40s unless you commit to that. Meeting it is a checkpoint: a tier, a full heal and
   permanent power; missing it ends the run. The HUD turns the line red in the
   last three waves and tells you exactly how much is still missing. Because the
   tax counts *earnings*, spending money never sets you back. Both constants live
