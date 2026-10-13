@@ -22,6 +22,9 @@
 # Android
 /android
 *.apk
+# ...except the one we ship deliberately, so the game can be sideloaded
+# straight from a clone (see the README).
+!dist/android/*.apk
 *.keystore
 /platforms/android/local.properties
 /platforms/android/host-selfcheck/build/
