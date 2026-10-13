@@ -263,6 +263,21 @@ plus level-up cards plus twelve Market levels), banks the purse from wave 40, an
 asserts the earnings by wave 50 cover the tier-4 checkpoint that a linear economy
 could not touch.
 
+## Installing on Android
+
+A built APK is committed at `dist/android/` so it can be sideloaded without a
+toolchain — download it on the phone, or:
+
+```
+adb install -r dist/android/slime-arena-debug.apk
+```
+
+It is a **universal** debug build (arm64-v8a, armeabi-v7a and x86_64), so it runs
+on a modern phone and on an emulator alike.  It is signed with the debug key, so
+it is for testing rather than the Play Store.  Rebuild it with
+`tools/android/build_apk.sh` (or `... arm64-v8a` for a phone-only build, which is
+about twice as fast).
+
 ## Options
 
 `OPTIONS` sits under the primary button on the title and pause screens (and the
