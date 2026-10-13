@@ -1257,8 +1257,6 @@ impl World {
             crate::systems::update_effects(self, dt);
             crate::systems::update_camera(self, view, dt, snap_camera);
         }
-        self.prev_pointer_down = input.pointer_down;
-        self.prev_buttons = input.buttons;
     }
 
     /// Keeps the ambient particle field alive around the camera, themed by the
@@ -1291,12 +1289,12 @@ impl World {
     ///
     /// Returns true when the options screen consumed the input, so the state
     /// underneath never sees it.
-    fn handle_options(&mut self, layout: &crate::ui::UiLayout, input: &InputState) -> bool {
+    fn handle_options(&mut self, layout: &crate::ui::UiLayout, input: &InputState,
+                      clicked: bool) -> bool {
         if !self.options_open {
             self.options_drag = None;
             return false;
         }
-        let clicked = input.pointer_down && !self.prev_pointer_down;
         let rows = crate::settings::rows();
 
         if clicked || input.pointer_down {
@@ -1360,11 +1358,11 @@ impl World {
     }
 
     /// Market overlay input.  Returns true when it consumed the input.
-    fn handle_market(&mut self, layout: &crate::ui::UiLayout, input: &InputState) -> bool {
+    fn handle_market(&mut self, layout: &crate::ui::UiLayout, input: &InputState,
+                     clicked: bool) -> bool {
         if !self.market_open {
             return false;
         }
-        let clicked = input.pointer_down && !self.prev_pointer_down;
         for i in 0..crate::market::ITEMS {
             let Some(rect) = layout.market_row_rect(i) else { continue };
             if rect.contains(input.aim) {
@@ -1397,6 +1395,13 @@ impl World {
             || ((input.buttons & GC_BTN_RESTART) != 0
                 && (self.prev_buttons & GC_BTN_RESTART) == 0);
 
+        // Remember the edges *now*, before any early return.  The overlays below
+        // consume input and return early, so doing this at the end of the
+        // function meant a held pointer looked like a fresh press every frame --
+        // which bought a Market level per frame instead of per tap.
+        self.prev_pointer_down = input.pointer_down;
+        self.prev_buttons = input.buttons;
+
         // Leaving a state that can host an overlay closes it, so a run that
         // resumes never has a menu stuck over it.
         if self.options_open && !self.options_available() {
@@ -1414,10 +1419,12 @@ impl World {
         }
 
         let layout = crate::ui::UiLayout::compute(view, self);
-        if self.handle_options(&layout, input) {
+        // `clicked` was computed before the edge state was stored, so the
+        // overlays get the real press edge rather than a recomputed one.
+        if self.handle_options(&layout, input, clicked) {
             return;
         }
-        if self.state == State::Shop && self.handle_market(&layout, input) {
+        if self.state == State::Shop && self.handle_market(&layout, input, clicked) {
             return;
         }
 
@@ -1751,6 +1758,66 @@ mod tests {
         assert!(!w.boss_wave);
         assert!(w.enemies.is_empty(), "a normal wave spawns nothing up front");
         assert_eq!(w.boss_id, 0);
+    }
+
+    #[test]
+    fn one_tap_buys_exactly_one_market_level() {
+        // A held pointer must not re-buy every frame, and a tap must not buy
+        // twice.  This goes through the same path the shell drives.
+        use crate::render::View;
+        let view = View::new(1280, 720, [0.0; 4]);
+        let mut w = World::new(2, 0);
+        w.start_run();
+        w.state = State::Shop;
+        w.player.money = 10_000_000;
+        let rect = {
+            let layout = crate::ui::UiLayout::compute(&view, &w);
+            layout.market_row_rect(0).expect("market row must be laid out")
+        };
+        w.market_open = true;
+        let at = rect.center();
+
+        let held = InputState { aim: at, pointer_active: true, pointer_down: true, ..Default::default() };
+        w.handle_input(&view, &held);
+        assert_eq!(w.market.level(0), 1, "the first press did not buy");
+
+        // Still held: no repeat purchases.
+        w.handle_input(&view, &held);
+        w.handle_input(&view, &held);
+        assert_eq!(w.market.level(0), 1, "a held pointer bought again");
+
+        // Released, then pressed again: exactly one more.
+        let up = InputState { aim: at, pointer_active: true, pointer_down: false, ..Default::default() };
+        w.handle_input(&view, &up);
+        assert_eq!(w.market.level(0), 1);
+        w.handle_input(&view, &held);
+        assert_eq!(w.market.level(0), 2, "the second tap did not buy exactly once");
+        assert!(w.player.money < 10_000_000);
+    }
+
+    #[test]
+    fn holding_a_finger_on_a_toggle_flips_it_once() {
+        // The same early-return trap that made the Market buy per frame would
+        // make this switch chatter under a held finger.
+        use crate::render::View;
+        let view = View::new(1280, 720, [0.0; 4]);
+        let mut w = World::new(2, 0);
+        w.state = State::Title; // options are available here
+        w.options_open = true;
+        let rect = {
+            let layout = crate::ui::UiLayout::compute(&view, &w);
+            layout.option_row(2).expect("options row must be laid out")
+        };
+        let before = w.settings.haptics;
+        let at = rect.center();
+        let held = InputState { aim: at, pointer_active: true, pointer_down: true, ..Default::default() };
+        w.handle_input(&view, &held);
+        assert_ne!(w.settings.haptics, before, "the tap did not register");
+        let after = w.settings.haptics;
+        for _ in 0..30 {
+            w.handle_input(&view, &held);
+        }
+        assert_eq!(w.settings.haptics, after, "a held finger flipped it repeatedly");
     }
 
     #[test]

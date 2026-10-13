@@ -231,6 +231,28 @@ mod tests {
     }
 
     #[test]
+    fn the_level_label_and_the_price_never_disagree() {
+        // The panel shows "LV n" next to the next level's price; if the two ever
+        // came from different numbers the GUI would quietly lie about the price.
+        let mut m = Market::default();
+        for level in 1..=12 {
+            m.levels[0] = level;
+            let text = m.level_text(0);
+            let shown = core::str::from_utf8(
+                &text[..text.iter().position(|b| *b == 0).unwrap_or(text.len())],
+            ).unwrap().to_string();
+            assert_eq!(shown, format!("LV {}", level));
+            // price(0) must be the price of the *next* level, i.e. level+1
+            let expected = (MARKET[0].base * MARKET[0].growth.powi(level)).round() as i32;
+            assert_eq!(m.price(0), expected,
+                       "price for level {} does not match the label", level);
+        }
+        m.levels[0] = 0;
+        let none = m.level_text(0);
+        assert_eq!(&none[..4], b"NONE");
+    }
+
+    #[test]
     fn the_rebate_has_a_floor() {
         let mut m = Market::default();
         m.levels[3] = 0;

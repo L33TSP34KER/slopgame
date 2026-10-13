@@ -165,24 +165,30 @@ impl UiLayout {
         // renderer draws are the ones input hit-tests.
         if w.state == State::Shop {
             let row_h = (theme.body * 3.0).max(30.0);
+            let close_h = (30.0 * theme.scale).max(24.0);
             let panel_w = (content.w * 0.62).clamp(300.0, 640.0);
-            let panel_h = row_h * crate::market::ITEMS as f32 + gap * 5.6;
+            // The header block (title + interest line) is measured first, so the
+            // rows start below it rather than through it, and the panel is tall
+            // enough that CLOSE sits under the last row instead of on top of it.
+            let header = theme.h2 * 1.1 + theme.tiny * 1.6 + gap * 1.6;
+            let panel_h = header + row_h * crate::market::ITEMS as f32 + close_h + gap * 2.6;
             let panel_x = content.x + (content.w - panel_w) * 0.5;
             let panel_y = content.y + (content.h - panel_h) * 0.5;
             layout.market_panel = Rect::new(panel_x, panel_y, panel_w, panel_h);
+            let rows_top = panel_y + header;
             for i in 0..crate::market::ITEMS {
                 layout.market_rows[i] = Rect::new(
                     panel_x + gap * 0.8,
-                    panel_y + gap * 4.2 + i as f32 * row_h,
+                    rows_top + i as f32 * row_h,
                     panel_w - gap * 1.6,
                     row_h - gap * 0.5,
                 );
             }
             layout.market_close = Rect::new(
                 panel_x + (panel_w - 180.0) * 0.5,
-                panel_y + panel_h - gap * 3.0,
+                panel_y + panel_h - close_h - gap * 0.8,
                 180.0,
-                (30.0 * theme.scale).max(24.0),
+                close_h,
             );
         }
 
@@ -334,13 +340,15 @@ fn draw_market(w: &World, r: &mut Renderer, theme: &Theme, layout: &UiLayout) {
     r.rect(panel, fade(color::PANEL, 0.97), 0);
     r.rect(Rect::new(panel.x, panel.y, panel.w, panel.h * 0.08), fade(color::WHITE, 0.05), 0);
     r.outline(panel, 2.0, fade(color::GOLD, 0.45));
-    r.text_center("THE MARKET", panel.center().x, panel.y + gap * 0.6, theme.h2,
+    let title_y = panel.y + gap * 0.6;
+    r.text_center("THE MARKET", panel.center().x, title_y, theme.h2,
                   color::GOLD, GC_FLAG_SHADOW);
 
     // The number that matters: what the purse pays every wave.
     let interest = crate::buf_format!(48, "INTEREST {:.0}%  -  PAID ON YOUR PURSE EVERY WAVE",
                                       w.player.stats.interest * 100.0);
-    r.text_center(interest.as_str(), panel.center().x, panel.y + gap * 2.5, theme.tiny,
+    // Directly under the title, never through it.
+    r.text_center(interest.as_str(), panel.center().x, title_y + theme.h2 * 1.1, theme.tiny,
                   fade(color::WHITE, 0.75), GC_FLAG_SHADOW);
 
     for (i, item) in crate::market::MARKET.iter().enumerate() {
