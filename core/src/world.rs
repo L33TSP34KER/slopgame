@@ -384,6 +384,8 @@ impl World {
             leak_cd: 0.0,
             boss: true,
             growth_bonus: 0.0,
+            slot: crate::entities::slot_for_id(id),
+            stall: 0.0,
         });
         self.boss_id = id;
         self.boss_hp = hp;
@@ -898,6 +900,8 @@ impl World {
                             leak_cd: 0.0,
                             boss: false,
                             growth_bonus: 0.0,
+                            slot: crate::entities::slot_for_id(self.next_id),
+                            stall: 0.0,
                         });
                     }
                     let burst_at = pos;
@@ -1208,6 +1212,8 @@ impl World {
                             leak_cd: 0.0,
                             boss: false,
                             growth_bonus: 0.0,
+                            slot: crate::entities::slot_for_id(self.next_id),
+                            stall: 0.0,
                         });
                     }
                 }

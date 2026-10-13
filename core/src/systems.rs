@@ -61,6 +61,40 @@ const CHARGER_DASH: f32 = 0.30;
 const CHARGER_DASH_SPEED: f32 = 3.4;
 /// How close a miser must be to pick a pocket.
 const MISER_SIPHON_RANGE: f32 = 115.0;
+
+/// How far ahead an enemy aims, in seconds of the player's travel.
+const INTERCEPT_LEAD: f32 = 0.55;
+/// Distance *inside* which the surround bias fades: full strength out on the
+/// approach, released only in the last stretch so they still commit to the kill.
+const SURROUND_RANGE: f32 = 140.0;
+const SURROUND_WEIGHT: f32 = 0.80;
+/// How far, in radians, an enemy's approach bearing is fanned from its own.
+const SURROUND_SPREAD: f32 = 1.55;
+/// How hard neighbours push each other apart, as steering.
+const SEPARATION_STEER: f32 = 1.6;
+/// How hard an enemy slides around whatever is in front of it.
+const SLIDE_WEIGHT: f32 = 1.1;
+/// The sidestep given to an enemy that has been stuck for a while.
+const UNSTICK_PUSH: f32 = 1.4;
+/// How strongly enemies avoid hugging the arena bounds.
+const WALL_BIAS: f32 = 0.7;
+
+/// A push away from whatever wall is close, strongest in the corner.
+fn wall_bias(pos: Vec2) -> Vec2 {
+    const MARGIN: f32 = 90.0;
+    let mut out = Vec2::ZERO;
+    if pos.x < MARGIN {
+        out.x += (MARGIN - pos.x) / MARGIN;
+    } else if pos.x > ARENA_W - MARGIN {
+        out.x -= (MARGIN - (ARENA_W - pos.x)) / MARGIN;
+    }
+    if pos.y < MARGIN {
+        out.y += (MARGIN - pos.y) / MARGIN;
+    } else if pos.y > ARENA_H - MARGIN {
+        out.y -= (MARGIN - (ARENA_H - pos.y)) / MARGIN;
+    }
+    out
+}
 const MAX_ENEMY_SHOTS: usize = 160;
 /// How often a mender pulses its aura.
 const HEAL_INTERVAL: f32 = 2.2;
@@ -610,15 +644,23 @@ fn update_projectiles(w: &mut World, dt: f32) {
 fn update_enemies(w: &mut World, dt: f32) {
     let player_pos = w.player.pos;
     let player_radius = w.player.radius;
+    // The player's own velocity drives the interception lead below.
+    let player_vel = w.player.vel;
     let wave = w.wave;
     let count = w.enemies.len();
 
-    // Separation keeps a swarm from collapsing into a single point.  O(n^2) is
-    // fine at our entity cap and keeps the code allocation free.
+    // --- neighbour steering -------------------------------------------------
+    // Two things come out of this pass, per enemy:
+    //   * a separation vector, so a swarm does not collapse into one point;
+    //   * the direction of the neighbour most in the way, so the ones behind can
+    //     slide around instead of queueing.
+    // O(n^2) is fine at our entity cap and keeps the code allocation free.
+    let mut avoid = vec![Vec2::ZERO; count];
+    let mut blocker = vec![Vec2::ZERO; count];
+    let mut blocker_d = vec![f32::MAX; count];
     for i in 0..count {
         let pi = w.enemies[i].pos;
         let pri = w.enemies[i].radius;
-        let mut push = Vec2::ZERO;
         for j in 0..count {
             if i == j {
                 continue;
@@ -626,12 +668,30 @@ fn update_enemies(w: &mut World, dt: f32) {
             let d = pi - w.enemies[j].pos;
             let min = pri + w.enemies[j].radius;
             let d2 = d.length_sq();
-            if d2 > 1e-4 && d2 < min * min {
-                let dist = d2.sqrt();
-                push += d * ((min - dist) / min) * ENEMY_SEPARATION;
+            if d2 <= 1e-4 {
+                continue;
+            }
+            // Only neighbours close enough to matter, plus a margin: a swarm is
+            // a local problem, not a global one.
+            if d2 > min * min * 6.25 {
+                continue;
+            }
+            let dist = d2.sqrt();
+            let away = d / dist;
+            let overlap = ((min - dist) / min).clamp(0.0, 1.0);
+            avoid[i] += away * overlap;
+            // Nearest neighbour that is genuinely in the way, tracked by which
+            // one we are closest to being on top of.
+            if dist < blocker_d[i] {
+                blocker_d[i] = dist;
+                blocker[i] = away;
             }
         }
-        w.enemies[i].knock += push * dt * 8.0;
+        avoid[i] = avoid[i].clamp_length(1.5);
+        if blocker_d[i] > pri * 3.0 {
+            // Nothing crowding us: no need to slide.
+            blocker[i] = Vec2::ZERO;
+        }
     }
 
     let mut contact_damage = 0.0;
@@ -803,9 +863,70 @@ fn update_enemies(w: &mut World, dt: f32) {
             }
         }
 
-        let steering = if away { -dir } else { dir };
-        let desired = (steering * speed_mul + strafe) * e.speed_now() + wobble;
+        // --- steering -------------------------------------------------------
+        let speed = e.speed_now().max(1.0);
+        // Interception: aim where the player *will* be.  Chasing the current
+        // position forever is what makes a mob trivially kiteable.
+        let lead = (dist / speed).clamp(0.0, INTERCEPT_LEAD);
+        let aim_at = player_pos + player_vel * lead;
+        let want = aim_at - e.pos;
+        let seek = if want.length_sq() > 1.0 { want.normalize_or_zero() } else { dir };
+
+        // Surround: every enemy has its own lane around the player, and far out
+        // it heads for a point on that lane rather than for the player.  The
+        // lane bias fades as it closes, so the crowd fans out on the way in and
+        // still commits at the end.  This is the difference between a wave that
+        // encircles you and a wave that queues up behind its own front rank.
+        let side = if e.slot < core::f32::consts::PI { 1.0 } else { -1.0 };
+        let tangent = Vec2::new(-seek.y, seek.x) * side;
+        // The lane is a bias on the *bearing* the enemy approaches from, not an
+        // absolute point: an absolute goal can sit on the far side of the player
+        // and send the crowd the long way round, which looks broken.  Biasing the
+        // bearing keeps every enemy on its own side while still fanning the wave.
+        let bearing = if dist > 1.0 {
+            (e.pos - player_pos).angle()
+        } else {
+            e.slot
+        };
+        let bias = (e.slot / core::f32::consts::TAU) - 0.5; // -0.5..0.5
+        let goal_bearing = bearing + bias * 2.0 * SURROUND_SPREAD;
+        let ring = (dist * 0.55).clamp(70.0, 340.0);
+        let lane_goal = player_pos + Vec2::from_angle(goal_bearing) * ring;
+        let lane_dir = {
+            let d = lane_goal - e.pos;
+            if d.length_sq() > 1.0 { d.normalize_or_zero() } else { seek }
+        };
+        let mix = (dist / SURROUND_RANGE).clamp(0.0, 1.0) * SURROUND_WEIGHT;
+        let approach = (seek * (1.0 - mix) + lane_dir * mix).normalize_or_zero();
+
+        let mut steer = if away { -seek } else { approach } * speed_mul
+            + strafe
+            + tangent * mix * 0.25;
+        // Slide around whoever is directly in the way rather than shoving them.
+        steer += avoid[idx] * SEPARATION_STEER;
+        if !away && blocker[idx].length_sq() > 1e-6 {
+            let perp = Vec2::new(-blocker[idx].y, blocker[idx].x) * side;
+            steer += perp * SLIDE_WEIGHT;
+        }
+        // Unstick: an enemy jammed at the back of a crowd sidesteps rather than
+        // grinding against the one in front of it forever.
+        if !away && dist > 140.0 && e.vel.length() < speed * 0.2 {
+            e.stall += dt;
+            if e.stall > 0.45 {
+                steer += tangent * UNSTICK_PUSH;
+                e.stall = 0.0;
+            }
+        } else {
+            e.stall = 0.0;
+        }
+        // Stay off the walls: pressing into a boundary wastes the approach.
+        steer += wall_bias(e.pos) * WALL_BIAS;
+
+        let desired = steer.clamp_length(2.0).normalize_or_zero() * speed + wobble;
         if steers {
+            // Separation is positional as well as steered, so a genuine pile-up
+            // still resolves when everyone wants the same square metre.
+            e.knock += avoid[idx] * ENEMY_SEPARATION * dt * 8.0;
             e.vel = crate::math::damp_vec(e.vel, desired, 6.0, dt);
         }
         e.pos += (e.vel + e.knock) * dt;
@@ -1330,6 +1451,8 @@ fn spawn_enemy(w: &mut World, view: &View, kind: EnemyKind) {
         leak_cd: 0.0,
         boss: false,
         growth_bonus: 0.0,
+        slot: crate::entities::slot_for_id(w.next_id),
+        stall: 0.0,
     });
 }
 
@@ -1689,5 +1812,131 @@ mod catalogue_tests {
         assert!(w.enemies[0].hp_max > hp_max * 1.05,
                 "the devourer did not grow ({} -> {})", hp_max, w.enemies[0].hp_max);
         assert!(w.enemies[0].growth_bonus > 0.0);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// crowd movement: the steering that replaced "walk straight at the player"
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod movement_tests {
+    use super::*;
+    use crate::entities::EnemyKind;
+    use crate::render::View;
+    use crate::world::World;
+
+    fn view() -> View {
+        View::new(1280, 720, [0.0; 4])
+    }
+
+    /// Angular spread (radians) of a crowd as seen from the player.
+    fn spread(w: &World) -> f32 {
+        let mut angles: Vec<f32> = w.enemies.iter()
+            .map(|e| (e.pos - w.player.pos).angle())
+            .collect();
+        angles.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        // Largest gap between neighbours on the circle is the widest separation
+        // between two of them, which is the honest measure of "encircled".
+        let mut widest = 0.0f32;
+        for i in 0..angles.len() {
+            let next = if i + 1 < angles.len() { angles[i + 1] } else { angles[0] + std::f32::consts::TAU };
+            widest = widest.max(next - angles[i]);
+        }
+        std::f32::consts::TAU - widest
+    }
+
+    /// Runs the same approach twice: once with the crowd's approach lanes varied
+    /// (a fan) and once with them all identical (a queue), and reports the
+    /// angular spread each ends up occupying around the player.
+    fn approach_spread(uniform_slots: bool) -> f32 {
+        let view = view();
+        let mut w = World::new(4, 0);
+        w.start_run();
+        w.wave = 10;
+        w.enemies.clear();
+        for k in 0..12 {
+            spawn_enemy(&mut w, &view, EnemyKind::Grunt);
+            let a = -0.35 + 0.7 * (k as f32 / 11.0);
+            w.enemies[k].pos = w.player.pos + Vec2::from_angle(a) * 520.0;
+            w.enemies[k].spawn_t = 0.0;
+            if uniform_slots {
+                // bias = (slot/TAU - 0.5), so slot = PI is exactly no bias:
+                // everyone beelines straight at the player.  That is the control
+                // this test measures the lanes against.
+                w.enemies[k].slot = core::f32::consts::PI;
+            }
+        }
+        // Five seconds: the approach from the spawn ring, which is where the
+        // fanning either happens or does not.
+        for _ in 0..300 {
+            update_enemies(&mut w, 1.0 / 60.0);
+        }
+        spread(&w)
+    }
+
+    #[test]
+    fn approach_lanes_make_a_crowd_fan_out_instead_of_queueing() {
+        let queue = approach_spread(true);
+        let fan = approach_spread(false);
+        // Measured: about 2.5 rad fanned against 1.2 rad queued, i.e. the crowd
+        // ends up surrounding the player rather than filing in behind its own
+        // front rank.
+        assert!(fan > queue * 1.5,
+                "lanes did not spread the crowd: {:.2} rad fanned vs {:.2} queued",
+                fan, queue);
+        assert!(fan > 1.8, "the fanned crowd is still a point: {:.2} rad", fan);
+    }
+
+    #[test]
+    fn a_pile_of_enemies_resolves_instead_of_jamming() {
+        let view = view();
+        let mut w = World::new(9, 0);
+        w.start_run();
+        w.wave = 14;
+        w.enemies.clear();
+        let origin = w.player.pos + Vec2::new(600.0, 0.0);
+        for k in 0..24 {
+            spawn_enemy(&mut w, &view, EnemyKind::Grunt);
+            w.enemies[k].pos = origin + Vec2::new((k % 4) as f32 * 4.0, (k / 4) as f32 * 4.0);
+            w.enemies[k].spawn_t = 0.0;
+        }
+        let starts: Vec<Vec2> = w.enemies.iter().map(|e| e.pos).collect();
+        for _ in 0..180 {
+            update_enemies(&mut w, 1.0 / 60.0);
+        }
+        // Every one of them should have closed a real distance: nobody is left
+        // grinding at the back of the pile.
+        let mut worst = f32::MAX;
+        for (i, e) in w.enemies.iter().enumerate() {
+            let moved = e.pos.distance(starts[i]);
+            worst = worst.min(moved);
+        }
+        assert!(worst > 60.0,
+                "the back of the pile never moved: worst progress {:.1} units", worst);
+    }
+
+    #[test]
+    fn enemies_lead_a_moving_player() {
+        let view = view();
+        let mut w = World::new(6, 0);
+        w.start_run();
+        w.wave = 10;
+        // Player running straight up (y grows downwards in this world).
+        w.player.vel = Vec2::new(0.0, -260.0);
+        w.enemies.clear();
+        spawn_enemy(&mut w, &view, EnemyKind::Grunt);
+        // Enemy level with the player, 420 units to the left.
+        w.enemies[0].pos = w.player.pos + Vec2::new(-420.0, 0.0);
+        w.enemies[0].spawn_t = 0.0;
+        // No wobble noise on the first frame is unrealistic to assert exactly, so
+        // run a short burst and look at the average heading.
+        let mut up = 0.0;
+        for _ in 0..30 {
+            update_enemies(&mut w, 1.0 / 60.0);
+            up += w.enemies[0].vel.y;
+        }
+        assert!(up < 0.0,
+                "the enemy did not lead the player's movement (net y {:.1})", up);
     }
 }

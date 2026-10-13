@@ -63,6 +63,12 @@ pub const ALL_KINDS: [EnemyKind; 16] = [
 
 /// True when a kind throws something, so spawn sites can stagger its first
 /// throw rather than having a whole wave fire in unison.
+/// The approach lane for the nth enemy: the golden angle, so consecutive spawns
+/// land on opposite sides instead of on top of each other.
+pub fn slot_for_id(id: u32) -> f32 {
+    (id as f32 * 2.399_963_1) % core::f32::consts::TAU
+}
+
 pub fn is_thrower(kind: EnemyKind) -> bool {
     use crate::enemy_def::Behaviour as B;
     matches!(kind.behaviour(), B::Shooter | B::Trapper)
@@ -216,6 +222,11 @@ pub struct Enemy {
     pub boss: bool,
     /// How much extra health a grower has accumulated (for its tell).
     pub growth_bonus: f32,
+    /// Preferred side of the player to approach from, so a wave encircles
+    /// rather than forming a queue.  Spread by the golden angle at spawn.
+    pub slot: f32,
+    /// How long this enemy has been trying and failing to make progress.
+    pub stall: f32,
 }
 
 /// A clot of blood thrown by a spitter.  Hostile projectiles live in their own

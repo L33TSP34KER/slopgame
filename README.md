@@ -220,6 +220,15 @@ prototype-bevy/              the original Bevy prototype, kept for reference
   Lava → Paradise → Purple → Godly → back to Hell — interpolating smoothly, with
   per-run colour jitter and themed ambient particles (embers, dust, ash, motes,
   orbs, falling light).
+* **Enemy movement.** Mobs steer rather than walk: they **lead your movement**
+  (aiming up to 0.55 s ahead, so running in a straight line no longer shakes
+  them), each one has its **own approach lane** so a wave encircles you instead
+  of filing in behind its own front rank, they **slide around** whoever is in the
+  way rather than shoving, a jammed enemy **sidesteps** after 0.45 s instead of
+  grinding forever, and they keep off the arena walls.  Measured in the tests: a
+  dozen grunts fanned over **2.5 rad** of the circle versus 1.2 rad when the
+  lanes are removed — and they arrive *faster*, because they stop fighting each
+  other's separation.
 * **Feel.** Dash charges with i-frames and a trail, orbiting blades, lightning
   strikes, exploding rounds, thorns, lifesteal, auto-collected money, extra
   lives, hit flashes, knockback, floating damage numbers, death bursts, screen
@@ -391,7 +400,7 @@ Everything below was actually executed on the Linux build host.
 
 | Check | Result |
 |---|---|
-| `cargo test` | **101 passed** — 76 core unit (tree structure, tax curve, backdrop and scenery, settings, enemy behaviours, ABI layout, layout maths), 10 renderer unit (audio synthesis, detuned takes, WAV decode, Vorbis decode checked against ffmpeg and against a stutter/rate regression) and 15 end-to-end through the C ABI |
+| `cargo test` | **107 passed** — 82 core unit (tree structure, tax curve, backdrop and scenery, settings, enemy behaviours, ABI layout, layout maths), 10 renderer unit (audio synthesis, detuned takes, WAV decode, Vorbis decode checked against ffmpeg and against a stutter/rate regression) and 15 end-to-end through the C ABI |
 | `tools/run_abi_harness.sh` | **PASSED** — C program `dlopen`s the real `.so`, `_Static_assert`s the ABI, and plays a whole run (~735 frames, 17 838 sprite / 69 784 glyph / 148 648 rect commands) including a hive purchase at exactly the quoted price, a locked node refusing to sell, a drag that must not buy, level-up, pause, save/load and restart |
 | Linux renderer | builds warning-free, loads `libgame_core.so` at runtime (`dlopen`), runs headless |
 | Headless captures | 9 landscape + 9 portrait (1170×2532) PNGs in `screenshots/`, generated from scripted input by clicking the *real* UI rectangles |
