@@ -15,6 +15,7 @@
 mod backdrop;
 mod decor;
 mod enemy_def;
+mod market;
 mod entities;
 mod ffi;
 mod generated;
@@ -36,7 +37,7 @@ use core::panic::AssertUnwindSafe;
 use math::Vec2;
 use render::Renderer;
 use std::panic::{catch_unwind, UnwindSafe};
-use world::{InputState, World};
+use world::{InputState, State, World};
 
 /// Fixed simulation rate.  `gc_update` accumulates real time and runs as many
 /// fixed steps as needed, so the logic is frame-rate independent and the tests
@@ -541,6 +542,37 @@ pub unsafe extern "C" fn gc_options_set_open(h: *mut Handle, open: i32) {
         w.options_open = open != 0 && w.options_available();
         if w.options_open {
             w.options_row = 0;
+        }
+    });
+}
+
+/// 1 while the Market is open over the Hive.
+///
+/// # Safety
+/// `h` must be a valid handle.
+#[no_mangle]
+pub unsafe extern "C" fn gc_market_open(h: *const Handle) -> i32 {
+    if h.is_null() {
+        return 0;
+    }
+    guard(0, || i32::from(unsafe { (&*h).world.market_open }))
+}
+
+/// Opens or closes the Market.  It only exists in the Hive, so a request made
+/// elsewhere is ignored rather than leaving a panel over a fight.
+///
+/// # Safety
+/// `h` must be a valid handle.
+#[no_mangle]
+pub unsafe extern "C" fn gc_market_set_open(h: *mut Handle, open: i32) {
+    if h.is_null() {
+        return;
+    }
+    let _ = guard((), || unsafe {
+        let w = &mut (*h).world;
+        w.market_open = open != 0 && w.state == State::Shop;
+        if w.market_open {
+            w.market_row = 0;
         }
     });
 }

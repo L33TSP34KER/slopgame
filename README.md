@@ -210,10 +210,8 @@ prototype-bevy/              the original Bevy prototype, kept for reference
   `7000.0 / 750.0` so the two anchors are obvious.
   A step that steep demands compounding income — roughly +25% per *wave*. Coin
   value (`x(1 + 0.10 x wave)`) and the wave bounty grow linearly, so they cannot
-  do it alone: the lever that can is **Interest**, which pays a cut of your
-  *purse* every wave. The intended late game is therefore to stop buying and
-  bank, letting the purse compound faster than the tax. Expect runs to end
-  somewhere in the 30s or 40s unless you commit to that. Meeting it is a checkpoint: a tier, a full heal and
+  do it alone. **The Market is the answer**: see below. Without it the late tax
+  is unreachable, which is why it exists. Meeting it is a checkpoint: a tier, a full heal and
   permanent power; missing it ends the run. The HUD turns the line red in the
   last three waves and tells you exactly how much is still missing. Because the
   tax counts *earnings*, spending money never sets you back. Both constants live
@@ -236,6 +234,34 @@ prototype-bevy/              the original Bevy prototype, kept for reference
 | iOS / Android | left stick | right stick (auto-aim always on) | on-screen button | back / on-screen | drag to pan, tap to buy |
 
 ---
+
+## The Market
+
+The upgrade *tree* is finite (313 nodes); the tax is not. Once the tree is
+bought out there is nothing left to spend money on, and nothing that lets income
+grow fast enough to chase a tax that multiplies by ~9.3 every ten waves. The
+Market, opened from the **MARKET** button in the Hive (or `gc_market_set_open`),
+fills that hole with four **uncapped** items whose prices grow geometrically, so
+they stay a real decision at every point in a run:
+
+| Item | Per level | First price | Price growth |
+|---|---|---|---|
+| **Compound Interest** | +2 % interest, paid on your whole purse every wave | $600 | ×1.75 |
+| **Coin Mint** | +15 % value on every coin | $500 | ×1.70 |
+| **Bounty Board** | +12 % wave bounty | $500 | ×1.70 |
+| **Tax Rebate** | −3 % on every future checkpoint (floor 40 %) | $1,200 | ×2.00 |
+
+Compound Interest is the important one: the tax compounds at ~1.25× per wave, and
+interest is the only income source that can keep up, because it pays a cut of the
+**purse** rather than a cut of the enemies you happened to kill. The intended late
+game is therefore to stop buying and bank, letting the purse compound faster than
+the tax — and to buy rebates when a checkpoint looks close. The panel shows your
+current interest rate, because that number is the whole game by then.
+
+There is a test for exactly this: it sets a plausible maxed state (tree interest
+plus level-up cards plus twelve Market levels), banks the purse from wave 40, and
+asserts the earnings by wave 50 cover the tier-4 checkpoint that a linear economy
+could not touch.
 
 ## Options
 
@@ -350,7 +376,7 @@ Everything below was actually executed on the Linux build host.
 
 | Check | Result |
 |---|---|
-| `cargo test` | **95 passed** — 70 core unit (tree structure, tax curve, backdrop and scenery, settings, enemy behaviours, ABI layout, layout maths), 10 renderer unit (audio synthesis, detuned takes, WAV decode, Vorbis decode checked against ffmpeg and against a stutter/rate regression) and 15 end-to-end through the C ABI |
+| `cargo test` | **101 passed** — 76 core unit (tree structure, tax curve, backdrop and scenery, settings, enemy behaviours, ABI layout, layout maths), 10 renderer unit (audio synthesis, detuned takes, WAV decode, Vorbis decode checked against ffmpeg and against a stutter/rate regression) and 15 end-to-end through the C ABI |
 | `tools/run_abi_harness.sh` | **PASSED** — C program `dlopen`s the real `.so`, `_Static_assert`s the ABI, and plays a whole run (~735 frames, 17 838 sprite / 69 784 glyph / 148 648 rect commands) including a hive purchase at exactly the quoted price, a locked node refusing to sell, a drag that must not buy, level-up, pause, save/load and restart |
 | Linux renderer | builds warning-free, loads `libgame_core.so` at runtime (`dlopen`), runs headless |
 | Headless captures | 9 landscape + 9 portrait (1170×2532) PNGs in `screenshots/`, generated from scripted input by clicking the *real* UI rectangles |

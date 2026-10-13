@@ -4,6 +4,7 @@
 
 use crate::backdrop::{spawn_ambient, Backdrop};
 use crate::decor::Decor;
+use crate::market::Market;
 use crate::settings::{Settings, ROWS as SETTING_ROWS, ROW_BACK, ROW_RESET};
 use crate::tree::{self};
 use crate::entities::*;
@@ -145,6 +146,12 @@ pub struct World {
     pub shots: Vec<crate::entities::EnemyShot>,
     /// Player settings, edited by the options screen.
     pub settings: Settings,
+    /// The Market: repeatable economy upgrades, bought in the Hive.
+    pub market: Market,
+    /// The Market overlay is open over the Hive.
+    pub market_open: bool,
+    /// Row the pointer is over, for highlight.
+    pub market_row: usize,
     /// The options overlay is open over whatever state is underneath.
     pub options_open: bool,
     /// Highlighted row, for pointer feedback.
@@ -229,6 +236,9 @@ impl World {
             phantoms: Vec::new(),
             shots: Vec::new(),
             settings: Settings::default(),
+            market: Market::default(),
+            market_open: false,
+            market_row: 0,
             options_open: false,
             options_row: 0,
             options_drag: None,
@@ -249,7 +259,7 @@ impl World {
             best_score,
             money_earned: 0,
             tier: 0,
-            goal: goal_for_tier(0),
+            goal: 0,
             goal_wave: GOAL_WAVE_STEP,
             lightning_cd: 0.0,
             auto_pool: 0.0,
@@ -293,7 +303,7 @@ impl World {
         self.time = 0.0;
         self.money_earned = 0;
         self.tier = 0;
-        self.goal = goal_for_tier(0);
+        self.goal = self.goal_now();
         self.goal_wave = GOAL_WAVE_STEP;
         self.lightning_cd = 0.0;
         self.auto_pool = 0.0;
@@ -432,6 +442,36 @@ impl World {
     }
 
     /// True if the run may continue.  Failing the quota ends the run.
+    /// The tax for the current tier, after any Tax Rebate levels bought in the
+    /// Market.  Every read of the goal goes through here, so the discount can
+    /// never be bypassed.
+    pub fn goal_now(&self) -> i32 {
+        let raw = goal_for_tier(self.tier) as f64 * self.market.rebate_mult();
+        raw.round().clamp(1.0, 2.0e9) as i32
+    }
+
+    /// Buys one Market level, applying its effect immediately.
+    pub fn buy_market(&mut self, item: usize) -> bool {
+        let mut money = self.player.money;
+        // Stats is not Copy, so the effect is worked out on a copy and written
+        // back only when the purchase actually happens.
+        let mut stats = self.player.stats.clone();
+        let bought = self.market.buy(item, &mut money, &mut stats);
+        let pos = self.player.pos;
+        if bought {
+            self.player.money = money;
+            self.player.stats = stats;
+            // A rebate changes the tax that is currently due.
+            self.goal = self.goal_now();
+            self.add_event(GC_EVT_BUY, pos.x, pos.y, item as f32);
+            self.floater(pos + Vec2::new(0.0, -46.0), FloaterKind::Label("MARKET"),
+                         color::GOLD, 22.0);
+        } else {
+            self.add_event(GC_EVT_BUY_FAIL, pos.x, pos.y, item as f32);
+        }
+        bought
+    }
+
     fn check_quota(&mut self) -> bool {
         let earned = self.money_earned;
         let goal = self.goal;
@@ -443,7 +483,7 @@ impl World {
             stats.damage_mult += 0.15;
             stats.max_hp_bonus += 30.0;
             self.player.hp = (self.player.hp + 60.0).min(self.player.hp_max());
-            self.goal = goal_for_tier(self.tier);
+            self.goal = self.goal_now();
             self.goal_wave += GOAL_WAVE_STEP;
             self.banner = Some(Banner {
                 kind: BannerKind::CheckpointPassed,
@@ -1054,7 +1094,7 @@ impl World {
     pub fn save(&self, out: &mut [u8]) -> i32 {
         // 16 bytes of run data, then the settings.  Older saves simply stop
         // short, and the tail is then left at its defaults.
-        if out.len() < 28 {
+        if out.len() < 32 {
             return -1;
         }
         out[0..4].copy_from_slice(b"SLA1");
@@ -1062,7 +1102,8 @@ impl World {
         out[8..12].copy_from_slice(&self.seed.to_le_bytes());
         out[12..16].copy_from_slice(&GC_ABI_VERSION.to_le_bytes());
         out[16..28].copy_from_slice(&self.settings.encode());
-        28
+        out[28..32].copy_from_slice(&self.market.encode());
+        32
     }
 
     pub fn load(&mut self, data: &[u8]) -> bool {
@@ -1073,9 +1114,19 @@ impl World {
         if (0..1_000_000_000).contains(&best) {
             self.best_score = best;
         }
-        // Settings live in the tail; a short (older) blob keeps the defaults.
+        // Settings and the Market live in the tail; a short (older) blob keeps
+        // the defaults, which is also what makes the format forward compatible.
         if data.len() >= 28 {
             self.settings = Settings::decode(&data[16..28]);
+        }
+        if data.len() >= 32 {
+            self.market = crate::market::Market::decode(&data[28..32]);
+            // Levels are stored, not their effects: re-apply them so a loaded
+            // run has the income it was saved with.
+            let mut stats = self.player.stats.clone();
+            self.market.reapply_all(&mut stats);
+            self.player.stats = stats;
+            self.goal = self.goal_now();
         }
         true
     }
@@ -1308,6 +1359,33 @@ impl World {
         true
     }
 
+    /// Market overlay input.  Returns true when it consumed the input.
+    fn handle_market(&mut self, layout: &crate::ui::UiLayout, input: &InputState) -> bool {
+        if !self.market_open {
+            return false;
+        }
+        let clicked = input.pointer_down && !self.prev_pointer_down;
+        for i in 0..crate::market::ITEMS {
+            let Some(rect) = layout.market_row_rect(i) else { continue };
+            if rect.contains(input.aim) {
+                self.market_row = i;
+                if clicked {
+                    self.buy_market(i);
+                }
+                // Swallow everything else: the Hive must not pan or buy behind
+                // the panel.
+                return true;
+            }
+        }
+        if clicked {
+            if layout.market_close.contains(input.aim) {
+                self.market_open = false;
+            }
+            return true;
+        }
+        true
+    }
+
     fn handle_input(&mut self, view: &View, input: &InputState) {
         let clicked = input.pointer_down && !self.prev_pointer_down;
         self.pointer = input.aim;
@@ -1319,10 +1397,13 @@ impl World {
             || ((input.buttons & GC_BTN_RESTART) != 0
                 && (self.prev_buttons & GC_BTN_RESTART) == 0);
 
-        // Leaving a state that can host the overlay closes it, so a run that
+        // Leaving a state that can host an overlay closes it, so a run that
         // resumes never has a menu stuck over it.
         if self.options_open && !self.options_available() {
             self.options_open = false;
+        }
+        if self.market_open && self.state != State::Shop {
+            self.market_open = false;
         }
         if pause_pressed {
             self.state = match self.state {
@@ -1334,6 +1415,9 @@ impl World {
 
         let layout = crate::ui::UiLayout::compute(view, self);
         if self.handle_options(&layout, input) {
+            return;
+        }
+        if self.state == State::Shop && self.handle_market(&layout, input) {
             return;
         }
 
@@ -1392,6 +1476,11 @@ impl World {
 
                 let mut consumed = false;
                 if clicked {
+                    if layout.market_button.contains(input.aim) {
+                        self.market_open = true;
+                        self.market_row = 0;
+                        consumed = true;
+                    }
                     if layout.next_button.contains(input.aim) {
                         self.add_event(GC_EVT_UI_CLICK, input.aim.x, input.aim.y, 99.0);
                         self.wave += 1;
@@ -1473,6 +1562,11 @@ impl World {
             4 => layout.next_page_button,
             // 5 is the options button on the title and pause screens.
             5 => layout.options_button,
+            // 6 opens the Market from the Hive; 50.. sell its four items, and
+            // 54 closes it.
+            6 => layout.market_button,
+            50..=60 => layout.market_row_rect((which - 50) as usize).unwrap_or_default(),
+            61 => layout.market_close,
             // 20.. give every row of the open options screen.
             20..=40 => layout
                 .option_row((which - 20) as usize)
@@ -1657,6 +1751,27 @@ mod tests {
         assert!(!w.boss_wave);
         assert!(w.enemies.is_empty(), "a normal wave spawns nothing up front");
         assert_eq!(w.boss_id, 0);
+    }
+
+    #[test]
+    fn a_tax_rebate_lowers_the_tax_that_is_actually_due() {
+        let mut w = World::new(1, 0);
+        w.start_run();
+        w.tier = 4; // wave 50, where the curve bites
+        let full = goal_for_tier(4);
+        assert_eq!(w.goal_now(), full, "with no rebates the tax must be the full ask");
+
+        // Buy one rebate directly (bypassing the price, which is the Market's
+        // business, not this test's).
+        w.market.levels[3] = 3;
+        let discounted = w.goal_now();
+        assert!(discounted < full, "the rebate did nothing");
+        assert!(discounted as f64 > full as f64 * 0.85,
+                "three rebates should not halve the tax");
+        // And the floor holds however many are bought.
+        w.market.levels[3] = 250;
+        let floored = w.goal_now();
+        assert!(floored >= (full as f64 * 0.39) as i32, "the floor leaked");
     }
 
     #[test]

@@ -277,6 +277,11 @@ int32_t gc_options_open(const gc_handle *h);
 
 /* Opens or closes the options screen from the shell. */
 void gc_options_set_open(gc_handle *h, int32_t open);
+
+/* The Market: repeatable economy upgrades, sold in the Hive between waves.
+ * Rows are reachable as gc_ui_button() slots 50..53, and slot 54 closes it. */
+int32_t gc_market_open(const gc_handle *h);
+void gc_market_set_open(gc_handle *h, int32_t open);
 /* Screen rectangle of a visible node, or an all-zero rect. */
 gc_rect gc_tree_rect(const gc_handle *h, int32_t node);
 /* 0 = hidden, 1 = locked, 2 = available to buy, 3 = owned. */

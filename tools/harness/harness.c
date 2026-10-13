@@ -69,6 +69,8 @@ typedef struct {
     gc_rect (*ui_slot)(const gc_handle *, int32_t);
     int32_t (*ui_slot_count)(const gc_handle *);
     gc_rect (*ui_button)(const gc_handle *, int32_t);
+    int32_t (*market_open)(const gc_handle *);
+    void (*market_set_open)(gc_handle *, int32_t);
     int32_t (*settings_get)(const gc_handle *, gc_settings *);
     int32_t (*options_open)(const gc_handle *);
     void (*options_set_open)(gc_handle *, int32_t);
@@ -127,6 +129,8 @@ static void resolve_api(void *lib, api_t *api)
     RESOLVE(ui_slot, "gc_ui_slot");
     RESOLVE(ui_slot_count, "gc_ui_slot_count");
     RESOLVE(ui_button, "gc_ui_button");
+    RESOLVE(market_open, "gc_market_open");
+    RESOLVE(market_set_open, "gc_market_set_open");
     RESOLVE(settings_get, "gc_settings_get");
     RESOLVE(options_open, "gc_options_open");
     RESOLVE(options_set_open, "gc_options_set_open");

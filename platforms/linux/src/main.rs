@@ -300,6 +300,8 @@ enum Scenario {
     Boss,
     /// The whole catalogue on screen at once, a few of each kind.
     Zoo,
+    /// The Market, opened from the Hive.
+    Market,
     LevelUp,
     Shop,
     GameOver,
@@ -314,6 +316,7 @@ impl Scenario {
             "enemies" => Scenario::Enemies,
             "boss" => Scenario::Boss,
             "zoo" => Scenario::Zoo,
+            "market" => Scenario::Market,
             "title" => Scenario::Title,
             "survive" => Scenario::Survive,
             "combat" => Scenario::Combat,
@@ -345,6 +348,8 @@ impl Driver {
         let (end, shots) = match scenario {
             Scenario::Title => (8, vec![(6, "01_title")]),
             Scenario::Survive => (90000, vec![]),
+            Scenario::Market => (400, vec![(80, "01_market_closed"), (240, "02_market_open"),
+                                           (370, "03_market_bought")]),
             Scenario::Zoo => (320, vec![(60, "01_zoo_near"), (170, "02_zoo_mid"),
                                         (290, "03_zoo_far")]),
             Scenario::Boss => (260, vec![(40, "01_boss_arrives"), (140, "02_boss_bar"),
@@ -504,6 +509,30 @@ impl Driver {
                 }
                 if self.scenario == Scenario::GameOver && f == 200 {
                     debug(game_core::GC_DBG_KILL_PLAYER, 0.0);
+                }
+            }
+            Scenario::Market => {
+                if f == 2 {
+                    let (x, y) = button_center(0);
+                    self.click(x, y);
+                }
+                if f == 20 {
+                    debug(game_core::GC_DBG_GIVE_MONEY, 40000.0);
+                    debug(game_core::GC_DBG_SET_WAVE, 30.0);
+                }
+                if f == 60 {
+                    debug(game_core::GC_DBG_SKIP_WAVE, 0.0);
+                }
+                // Open the Market from the Hive (button slot 6).
+                if f == 200 {
+                    let r = unsafe { (api.ui_button)(handle, 6) };
+                    self.click(r.x + r.w * 0.5, r.y + r.h * 0.5);
+                }
+                // Buy compound interest a few times, then a rebate.
+                if f > 210 && f < 340 && f % 20 == 0 {
+                    let row = if f < 300 { 0 } else { 3 };
+                    let r = unsafe { (api.ui_button)(handle, 50 + row) };
+                    self.click(r.x + r.w * 0.5, r.y + r.h * 0.5);
                 }
             }
             Scenario::Zoo => {

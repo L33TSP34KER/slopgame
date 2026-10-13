@@ -62,6 +62,13 @@ pub struct UiLayout {
     pub strip: Rect,
     /// Opens the options screen (title and pause screens).
     pub options_button: Rect,
+    /// Opens the Market from the Hive.
+    pub market_button: Rect,
+    /// Rows of the open Market, and its close button.
+    pub market_rows: [Rect; crate::market::ITEMS],
+    pub market_close: Rect,
+    /// The panel the Market rows sit in.
+    pub market_panel: Rect,
     /// Rows of the options screen.
     pub option_rows: [Rect; crate::settings::ROWS],
     /// The panel the rows sit in.
@@ -84,6 +91,10 @@ impl Default for UiLayout {
             tree: None,
             strip: Rect::default(),
             options_button: Rect::default(),
+            market_button: Rect::default(),
+            market_rows: [Rect::default(); crate::market::ITEMS],
+            market_close: Rect::default(),
+            market_panel: Rect::default(),
             option_rows: [Rect::default(); crate::settings::ROWS],
             options_panel: Rect::default(),
             start_button: Rect::default(),
@@ -97,6 +108,11 @@ impl UiLayout {
     /// Screen rectangle of options row `i`, if the overlay is laid out.
     pub fn option_row(&self, i: usize) -> Option<Rect> {
         self.option_rows.get(i).copied().filter(|r| r.w > 0.0)
+    }
+
+    /// Screen rectangle of Market row `i`, if the panel is laid out.
+    pub fn market_row_rect(&self, i: usize) -> Option<Rect> {
+        self.market_rows.get(i).copied().filter(|r| r.w > 0.0)
     }
 
     pub fn slot(&self, i: usize) -> Rect {
@@ -142,6 +158,31 @@ impl UiLayout {
                 layout.start_button.y + button_h + gap * 1.6,
                 ow,
                 button_h * 0.72,
+            );
+        }
+
+        // Market rows: laid out whenever the Hive is up, so the rects the
+        // renderer draws are the ones input hit-tests.
+        if w.state == State::Shop {
+            let row_h = (theme.body * 3.0).max(30.0);
+            let panel_w = (content.w * 0.62).clamp(300.0, 640.0);
+            let panel_h = row_h * crate::market::ITEMS as f32 + gap * 5.6;
+            let panel_x = content.x + (content.w - panel_w) * 0.5;
+            let panel_y = content.y + (content.h - panel_h) * 0.5;
+            layout.market_panel = Rect::new(panel_x, panel_y, panel_w, panel_h);
+            for i in 0..crate::market::ITEMS {
+                layout.market_rows[i] = Rect::new(
+                    panel_x + gap * 0.8,
+                    panel_y + gap * 4.2 + i as f32 * row_h,
+                    panel_w - gap * 1.6,
+                    row_h - gap * 0.5,
+                );
+            }
+            layout.market_close = Rect::new(
+                panel_x + (panel_w - 180.0) * 0.5,
+                panel_y + panel_h - gap * 3.0,
+                180.0,
+                (30.0 * theme.scale).max(24.0),
             );
         }
 
@@ -211,6 +252,13 @@ impl UiLayout {
                     hex_w,
                 ));
 
+                layout.market_button = Rect::new(
+                    content.x + gap,
+                    bottom + gap * 0.5 + theme.small * 3.2 + gap * 0.8,
+                    (content.w * 0.22).clamp(150.0, 260.0),
+                    button_h * 0.8,
+                );
+
                 layout.strip = Rect::new(
                     content.x + gap,
                     bottom + gap * 0.5,
@@ -269,6 +317,63 @@ pub fn draw_ui(w: &World, r: &mut Renderer) {
     if w.options_open {
         draw_options(w, r, &theme, &layout);
     }
+    // And the Market sits on top of the Hive that opened it.
+    if w.market_open {
+        draw_market(w, r, &theme, &layout);
+    }
+}
+
+/// The Market: repeatable economy upgrades, priced on a geometric curve.
+fn draw_market(w: &World, r: &mut Renderer, theme: &Theme, layout: &UiLayout) {
+    dim(r, 0.74);
+    let panel = layout.market_panel;
+    if panel.w <= 0.0 {
+        return;
+    }
+    let gap = theme.gap();
+    r.rect(panel, fade(color::PANEL, 0.97), 0);
+    r.rect(Rect::new(panel.x, panel.y, panel.w, panel.h * 0.08), fade(color::WHITE, 0.05), 0);
+    r.outline(panel, 2.0, fade(color::GOLD, 0.45));
+    r.text_center("THE MARKET", panel.center().x, panel.y + gap * 0.6, theme.h2,
+                  color::GOLD, GC_FLAG_SHADOW);
+
+    // The number that matters: what the purse pays every wave.
+    let interest = crate::buf_format!(48, "INTEREST {:.0}%  -  PAID ON YOUR PURSE EVERY WAVE",
+                                      w.player.stats.interest * 100.0);
+    r.text_center(interest.as_str(), panel.center().x, panel.y + gap * 2.5, theme.tiny,
+                  fade(color::WHITE, 0.75), GC_FLAG_SHADOW);
+
+    for (i, item) in crate::market::MARKET.iter().enumerate() {
+        let Some(rect) = layout.market_row_rect(i) else { continue };
+        let price = w.market.price(i);
+        let affordable = w.market.can_afford(w.player.money, i);
+        let selected = i == w.market_row;
+        r.rect(rect, if selected { fade(color::GOLD, 0.14) } else { fade(color::BLACK, 0.30) }, 0);
+        r.rect(Rect::new(rect.x, rect.y, rect.w, rect.h * 0.4), fade(color::WHITE, 0.04), 0);
+        r.outline(rect, if selected { 2.0 } else { 1.0 },
+                  if selected { color::GOLD } else { fade(color::WHITE, 0.12) });
+        r.text(item.name, rect.x + gap * 0.8, rect.y + rect.h * 0.14, theme.body, 0.0,
+               color::WHITE, GC_FLAG_SHADOW);
+        r.text(item.blurb, rect.x + gap * 0.8, rect.y + rect.h * 0.14 + theme.body * 1.05,
+               theme.tiny, 0.0, fade(color::WHITE, 0.62), GC_FLAG_SHADOW);
+        // Level on the left of the price, so the two read as one column.
+        let lvl = w.market.level_text(i);
+        let lvl_str = market_text(&lvl);
+        r.text(lvl_str, rect.x + rect.w - gap * 0.8, rect.y + rect.h * 0.16,
+               theme.tiny, 1.0, fade(color::WHITE, 0.7), GC_FLAG_SHADOW);
+        let price_text = crate::render::money_buf(price);
+        r.text(price_text.as_str(), rect.x + rect.w - gap * 0.8,
+               rect.y + rect.h * 0.16 + theme.tiny * 1.3, theme.h3, 1.0,
+               if affordable { color::MONEY_GREEN } else { color::WARN }, GC_FLAG_SHADOW);
+    }
+
+    big_button(r, layout.market_close, "CLOSE", theme, true);
+}
+
+/// Reads a NUL-terminated market label.
+fn market_text(bytes: &[u8]) -> &str {
+    let end = bytes.iter().position(|b| *b == 0).unwrap_or(bytes.len());
+    core::str::from_utf8(&bytes[..end]).unwrap_or("")
 }
 
 /// The options screen: label on the left, control on the right, one hint line.
@@ -915,6 +1020,9 @@ fn draw_shop(w: &World, r: &mut Renderer, theme: &Theme, layout: &UiLayout) {
                       fade(color::WHITE, 0.5), GC_FLAG_SHADOW);
     }
 
+    if layout.market_button.w > 0.0 {
+        big_button(r, layout.market_button, "MARKET", theme, true);
+    }
     big_button(r, layout.next_button, "NEXT WAVE", theme, true);
 }
 
