@@ -23,12 +23,32 @@ pub enum EnemyKind {
     /// A giant: much more health and damage, but it pays out massively.
     /// The "bigger risk, bigger reward" spawn.
     Colossus,
+    /// Winds up in place, then crosses the arena in a straight line.  Standing
+    /// still is what kills you; sidestepping is the whole counterplay.
+    Charger,
+    /// Keeps its distance and lobs blood.  Punishes tunnel vision.
+    Spitter,
+    /// Fast, cowardly, and it eats your money.  Kill it before it banks.
+    Miser,
+}
+
+/// Every kind, in the order `GC_DBG_SPAWN_ENEMY` indexes them.
+pub const ALL_KINDS: [EnemyKind; 6] = [
+    EnemyKind::Grunt, EnemyKind::Brute, EnemyKind::Colossus,
+    EnemyKind::Charger, EnemyKind::Spitter, EnemyKind::Miser,
+];
+
+pub fn kind_from_index(i: i32) -> Option<EnemyKind> {
+    ALL_KINDS.get(i.max(0) as usize).copied()
 }
 
 impl EnemyKind {
     pub fn sprite(self) -> SpriteId {
         match self {
             EnemyKind::Grunt => SpriteId::EnemyA,
+            EnemyKind::Charger => SpriteId::Charger,
+            EnemyKind::Spitter => SpriteId::Spitter,
+            EnemyKind::Miser => SpriteId::Miser,
             EnemyKind::Brute | EnemyKind::Colossus => SpriteId::EnemyB,
         }
     }
@@ -37,6 +57,9 @@ impl EnemyKind {
     pub fn scale(self) -> f32 {
         match self {
             EnemyKind::Grunt => 1.0,
+            EnemyKind::Charger => 1.12,
+            EnemyKind::Spitter => 1.18,
+            EnemyKind::Miser => 0.86,
             EnemyKind::Brute => 1.35,
             EnemyKind::Colossus => 2.35,
         }
@@ -50,9 +73,59 @@ impl EnemyKind {
         matches!(self, EnemyKind::Colossus)
     }
 
+    pub fn is_charger(self) -> bool {
+        matches!(self, EnemyKind::Charger)
+    }
+
+    pub fn is_spitter(self) -> bool {
+        matches!(self, EnemyKind::Spitter)
+    }
+
+    pub fn is_miser(self) -> bool {
+        matches!(self, EnemyKind::Miser)
+    }
+
+    /// Damage a charging body deals on impact -- deliberately more than its
+    /// touch damage, because being hit by the dash should be a real mistake.
+    pub fn dash_damage(self) -> f32 {
+        if self.is_charger() { 19.0 } else { 0.0 }
+    }
+
+    /// Damage of one thrown blood clot.
+    pub fn blood_damage(self) -> f32 {
+        if self.is_spitter() { 9.0 } else { 0.0 }
+    }
+
+    /// Distance a spitter tries to hold.
+    pub fn standoff(self) -> f32 {
+        if self.is_spitter() { 250.0 } else { 0.0 }
+    }
+
+    pub fn throw_interval(self) -> f32 {
+        if self.is_spitter() { 2.1 } else { f32::INFINITY }
+    }
+
+    /// Coins a miser can carry before it stops siphoning.
+    pub fn purse(self) -> i32 {
+        if self.is_miser() { 22 } else { 0 }
+    }
+
+    /// Coins per second it lifts off you while close.
+    pub fn siphon_rate(self) -> f32 {
+        if self.is_miser() { 2.5 } else { 0.0 }
+    }
+
+    /// It only runs once it has a decent haul.
+    pub fn flee_threshold(self) -> i32 {
+        if self.is_miser() { 8 } else { i32::MAX }
+    }
+
     pub fn base_hp(self) -> f32 {
         match self {
             EnemyKind::Grunt => 22.0,
+            EnemyKind::Charger => 36.0,
+            EnemyKind::Spitter => 30.0,
+            EnemyKind::Miser => 26.0,
             EnemyKind::Brute => 62.0,
             EnemyKind::Colossus => 260.0,
         }
@@ -61,28 +134,39 @@ impl EnemyKind {
     /// HP grows with the wave so late waves stay threatening.
     pub fn hp_at(self, wave: i32) -> f32 {
         let w = (wave - 1).max(0) as f32;
-        self.base_hp() * (1.0 + 0.22 * w)
+        // Linear HP stopped mattering: it is now superlinear, so wave 20 is not
+        // just "more of wave 5" but genuinely tougher per enemy.
+        self.base_hp() * (1.0 + 0.34 * w + 0.020 * w * w)
     }
 
     pub fn speed(self) -> f32 {
         match self {
-            EnemyKind::Grunt => 106.0,
-            EnemyKind::Brute => 66.0,
-            EnemyKind::Colossus => 48.0,
+            EnemyKind::Grunt => 124.0,
+            EnemyKind::Charger => 104.0,
+            EnemyKind::Spitter => 86.0,
+            EnemyKind::Miser => 138.0,
+            EnemyKind::Brute => 82.0,
+            EnemyKind::Colossus => 60.0,
         }
     }
 
     pub fn damage(self) -> f32 {
         match self {
-            EnemyKind::Grunt => 7.0,
-            EnemyKind::Brute => 15.0,
-            EnemyKind::Colossus => 26.0,
+            EnemyKind::Grunt => 11.0,
+            EnemyKind::Charger => 12.0,
+            EnemyKind::Spitter => 7.0,
+            EnemyKind::Miser => 6.0,
+            EnemyKind::Brute => 24.0,
+            EnemyKind::Colossus => 42.0,
         }
     }
 
     pub fn radius(self) -> f32 {
         match self {
             EnemyKind::Grunt => 24.0,
+            EnemyKind::Charger => 26.0,
+            EnemyKind::Spitter => 28.0,
+            EnemyKind::Miser => 21.0,
             EnemyKind::Brute => 34.0,
             EnemyKind::Colossus => 58.0,
         }
@@ -91,6 +175,9 @@ impl EnemyKind {
     pub fn xp(self) -> i32 {
         match self {
             EnemyKind::Grunt => 4,
+            EnemyKind::Charger => 7,
+            EnemyKind::Spitter => 6,
+            EnemyKind::Miser => 6,
             EnemyKind::Brute => 11,
             EnemyKind::Colossus => 70,
         }
@@ -99,6 +186,9 @@ impl EnemyKind {
     pub fn money_chance(self) -> f32 {
         match self {
             EnemyKind::Grunt => 0.34,
+            EnemyKind::Charger => 0.5,
+            EnemyKind::Spitter => 0.45,
+            EnemyKind::Miser => 0.4,
             EnemyKind::Brute => 0.85,
             EnemyKind::Colossus => 1.0,
         }
@@ -107,6 +197,9 @@ impl EnemyKind {
     pub fn money(self) -> i32 {
         match self {
             EnemyKind::Grunt => 1,
+            EnemyKind::Charger => 2,
+            EnemyKind::Spitter => 2,
+            EnemyKind::Miser => 2,
             EnemyKind::Brute => 3,
             EnemyKind::Colossus => 22,
         }
@@ -133,8 +226,20 @@ pub struct Enemy {
     pub attack_cd: f32,
     /// Counts down after a dash hit, so one dash damages a target once.
     pub dash_cd: f32,
+    /// Free-running behaviour clock: the charger's wind-up/dash cycle.
+    pub state_t: f32,
+    /// Counts down to a spitter's next throw.
+    pub shoot_cd: f32,
+    /// Fractional coin accumulator for a siphoning miser.
+    pub siphon: f32,
+    /// Coins a miser has lifted off the player.
+    pub stolen: i32,
+    /// Counts down while a fleeing miser leaks a coin behind itself.
+    pub leak_cd: f32,
 }
 
+/// A clot of blood thrown by a spitter.  Hostile projectiles live in their own
+/// list so they can never be confused with the player's.
 #[derive(Clone, Debug)]
 pub struct EnemyShot {
     pub pos: Vec2,

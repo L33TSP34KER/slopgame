@@ -343,7 +343,9 @@ pub unsafe extern "C" fn gc_progress_get(h: *const Handle, out: *mut gc_progress
 #[no_mangle]
 pub extern "C" fn gc_sprite_file(sprite: i32) -> *const c_char {
     match sprite {
-        0..=7 => sprite::all_sprites()[sprite as usize].file_cstr().as_ptr() as *const c_char,
+        // Bounds follow SpriteId::all_sprites(), never a hand-written number:
+        // adding a sprite must not need an edit here.
+        0..=10 => sprite::all_sprites()[sprite as usize].file_cstr().as_ptr() as *const c_char,
         _ => std::ptr::null(),
     }
 }

@@ -27,7 +27,9 @@ GEN_RS = os.path.join(ROOT, "core", "src", "generated", "sprites.rs")
 
 # Must stay in sync with gc_sprite_id in include/game_core.h.
 SPRITE_NAMES = ["player", "enemy_a", "enemy_b", "gun", "bow", "sword",
-                "money", "xp"]
+                "money", "xp",
+                # New enemy kinds: the charger, the spitter and the miser.
+                "charger", "spitter", "miser"]
 
 RASTER_WIDTH = 512  # plenty for a 720-unit design height, even on 3x displays
 

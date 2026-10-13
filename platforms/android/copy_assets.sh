@@ -7,7 +7,7 @@
 # file names are not invented here: they are exactly what the core reports through
 # gc_sprite_file(i) and gc_font_atlas() (verified against core/src/sprite.rs:
 # player.png, enemy_a.png, enemy_b.png, gun.png, bow.png, sword.png, money.png,
-# xp.png + font_atlas.png).
+# xp.png, charger.png, spitter.png, miser.png + font_atlas.png).
 #
 #   ./copy_assets.sh
 #
@@ -36,6 +36,9 @@ SPRITE_FILES=(
     sword.png
     money.png
     xp.png
+    charger.png
+    spitter.png
+    miser.png
 )
 
 # Must match core/src/sprite.rs::FONT_ATLAS_FILE.

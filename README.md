@@ -143,9 +143,20 @@ prototype-bevy/              the original Bevy prototype, kept for reference
 
 * **Waves.** Enemies spawn off-screen, chase you and deal contact damage. Clear a
   wave → a bonus → **the Hive** → the next wave, bigger and faster.
-* **Enemies.** `enemy_a` grunts (fast, fragile), `enemy_b` brutes (slow, 3× HP,
-  from wave 3) and **Colossi** (from wave 5: 2.35× the size, huge health and
-  damage, but they pay out ~20× a grunt — the risk/reward spawn).
+* **Enemies.** Six kinds, each with its own answer:
+  * **Grunts** — fast, fragile, from wave 1.
+  * **Brutes** — slow, 3× HP, from wave 3.
+  * **Colossi** — from wave 5: 2.35× the size, huge health and damage, and they
+    pay out ~20× a grunt. The risk/reward spawn.
+  * **Chargers** (wave 2+) — stalk you, coil for half a second (a red blade
+    telegraphs the exact line), then cross the arena at 3.4× speed. Sidestep or
+    eat 19 damage; standing still is what kills you.
+  * **Spitters** (wave 4+) — hold a 250-unit ring and lob blood clots that arc
+    in and hurt for 9. Their sac brightens as a throw approaches.
+  * **Misers** (wave 6+) — fast, cowardly pickpockets. Get close and they lift
+    coins straight out of your purse (~2.5/s, up to 22). Once they have a haul
+    they run, shedding coins behind them — kill one and it drops everything it
+    took, plus its normal loot. Ignore them and the tax gets harder.
 * **Weapons**, all auto-targeting the nearest enemy in range:
   `gun` (single bolt) · `bow` (3-arrow spread, pierces) ·
   `sword` (wide melee arc, knockback + slow).
@@ -306,7 +317,7 @@ Everything below was actually executed on the Linux build host.
 
 | Check | Result |
 |---|---|
-| `cargo test` | **74 passed** — 49 core unit (tree structure, tax curve, backdrop and scenery, settings, ABI layout, layout maths), 10 renderer unit (audio synthesis, detuned takes, WAV decode, Vorbis decode checked against ffmpeg and against a stutter/rate regression) and 15 end-to-end through the C ABI |
+| `cargo test` | **78 passed** — 53 core unit (tree structure, tax curve, backdrop and scenery, settings, enemy behaviours, ABI layout, layout maths), 10 renderer unit (audio synthesis, detuned takes, WAV decode, Vorbis decode checked against ffmpeg and against a stutter/rate regression) and 15 end-to-end through the C ABI |
 | `tools/run_abi_harness.sh` | **PASSED** — C program `dlopen`s the real `.so`, `_Static_assert`s the ABI, and plays a whole run (~735 frames, 17 838 sprite / 69 784 glyph / 148 648 rect commands) including a hive purchase at exactly the quoted price, a locked node refusing to sell, a drag that must not buy, level-up, pause, save/load and restart |
 | Linux renderer | builds warning-free, loads `libgame_core.so` at runtime (`dlopen`), runs headless |
 | Headless captures | 9 landscape + 9 portrait (1170×2532) PNGs in `screenshots/`, generated from scripted input by clicking the *real* UI rectangles |

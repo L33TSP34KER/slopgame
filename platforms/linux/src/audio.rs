@@ -179,6 +179,8 @@ impl Cue {
             16 => Cue::CheckpointPassed,
             17 => Cue::CheckpointFailed,
             18 => Cue::Revived,
+            19 => Cue::Hit,          // blood hits something
+            20 => Cue::BuyFail,      // money going the wrong way
             _ => return None,
         })
     }

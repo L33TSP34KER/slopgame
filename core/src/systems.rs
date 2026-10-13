@@ -27,6 +27,7 @@ pub fn simulate(w: &mut World, view: &View, input: &InputState, dt: f32) {
     maybe_double_shot(w);
     update_phantoms(w, dt);
     update_projectiles(w, dt);
+    update_enemy_shots(w, dt);
     update_enemies(w, dt);
     update_dash_damage(w);
     update_orbitals(w);
@@ -38,6 +39,21 @@ pub fn simulate(w: &mut World, view: &View, input: &InputState, dt: f32) {
 
 /// How much further than their own radius an enemy can strike.
 pub const ENEMY_REACH: f32 = 1.10;
+
+/// Charger timing, in seconds.  The coil is the tell: it stops moving, then
+/// leaves.  Generous, because being one-shot out of nowhere is not a lesson.
+const CHARGER_CYCLE: f32 = 2.6;
+const CHARGER_WINDUP: f32 = 1.35;
+const CHARGER_COIL: f32 = 0.45;
+const CHARGER_DASH: f32 = 0.30;
+const CHARGER_DASH_SPEED: f32 = 3.4;
+/// Blood clot speed, world units per second.
+const BLOOD_SPEED: f32 = 280.0;
+/// How close a miser must be to pick a pocket.
+const MISER_SIPHON_RANGE: f32 = 115.0;
+const MAX_ENEMY_SHOTS: usize = 120;
+
+
 
 pub fn update_effects(w: &mut World, dt: f32) {
     for p in w.particles.iter_mut() {
@@ -607,6 +623,10 @@ fn update_enemies(w: &mut World, dt: f32) {
 
     let mut contact_damage = 0.0;
     let mut retaliate: Vec<usize> = Vec::new();
+    // Collected during the loop (the enemy list is borrowed) and applied after.
+    let mut throws: Vec<(Vec2, Vec2, f32)> = Vec::new();
+    let mut pocket: Vec<usize> = Vec::new();
+    let mut leaked: Vec<(Vec2, i32)> = Vec::new();
     for (idx, e) in w.enemies.iter_mut().enumerate() {
         if e.spawn_t > 0.0 {
             e.spawn_t -= dt;
@@ -623,8 +643,73 @@ fn update_enemies(w: &mut World, dt: f32) {
         // Slight wobble so the swarm does not move as one rigid block.
         let wobble = Vec2::new((e.bob_phase + e.pos.x * 0.01).sin(),
                                (e.bob_phase + e.pos.y * 0.01).cos()) * 12.0;
-        let desired = dir * e.speed_now() + wobble;
-        e.vel = crate::math::damp_vec(e.vel, desired, 6.0, dt);
+
+        // Per-kind behaviour: how fast it wants to move, and whether it steers
+        // at all, come out of here.
+        let mut speed_mul = 1.0;
+        let mut steers = true;
+        let mut away = false;
+        if e.kind.is_charger() {
+            // A two-and-a-half second cycle: stalk, coil, strike, recover.
+            e.state_t = (e.state_t + dt) % CHARGER_CYCLE;
+            if e.state_t < CHARGER_WINDUP {
+                // Stalking: close the distance, but stop short so the dash has
+                // room to travel.
+                if dist < 120.0 {
+                    speed_mul = 0.0;
+                }
+            } else if e.state_t < CHARGER_WINDUP + CHARGER_COIL {
+                // Coiling: nearly stopped, and this is where it locks on.
+                speed_mul = 0.12;
+                e.vel = dir * e.kind.speed() * CHARGER_DASH_SPEED;
+            } else if e.state_t < CHARGER_WINDUP + CHARGER_COIL + CHARGER_DASH {
+                // Dashing: a straight line at anything in the way.
+                steers = false;
+            } else {
+                // Blown out, catching its breath.
+                speed_mul = 0.30;
+            }
+        } else if e.kind.is_spitter() {
+            // Hold the standoff ring: back off when crowded, close when far.
+            let standoff = e.kind.standoff();
+            if dist < standoff - 55.0 {
+                away = true;
+            } else if dist > standoff + 55.0 {
+                speed_mul = 1.0;
+            } else {
+                speed_mul = 0.25;
+            }
+            e.shoot_cd -= dt;
+            if e.shoot_cd <= 0.0 && dist < 620.0 && dist > 60.0 {
+                e.shoot_cd = e.kind.throw_interval();
+                let aim = if dir.length_sq() > 0.5 { dir } else { Vec2::new(1.0, 0.0) };
+                throws.push((
+                    e.pos + aim * (e.radius + 6.0),
+                    aim * BLOOD_SPEED,
+                    e.kind.blood_damage(),
+                ));
+            }
+        } else if e.kind.is_miser() {
+            // Runs at you, picks your pocket, then legs it with the loot.
+            if e.stolen >= e.kind.flee_threshold() {
+                away = true;
+                e.leak_cd -= dt;
+                if e.leak_cd <= 0.0 && e.stolen > 0 {
+                    e.leak_cd = 1.1;
+                    leaked.push((e.pos, 1));
+                    e.stolen -= 1;
+                }
+            } else if dist < MISER_SIPHON_RANGE {
+                speed_mul = 0.15;
+                e.siphon += e.kind.siphon_rate() * dt;
+            }
+        }
+
+        let steering = if away { -dir } else { dir };
+        let desired = steering * e.speed_now() * speed_mul + wobble;
+        if steers {
+            e.vel = crate::math::damp_vec(e.vel, desired, 6.0, dt);
+        }
         e.pos += (e.vel + e.knock) * dt;
         e.knock *= (-6.0 * dt).exp();
         e.pos.x = clamp(e.pos.x, e.radius, ARENA_W - e.radius);
@@ -637,12 +722,71 @@ fn update_enemies(w: &mut World, dt: f32) {
         let reach = (player_radius + e.radius * 0.85) * ENEMY_REACH;
         if dist < reach && e.attack_cd <= 0.0 {
             e.attack_cd = 0.55;
-            contact_damage += e.kind.damage();
+            // A dashing charger is a different, much worse thing to be hit by.
+            let dashing = e.kind.is_charger()
+                && e.state_t >= CHARGER_WINDUP + CHARGER_COIL
+                && e.state_t < CHARGER_WINDUP + CHARGER_COIL + CHARGER_DASH;
+            contact_damage += if dashing { e.kind.dash_damage() } else { e.kind.damage() };
             retaliate.push(idx);
+            if e.kind.is_miser() && e.stolen < e.kind.purse() {
+                pocket.push(idx);
+            }
         }
     }
     if contact_damage > 0.0 {
         w.hurt_player(contact_damage);
+    }
+    // Blood in the air.
+    for (pos, vel, damage) in throws {
+        if w.shots.len() < MAX_ENEMY_SHOTS {
+            w.shots.push(crate::entities::EnemyShot {
+                pos,
+                vel,
+                damage,
+                radius: 9.0,
+                life: 2.6,
+                spin: w.rng.range(0.0, 6.28),
+            });
+            w.add_event(GC_EVT_ENEMY_SHOT, pos.x, pos.y, damage);
+        }
+    }
+    // Whole coins lifted off the purse this frame.
+    if !pocket.is_empty() {
+        for idx in pocket {
+            if w.player.money > 0 {
+                if let Some(e) = w.enemies.get_mut(idx) {
+                    if e.stolen < e.kind.purse() {
+                        e.stolen += 1;
+                    }
+                }
+                w.player.money -= 1;
+                w.add_event(GC_EVT_MONEY_STOLEN, 0.0, 0.0, 1.0);
+            }
+        }
+    }
+    // Fractions accumulate in the enemy; convert to whole coins with what is
+    // actually in the purse, so a miser can never take money you do not have.
+    let mut total_siphon = 0.0f32;
+    for e in w.enemies.iter_mut() {
+        if e.kind.is_miser() && e.siphon >= 1.0 && e.stolen < e.kind.purse() {
+            let whole = e.siphon.floor();
+            let take = whole.min((w.player.money as f32).max(0.0));
+            if take > 0.0 {
+                e.siphon -= take;
+                e.stolen += take as i32;
+                total_siphon += take;
+            } else {
+                e.siphon = 0.0;
+            }
+        }
+    }
+    if total_siphon > 0.0 {
+        w.player.money -= total_siphon as i32;
+        w.add_event(GC_EVT_MONEY_STOLEN, w.player.pos.x, w.player.pos.y, total_siphon);
+    }
+    // A fleeing miser sheds coins behind itself.
+    for (pos, value) in leaked {
+        w.drop_pickup(pos, PickupKind::Money, value);
     }
     // Spite: anything that touched the player burns for it.
     let thorns = w.player.stats.thorns;
@@ -652,6 +796,51 @@ fn update_enemies(w: &mut World, dt: f32) {
                 let dir = (w.enemies[i].pos - player_pos).normalize_or_zero();
                 w.damage_enemy(i, thorns, false, dir * 140.0);
             }
+        }
+    }
+}
+
+/// Blood clots: fly, hit the player, or burst on the floor.
+fn update_enemy_shots(w: &mut World, dt: f32) {
+    if w.shots.is_empty() {
+        return;
+    }
+    let player_pos = w.player.pos;
+    let player_radius = w.player.radius;
+    let mut hits = 0.0f32;
+    let mut bursts: Vec<(Vec2, bool)> = Vec::new();
+    let mut i = 0;
+    while i < w.shots.len() {
+        let shot = &mut w.shots[i];
+        shot.life -= dt;
+        shot.pos += shot.vel * dt;
+        shot.spin += dt * 6.0;
+        let hit_player = shot.pos.distance_sq(player_pos)
+            <= (player_radius * 0.85 + shot.radius).powi(2);
+        if hit_player {
+            hits += shot.damage;
+            let pos = shot.pos;
+            w.shots.swap_remove(i);
+            bursts.push((pos, true));
+            continue;
+        }
+        if shot.life <= 0.0 {
+            let pos = shot.pos;
+            w.shots.swap_remove(i);
+            bursts.push((pos, false));
+            continue;
+        }
+        i += 1;
+    }
+    if hits > 0.0 {
+        w.hurt_player(hits);
+    }
+    for (pos, on_player) in bursts {
+        if on_player {
+            w.burst(pos, 8, color::HP, 150.0, 4.0, 0.35, false);
+        } else {
+            // A stain, not a spark: blood settles.
+            w.burst(pos, 5, color::rgb(0x6e, 0x10, 0x1c), 60.0, 5.0, 0.7, false);
         }
     }
 }
@@ -923,6 +1112,16 @@ fn choose_kind(w: &mut World) -> EnemyKind {
             return EnemyKind::Brute;
         }
     }
+    // The specialists, gated by wave so each one arrives with its own lesson.
+    if w.wave >= 2 && w.rng.chance(0.20) {
+        return EnemyKind::Charger;
+    }
+    if w.wave >= 4 && w.rng.chance(0.16) {
+        return EnemyKind::Spitter;
+    }
+    if w.wave >= 6 && w.rng.chance(0.12) {
+        return EnemyKind::Miser;
+    }
     EnemyKind::Grunt
 }
 
@@ -953,6 +1152,12 @@ fn spawn_enemy(w: &mut World, view: &View, kind: EnemyKind) {
         bob_phase: w.rng.angle(),
         attack_cd: 0.0,
         dash_cd: 0.0,
+        // Stagger the chargers so a wave does not wind up in unison.
+        state_t: if kind.is_charger() { w.rng.range(0.0, 2.4) } else { 0.0 },
+        shoot_cd: if kind.is_spitter() { w.rng.range(0.4, 2.1) } else { 0.0 },
+        siphon: 0.0,
+        stolen: 0,
+        leak_cd: 0.0,
     });
 }
 
@@ -1013,4 +1218,124 @@ pub fn enemy_hp_color(frac: f32) -> u32 {
 /// Strength of the low-health red vignette.
 pub fn danger_fade(hp_frac: f32) -> f32 {
     clamp((0.35 - hp_frac) / 0.35, 0.0, 1.0) * 0.5
+}
+
+// ---------------------------------------------------------------------------
+// the specialist enemies
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod specialist_tests {
+    use super::*;
+    use crate::entities::{EnemyKind, PickupKind};
+    use crate::render::View;
+    use crate::world::World;
+
+    fn a_view() -> View {
+        View::new(1280, 720, [0.0; 4])
+    }
+
+    fn world_at(wave: i32) -> World {
+        let mut w = World::new(7, 0);
+        w.start_run();
+        w.wave = wave;
+        w
+    }
+
+    #[test]
+    fn specialists_arrive_on_their_own_waves() {
+        // Wave 1 is grunts only: nothing new can appear yet.
+        let mut w = world_at(1);
+        for _ in 0..500 {
+            assert_eq!(choose_kind(&mut w), EnemyKind::Grunt,
+                       "a specialist spawned on wave 1");
+        }
+        // By the mid game all three are in rotation.
+        let mut w = world_at(12);
+        let (mut charger, mut spitter, mut miser) = (false, false, false);
+        for _ in 0..800 {
+            match choose_kind(&mut w) {
+                EnemyKind::Charger => charger = true,
+                EnemyKind::Spitter => spitter = true,
+                EnemyKind::Miser => miser = true,
+                _ => {}
+            }
+        }
+        assert!(charger, "no chargers by wave 12");
+        assert!(spitter, "no spitters by wave 12");
+        assert!(miser, "no misers by wave 12");
+    }
+
+    #[test]
+    fn a_spitter_throws_blood_that_hurts() {
+        let view = a_view();
+        let mut w = world_at(10);
+        w.enemies.clear();
+        spawn_enemy(&mut w, &view, EnemyKind::Spitter);
+        w.enemies[0].pos = w.player.pos + Vec2::new(200.0, 0.0);
+        w.enemies[0].spawn_t = 0.0;
+        w.enemies[0].shoot_cd = 0.01;
+
+        for _ in 0..30 {
+            update_enemies(&mut w, 1.0 / 60.0);
+        }
+        assert!(!w.shots.is_empty(), "the spitter never threw anything");
+
+        // Park a clot on the player: it must take damage and consume the clot.
+        let hp_before = w.player.hp;
+        w.player.invuln = 0.0;
+        w.shots[0].pos = w.player.pos;
+        update_enemy_shots(&mut w, 1.0 / 60.0);
+        assert!(w.player.hp < hp_before, "blood did not hurt the player");
+        assert!(w.shots.is_empty(), "the clot should be consumed on impact");
+    }
+
+    #[test]
+    fn a_miser_steals_money_and_gives_it_back_when_killed() {
+        let view = a_view();
+        let mut w = world_at(10);
+        w.enemies.clear();
+        w.player.money = 500;
+        spawn_enemy(&mut w, &view, EnemyKind::Miser);
+        w.enemies[0].spawn_t = 0.0;
+
+        // Stay in reach: it should siphon.
+        for _ in 0..300 {
+            w.enemies[0].pos = w.player.pos + Vec2::new(40.0, 0.0);
+            update_enemies(&mut w, 1.0 / 60.0);
+        }
+        let stolen = w.enemies[0].stolen;
+        assert!(stolen > 0, "the miser stole nothing in five seconds");
+        assert!(w.player.money < 500, "the purse was never touched");
+        // A fleeing miser sheds coins behind itself, so the purse only has to be
+        // at least what it is still carrying -- never less than it started with.
+        assert!(w.player.money + stolen <= 500,
+                "the miser took more than the purse held ({} held, {} stolen)",
+                w.player.money, stolen);
+
+        // Killing it hands the coins back as pickups.
+        w.pickups.clear();
+        w.kill_enemy(0);
+        let dropped: i32 = w.pickups.iter()
+            .filter(|p| p.kind == PickupKind::Money)
+            .map(|p| p.value)
+            .sum();
+        // It pays back everything it lifted, plus whatever ordinary loot its
+        // kind would have dropped anyway.
+        assert!(dropped >= stolen,
+                "the miser kept {} of the {} it took", stolen, dropped.max(0));
+        assert!(dropped < stolen + 40, "the payout looks wrong: {}", dropped);
+    }
+
+    #[test]
+    fn a_charger_dash_is_worse_than_its_touch() {
+        let view = a_view();
+        let mut w = world_at(10);
+        w.enemies.clear();
+        spawn_enemy(&mut w, &view, EnemyKind::Charger);
+        let e = &w.enemies[0];
+        assert!(e.kind.dash_damage() > e.kind.damage(),
+                "the dash should be the dangerous part");
+        assert!(e.kind.is_charger() && e.state_t < CHARGER_CYCLE);
+    }
 }

@@ -51,6 +51,10 @@ pub const GC_EVT_LIGHTNING: i32 = 15;
 pub const GC_EVT_CHECKPOINT_PASSED: i32 = 16;
 pub const GC_EVT_CHECKPOINT_FAILED: i32 = 17;
 pub const GC_EVT_REVIVED: i32 = 18;
+/// A spitter threw blood.  value = damage.
+pub const GC_EVT_ENEMY_SHOT: i32 = 19;
+/// A miser lifted coins off the player.  value = coins taken.
+pub const GC_EVT_MONEY_STOLEN: i32 = 20;
 
 // gc_debug_cmd
 pub const GC_DBG_GIVE_MONEY: i32 = 1;
@@ -81,6 +85,9 @@ pub struct gc_settings {
 
 pub const GC_DBG_ADD_EARNED: i32 = 9;
 pub const GC_DBG_GRANT_PERK: i32 = 10;
+/// Spawns a few of one enemy kind around the player.  value = kind index:
+/// 0 grunt, 1 brute, 2 colossus, 3 charger, 4 spitter, 5 miser.
+pub const GC_DBG_SPAWN_ENEMY: i32 = 11;
 
 /// One draw command.  `(x, y)` is always the centre of the quad and `rot`
 /// rotates clockwise about it.

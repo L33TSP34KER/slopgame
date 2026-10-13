@@ -7,13 +7,13 @@
 use crate::sprite::SpriteId;
 
 /// Texture file name for each sprite, indexed by SpriteId.
-pub const SPRITE_FILES: [&str; 8] = ["player.png", "enemy_a.png", "enemy_b.png", "gun.png", "bow.png", "sword.png", "money.png", "xp.png"];
+pub const SPRITE_FILES: [&str; 11] = ["player.png", "enemy_a.png", "enemy_b.png", "gun.png", "bow.png", "sword.png", "money.png", "xp.png", "charger.png", "spitter.png", "miser.png"];
 
 /// Source texture size in pixels (informational).
-pub const SPRITE_PIXELS: [(u32, u32); 8] = [(476, 476), (476, 315), (476, 476), (466, 575), (471, 471), (475, 493), (474, 474), (474, 474)];
+pub const SPRITE_PIXELS: [(u32, u32); 11] = [(476, 476), (476, 315), (476, 476), (466, 575), (471, 471), (475, 493), (474, 474), (474, 474), (449, 262), (337, 362), (476, 362)];
 
 /// width / height of each trimmed texture, so quads are never distorted.
-pub const SPRITE_ASPECT: [f32; 8] = [1.000000, 1.511111, 1.000000, 0.810435, 1.000000, 0.963489, 1.000000, 1.000000];
+pub const SPRITE_ASPECT: [f32; 11] = [1.000000, 1.511111, 1.000000, 0.810435, 1.000000, 0.963489, 1.000000, 1.000000, 1.713740, 0.930939, 1.314917];
 
 /// Convenience accessor.
 pub fn aspect_of(id: SpriteId) -> f32 {

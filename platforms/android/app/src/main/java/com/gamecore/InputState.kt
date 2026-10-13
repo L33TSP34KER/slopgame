@@ -98,6 +98,17 @@ class InputState {
 
     // ---- live gesture state (pixels) -------------------------------------
 
+    /**
+     * True while the core is actually playing.  Only then do the screen halves
+     * become floating sticks: in a menu every touch is a plain UI pointer, so
+     * tapping "TAP TO START" on the left of the screen is not swallowed by a
+     * movement stick, and no stick overlay is drawn.
+     */
+    var gameplay: Boolean = false
+
+    /** Pointer that owns the screen while a menu is up. */
+    private var uiPointerId = NO_POINTER
+
     private var movePointerId = NO_POINTER
     private var aimPointerId = NO_POINTER
     private var dashPointerId = NO_POINTER
@@ -163,6 +174,15 @@ class InputState {
 
     /** `ACTION_DOWN` / `ACTION_POINTER_DOWN`. */
     fun onPointerDown(id: Int, x: Float, y: Float) {
+        if (!gameplay) {
+            // Menu: one plain pointer, exactly like a mouse.  The core decides
+            // what the tap means from its own layout.
+            uiPointerId = id
+            setAimFromPixels(x, y)
+            pointerActive = 1
+            pointerDown = 1
+            return
+        }
         if (!inDashButton(x, y) && x < viewportW * 0.5f) {
             // ---- left half: floating move joystick, origin = first touch ----
             if (movePointerId == NO_POINTER) {
@@ -201,6 +221,12 @@ class InputState {
 
     /** `ACTION_MOVE`: called for every pointer currently down. */
     fun onPointerMove(id: Int, x: Float, y: Float) {
+        if (!gameplay) {
+            if (id == uiPointerId) {
+                setAimFromPixels(x, y)
+            }
+            return
+        }
         when (id) {
             movePointerId -> applyMoveStick(x, y)
             aimPointerId -> setAimFromPixels(x, y)
@@ -211,6 +237,14 @@ class InputState {
 
     /** `ACTION_UP` / `ACTION_POINTER_UP`. */
     fun onPointerUp(id: Int, x: Float, y: Float) {
+        if (!gameplay) {
+            if (id == uiPointerId) {
+                uiPointerId = NO_POINTER
+                setAimFromPixels(x, y)
+                pointerDown = 0
+            }
+            return
+        }
         when (id) {
             movePointerId -> {
                 movePointerId = NO_POINTER
@@ -240,6 +274,7 @@ class InputState {
      * drop every live finger but keep the pause toggle, which is not a touch.
      */
     fun onCancel() {
+        uiPointerId = NO_POINTER
         movePointerId = NO_POINTER
         aimPointerId = NO_POINTER
         dashPointerId = NO_POINTER

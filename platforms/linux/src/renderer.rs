@@ -19,6 +19,10 @@ pub struct Renderer {
     atlas_w: f32,
     atlas_h: f32,
     white: *mut SdlTexture,
+    /// Tiling film-grain / ordered-dither pattern drawn over the finished frame.
+    grain: *mut SdlTexture,
+    /// Advances once per rendered frame: grain is frame-based, not timed.
+    grain_phase: f32,
     /// Pixels per virtual unit, straight from `gc_view_scale`.
     pub scale: f32,
     pub draws: u32,
@@ -33,6 +37,8 @@ impl Renderer {
             atlas_w: 1.0,
             atlas_h: 1.0,
             white: core::ptr::null_mut(),
+            grain: core::ptr::null_mut(),
+            grain_phase: 0.0,
             scale: 1.0,
             draws: 0,
         }
@@ -98,8 +104,96 @@ impl Renderer {
         let white = png::Image { width: 1, height: 1, pixels: vec![255, 255, 255, 255] };
         self.white = self.create_texture(&white)?;
 
+        // The grain overlay is generated rather than shipped: it is a 64x64
+        // dither/noise tile, so it costs nothing in the asset pipeline.
+        self.make_grain(0.55);
+
         let _ = handle;
         Ok(())
+    }
+
+    /// Builds the grain tile: an 8x8 Bayer ordered-dither matrix crossed with
+    /// per-pixel hash noise, so it reads as both dither and film grain.
+    ///
+    /// Alpha is pre-multiplied into the texture, so the overlay is one blended
+    /// blit per tile and needs no per-frame colour work.
+    pub fn make_grain(&mut self, strength: f32) {
+        const BAYER8: [[u32; 8]; 8] = [
+            [0, 32, 8, 40, 2, 34, 10, 42],
+            [48, 16, 56, 24, 50, 18, 58, 26],
+            [12, 44, 4, 36, 14, 46, 6, 38],
+            [60, 28, 52, 20, 62, 30, 54, 22],
+            [3, 35, 11, 43, 1, 33, 9, 41],
+            [51, 19, 59, 27, 49, 17, 57, 25],
+            [15, 47, 7, 39, 13, 45, 5, 37],
+            [63, 31, 55, 23, 61, 29, 53, 21],
+        ];
+        const SIZE: usize = 64;
+        let mut pixels = vec![0u8; SIZE * SIZE * 4];
+        let mut hash: u32 = 0x9E37_79B9;
+        for y in 0..SIZE {
+            for x in 0..SIZE {
+                hash ^= hash << 13;
+                hash ^= hash >> 17;
+                hash ^= hash << 5;
+                let noise = (hash >> 24) as u32; // 0..255
+                let dither = BAYER8[y % 8][x % 8] * 4; // 0..255
+                // Mostly dark grain with a few bright specks: black softens,
+                // white sparkles, which is what film grain looks like.
+                let combined = (noise * 5 + dither * 3) / 8;
+                let alpha = ((combined as f32 / 255.0).powf(1.6) * 255.0 * strength)
+                    .clamp(0.0, 255.0) as u8;
+                let bright = dither > 200 && noise > 160;
+                let value = if bright { 235u8 } else { 12u8 };
+                let i = (y * SIZE + x) * 4;
+                pixels[i] = value;
+                pixels[i + 1] = value;
+                pixels[i + 2] = value;
+                pixels[i + 3] = alpha;
+            }
+        }
+        unsafe {
+            let tex = SDL_CreateTexture(self.raw, SDL_PIXELFORMAT_ABGR8888,
+                                        SDL_TEXTUREACCESS_STATIC, SIZE as i32, SIZE as i32);
+            if tex.is_null() {
+                eprintln!("slime_arena: grain texture: {}", last_error());
+                return;
+            }
+            if SDL_UpdateTexture(tex, core::ptr::null(), pixels.as_ptr() as *const _,
+                                 (SIZE * 4) as i32) != 0 {
+                eprintln!("slime_arena: grain upload: {}", last_error());
+            }
+            SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+            self.grain = tex;
+        }
+    }
+
+    /// Tiles the grain over the whole frame, jittering its origin each frame so
+    /// the pattern crawls instead of sitting still.
+    pub fn draw_grain(&mut self, width: f32, height: f32) {
+        if self.grain.is_null() || width <= 0.0 || height <= 0.0 {
+            return;
+        }
+        const TILE: f32 = 64.0;
+        // One step per frame: the pattern crawls like real film grain.
+        self.grain_phase += 1.0;
+        let ox = (self.grain_phase * 13.0) as i32 as f32 % TILE;
+        let oy = (self.grain_phase * 7.0) as i32 as f32 % TILE;
+        let src = Some(SdlRect { x: 0, y: 0, w: TILE as i32, h: TILE as i32 });
+        let mut y = -oy;
+        while y < height {
+            let mut x = -ox;
+            while x < width {
+                let dst = SdlFRect { x, y, w: TILE, h: TILE };
+                unsafe {
+                    SDL_RenderCopyExF(self.raw, self.grain, src_ptr(&src), &dst,
+                                      0.0, core::ptr::null(), SDL_FLIP_NONE);
+                }
+                self.draws += 1;
+                x += TILE;
+            }
+            y += TILE;
+        }
     }
 
     pub fn clear(&mut self) {

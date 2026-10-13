@@ -43,7 +43,7 @@ _Static_assert(sizeof(gc_event) == 16, "gc_event must be 16 bytes");
 _Static_assert(sizeof(gc_status) == 40, "gc_status must be 40 bytes");
 _Static_assert(sizeof(gc_rect) == 16, "gc_rect must be 16 bytes");
 _Static_assert(sizeof(gc_progress) == 16, "gc_progress must be 16 bytes");
-_Static_assert(GC_SPR_COUNT == 8, "sprite count");
+_Static_assert(GC_SPR_COUNT == 11, "sprite count");
 
 /* ------------------------------------------------------------------ */
 /* entry points resolved from the shared library                       */

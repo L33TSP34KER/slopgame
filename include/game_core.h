@@ -80,6 +80,9 @@ typedef enum {
     GC_SPR_SWORD,
     GC_SPR_MONEY,
     GC_SPR_XP,
+    GC_SPR_CHARGER, /* winds up, then dashes */
+    GC_SPR_SPITTER, /* keeps its distance, throws blood */
+    GC_SPR_MISER,   /* eats your money */
     GC_SPR_COUNT
 } gc_sprite_id;
 
@@ -160,7 +163,9 @@ typedef enum {
     GC_EVT_LIGHTNING   = 15, /* a lightning strike landed                 */
     GC_EVT_CHECKPOINT_PASSED = 16, /* the 10-wave quota was met           */
     GC_EVT_CHECKPOINT_FAILED = 17, /* the quota was missed: run over      */
-    GC_EVT_REVIVED     = 18  /* an extra life was spent                 */
+    GC_EVT_REVIVED     = 18, /* an extra life was spent                 */
+    GC_EVT_ENEMY_SHOT  = 19, /* a spitter threw blood  value = damage   */
+    GC_EVT_MONEY_STOLEN = 20 /* a miser took coins     value = amount   */
 } gc_event_type;
 
 typedef struct {
@@ -281,7 +286,9 @@ typedef enum {
     GC_DBG_INVULNERABLE  = 7, /* value != 0 disables contact damage*/
     GC_DBG_SET_TIME      = 8, /* value = seconds on the clock      */
     GC_DBG_ADD_EARNED    = 9, /* value = cumulative earnings to add */
-    GC_DBG_GRANT_PERK    = 10 /* value = index into the shop's perk list */
+    GC_DBG_GRANT_PERK    = 10, /* value = index into the shop's perk list */
+    GC_DBG_SPAWN_ENEMY   = 11  /* value = enemy kind index (3 charger, 4
+                                  spitter, 5 miser); spawns a few nearby */
 } gc_debug_cmd;
 
 /* ------------------------------------------------------------------ */

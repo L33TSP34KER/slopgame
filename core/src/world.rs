@@ -15,7 +15,7 @@ pub const ARENA_W: f32 = 2400.0;
 pub const ARENA_H: f32 = 1560.0;
 
 pub const SPAWN_TIME: f32 = 0.45;
-pub const MAX_ENEMIES: usize = 260;
+pub const MAX_ENEMIES: usize = 340;
 pub const MAX_PARTICLES: usize = 900;
 pub const MAX_FLOATERS: usize = 64;
 pub const MAX_PROJECTILES: usize = 400;
@@ -139,6 +139,8 @@ pub struct World {
     pub decor: Decor,
     /// Ghostly copies of the player, summoned on kills.
     pub phantoms: Vec<Phantom>,
+    /// Blood clots in flight: hostile projectiles, kept apart from the player's.
+    pub shots: Vec<crate::entities::EnemyShot>,
     /// Player settings, edited by the options screen.
     pub settings: Settings,
     /// The options overlay is open over whatever state is underneath.
@@ -214,6 +216,7 @@ impl World {
             backdrop: Backdrop::new(&mut crate::math::Rng::new(seed)),
             decor: Decor::new(seed, Vec2::new(ARENA_W, ARENA_H)),
             phantoms: Vec::new(),
+            shots: Vec::new(),
             settings: Settings::default(),
             options_open: false,
             options_row: 0,
@@ -264,6 +267,7 @@ impl World {
         self.player.weapon_mut(WeaponKind::Gun).owned = true;
         self.enemies.clear();
         self.phantoms.clear();
+        self.shots.clear();
         self.projectiles.clear();
         self.pickups.clear();
         self.particles.clear();
@@ -735,10 +739,11 @@ impl World {
         self.add_event(GC_EVT_REVIVED, at.x, at.y, 2.0);
     }
 
-    fn kill_enemy(&mut self, index: usize) {
+    pub(crate) fn kill_enemy(&mut self, index: usize) {
         let e = self.enemies.remove(index);
         let pos = e.pos;
         let kind = e.kind;
+        let e_stolen = e.stolen;
         self.player.kills += 1;
         let leech = self.player.stats.lifesteal;
         if leech > 0.0 && self.player.hp < self.player.hp_max() {
@@ -751,6 +756,17 @@ impl World {
                        if kind.is_brute() { 2.0 } else { 1.0 });
         self.shake = (self.shake + if kind.is_brute() { 7.0 } else { 2.6 }).min(18.0);
 
+        // A miser drops what it lifted: the chase pays for itself.
+        if e_stolen > 0 {
+            let per = (e_stolen / 3).max(1);
+            let mut left = e_stolen;
+            while left > 0 {
+                let chunk = per.min(left);
+                self.drop_pickup(pos, PickupKind::Money, chunk);
+                left -= chunk;
+            }
+            self.add_event(GC_EVT_MONEY_STOLEN, pos.x, pos.y, -(e_stolen as f32));
+        }
         self.try_summon_phantom(pos);
         self.drop_pickup(pos, PickupKind::Xp, kind.xp());
         // Scavenger raises the drop *chance*; Greed raises the *value*.
@@ -775,7 +791,7 @@ impl World {
         }
     }
 
-    fn drop_pickup(&mut self, pos: Vec2, kind: PickupKind, value: i32) {
+    pub fn drop_pickup(&mut self, pos: Vec2, kind: PickupKind, value: i32) {
         if self.pickups.len() > 600 {
             return;
         }
@@ -950,6 +966,41 @@ impl World {
                 self.debug_invuln = false;
                 let _ = hp;
                 self.game_over();
+            }
+            GC_DBG_SPAWN_ENEMY => {
+                // A few of one kind, spread around the player: the screenshot
+                // driver has no other way to summon a specific specialist.
+                if let Some(kind) = crate::entities::kind_from_index(value as i32) {
+                    let base = self.player.pos;
+                    for k in 0..3 {
+                        let angle = self.rng.angle();
+                        let at = base + Vec2::from_angle(angle) * (170.0 + 60.0 * k as f32);
+                        let hp = kind.hp_at(self.wave);
+                        self.next_id += 1;
+                        self.enemies.push(crate::entities::Enemy {
+                            id: self.next_id,
+                            kind,
+                            pos: Vec2::new(at.x.clamp(20.0, ARENA_W - 20.0),
+                                           at.y.clamp(20.0, ARENA_H - 20.0)),
+                            vel: Vec2::ZERO,
+                            hp,
+                            hp_max: hp,
+                            radius: kind.radius(),
+                            spawn_t: 0.0,
+                            hurt_flash: 0.0,
+                            knock: Vec2::ZERO,
+                            slow_t: 0.0,
+                            bob_phase: self.rng.angle(),
+                            attack_cd: 0.0,
+                            dash_cd: 0.0,
+                            state_t: if kind.is_charger() { k as f32 * 0.9 } else { 0.0 },
+                            shoot_cd: if kind.is_spitter() { 0.3 + k as f32 * 0.5 } else { 0.0 },
+                            siphon: 0.0,
+                            stolen: 0,
+                            leak_cd: 0.0,
+                        });
+                    }
+                }
             }
             GC_DBG_GRANT_PERK => {
                 // Grants the next tier of a family: a cheap way for the tests

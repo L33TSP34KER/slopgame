@@ -293,6 +293,9 @@ enum Scenario {
     Phantom,
     /// The options screen, opened from the title.
     Options,
+    /// All three specialist enemies on screen at once, for the art and behaviour
+    /// to be looked at rather than assumed.
+    Enemies,
     LevelUp,
     Shop,
     GameOver,
@@ -304,6 +307,7 @@ impl Scenario {
         match name {
             "phantom" => Scenario::Phantom,
             "options" => Scenario::Options,
+            "enemies" => Scenario::Enemies,
             "title" => Scenario::Title,
             "survive" => Scenario::Survive,
             "combat" => Scenario::Combat,
@@ -335,6 +339,8 @@ impl Driver {
         let (end, shots) = match scenario {
             Scenario::Title => (8, vec![(6, "01_title")]),
             Scenario::Survive => (90000, vec![]),
+            Scenario::Enemies => (420, vec![(70, "01_enemy_charger"), (170, "02_enemy_spitter"),
+                                            (300, "03_enemy_miser")]),
             Scenario::Options => (260, vec![(60, "01_options_open"), (150, "02_options_rows"),
                                            (240, "03_options_set")]),
             Scenario::Phantom => (520, vec![(150, "01_phantom_spawn"), (300, "02_phantom_fight"),
@@ -488,6 +494,27 @@ impl Driver {
                 }
                 if self.scenario == Scenario::GameOver && f == 200 {
                     debug(game_core::GC_DBG_KILL_PLAYER, 0.0);
+                }
+            }
+            Scenario::Enemies => {
+                if f == 2 {
+                    let (x, y) = button_center(0);
+                    self.click(x, y);
+                }
+                if f == 6 {
+                    debug(game_core::GC_DBG_GIVE_MONEY, 3000.0);
+                    debug(game_core::GC_DBG_GIVE_WEAPON, 1.0);
+                    debug(game_core::GC_DBG_SET_WAVE, 12.0);
+                    // One of each specialist: charger, spitter, miser.
+                    debug(game_core::GC_DBG_SPAWN_ENEMY, 3.0);
+                    debug(game_core::GC_DBG_SPAWN_ENEMY, 4.0);
+                    debug(game_core::GC_DBG_SPAWN_ENEMY, 5.0);
+                }
+                // Keep topping up so the frame is never empty.
+                if f > 6 && f % 90 == 0 {
+                    debug(game_core::GC_DBG_SPAWN_ENEMY, 3.0);
+                    debug(game_core::GC_DBG_SPAWN_ENEMY, 4.0);
+                    debug(game_core::GC_DBG_SPAWN_ENEMY, 5.0);
                 }
             }
             Scenario::Options => {
@@ -754,7 +781,8 @@ fn main() {
 /// a texture looks right in an image viewer but wrong on screen.
 fn check_assets(dir: &Path) {
     let names = ["player.png", "enemy_a.png", "enemy_b.png", "gun.png", "bow.png",
-                 "sword.png", "money.png", "xp.png", "font_atlas.png"];
+                 "sword.png", "money.png", "xp.png",
+                 "charger.png", "spitter.png", "miser.png", "font_atlas.png"];
     for name in names {
         let path = dir.join(name);
         match png::load_rgba(&path.to_string_lossy()) {
@@ -1004,6 +1032,8 @@ fn run(opts: &Options, window: *mut SdlWindow, raw: *mut SdlRenderer) -> i32 {
         renderer.scale = unsafe { (api.view_scale)(handle) };
         renderer.clear();
         renderer.draw(cmds);
+        // Grain/dither film over the finished frame, under the OS cursor.
+        renderer.draw_grain(fb_w as f32, fb_h as f32);
         renderer.present();
 
         if opts.stats && opts.headless && frame % 60 == 0 {

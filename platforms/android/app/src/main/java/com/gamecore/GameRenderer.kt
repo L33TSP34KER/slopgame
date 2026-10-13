@@ -423,7 +423,7 @@ class GameRenderer(
         // DASH button (always visible, brighter while held).
         val dashW = (input.dashRight - input.dashLeft) / viewScale
         val dashH = (input.dashBottom - input.dashTop) / viewScale
-        if (dashW > 0f && dashH > 0f) {
+        if (input.gameplay && dashW > 0f && dashH > 0f) {
             val dashCx = (input.dashLeft + input.dashRight) * 0.5f / viewScale
             val dashCy = (input.dashTop + input.dashBottom) * 0.5f / viewScale
             val dashAlpha = if (input.dashPressed) 0.42f else 0.16f
@@ -747,6 +747,9 @@ class GameRenderer(
         )
         lastStatus = status
 
+        // The touch layer only behaves like twin sticks while a run is on; in a
+        // menu every touch is a plain UI tap.
+        input.gameplay = status.state == NativeCore.STATE_PLAYING
         if (status.state != lastState) {
             Log.i(
                 TAG,

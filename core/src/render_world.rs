@@ -47,6 +47,7 @@ pub fn draw_world(w: &World, r: &mut Renderer) {
     draw_pickups(w, r);
     draw_spawn_telegraphs(w, r);
     draw_enemies(w, r);
+    draw_enemy_shots(w, r);
     draw_player(w, r);
     draw_projectiles(w, r);
     draw_particles(w, r);
@@ -130,6 +131,63 @@ fn draw_enemies(w: &World, r: &mut Renderer) {
             r.sprite(sprite, e.pos, height, 0.0, fade(color::XP_BLUE, 0.35), GC_FLAG_FLASH);
         }
 
+        // ---- per-kind tells, so each threat reads before it lands ----------
+        if e.kind.is_charger() && !e.is_materialising() {
+            let t = e.state_t;
+            let coil_end = 1.35 + 0.45;
+            let dash_end = coil_end + 0.30;
+            if t >= 1.35 && t < dash_end {
+                // The coil is the warning: a red blade along the line it will
+                // take, growing as it commits.
+                let commit = ((t - 1.35) / 0.45).clamp(0.0, 1.0);
+                let len = 90.0 + 220.0 * commit;
+                let dir = if e.vel.length_sq() > 1.0 {
+                    e.vel.normalize_or_zero()
+                } else {
+                    Vec2::new(1.0, 0.0)
+                };
+                let mid = e.pos + dir * (len * 0.5);
+                let p = r.world_to_screen(mid);
+                r.rect_screen(p, len * r.zoom, (e.radius * 0.5) * r.zoom,
+                              dir.angle(), fade(color::HP, 0.18 + 0.30 * commit),
+                              GC_FLAG_FLASH);
+            }
+            if t >= coil_end && t < dash_end {
+                // Dash streak.
+                for k in 1..4 {
+                    let back = e.pos - e.vel.normalize_or_zero() * (k as f32 * 15.0);
+                    let q = r.world_to_screen(back);
+                    r.rect_screen(q, e.radius * 1.1 * r.zoom, e.radius * 0.8 * r.zoom,
+                                  0.0, fade(color::HP, 0.22 / k as f32), GC_FLAG_FLASH);
+                }
+            }
+        }
+        if e.kind.is_spitter() && !e.is_materialising() {
+            // The sac brightens as the throw approaches.
+            let interval = e.kind.throw_interval();
+            let ready = 1.0 - (e.shoot_cd / interval).clamp(0.0, 1.0);
+            let pulse = 0.5 + 0.5 * (w.time * 7.0).sin();
+            let a = 0.10 + 0.34 * ready * pulse;
+            let p = r.world_to_screen(e.pos + Vec2::new(0.0, e.radius * 0.25));
+            r.rect_screen(p, e.radius * 1.5 * r.zoom, e.radius * 1.5 * r.zoom,
+                          0.0, fade(color::rgb(0xc9, 0xe0, 0x5a), a), GC_FLAG_FLASH);
+        }
+        if e.kind.is_miser() && !e.is_materialising() {
+            // It wears your money: a coin orbiting it, and a gold halo once it
+            // is running for the exit.
+            let fleeing = e.stolen >= e.kind.flee_threshold();
+            let a = if fleeing { 0.45 } else { 0.22 };
+            let orbit = w.time * 3.0;
+            let coin = e.pos + Vec2::from_angle(orbit) * (e.radius * 1.5);
+            r.sprite(SpriteId::Money, coin, 20.0, orbit, fade(color::GOLD, a), GC_FLAG_FLASH);
+            if fleeing {
+                r.rect_screen(r.world_to_screen(e.pos), e.radius * 2.6 * r.zoom,
+                              e.radius * 2.6 * r.zoom, 0.0,
+                              fade(color::GOLD, 0.10 + 0.06 * (w.time * 8.0).sin()),
+                              GC_FLAG_FLASH);
+            }
+        }
+
         // Health bar, only once damaged.
         let frac = (e.hp / e.hp_max).clamp(0.0, 1.0);
         if frac < 0.98 && !e.is_materialising() {
@@ -144,6 +202,25 @@ fn draw_enemies(w: &World, r: &mut Renderer) {
                           fill_w, size.y, 0.0,
                           crate::systems::enemy_hp_color(frac), GC_FLAG_NONE);
         }
+    }
+}
+
+/// Blood clots: a wet blob with a short trail so the arc reads.
+fn draw_enemy_shots(w: &World, r: &mut Renderer) {
+    for s in &w.shots {
+        let p = r.world_to_screen(s.pos);
+        for k in 1..4 {
+            let back = s.pos - s.vel.normalize_or_zero() * (k as f32 * 7.0);
+            let q = r.world_to_screen(back);
+            r.rect_screen(q, s.radius * 1.5 * r.zoom, s.radius * 1.5 * r.zoom, 0.0,
+                          fade(color::rgb(0x6e, 0x10, 0x1c), 0.20 / k as f32), GC_FLAG_NONE);
+        }
+        // Wobbling blob (the command set has no circles, so a rotated square
+        // plus a highlight reads as a droplet at this size).
+        r.rect_screen(p, s.radius * 2.2 * r.zoom, s.radius * 2.2 * r.zoom,
+                      s.spin, color::rgb(0x8e, 0x14, 0x24), GC_FLAG_NONE);
+        r.rect_screen(p, s.radius * 0.9 * r.zoom, s.radius * 0.9 * r.zoom,
+                      -s.spin, fade(color::WHITE, 0.25), GC_FLAG_NONE);
     }
 }
 

@@ -18,9 +18,14 @@ pub enum SpriteId {
     Sword = 5,
     Money = 6,
     Xp = 7,
+    /// The three specialist enemies.  Order must match the generated table and
+    /// `gc_sprite_id` in include/game_core.h.
+    Charger = 8,
+    Spitter = 9,
+    Miser = 10,
 }
 
-pub const SPRITE_COUNT: usize = 8;
+pub const SPRITE_COUNT: usize = 11;
 
 impl SpriteId {
     pub fn index(self) -> i32 {
@@ -46,6 +51,9 @@ impl SpriteId {
             SpriteId::Sword => "sword.png\0",
             SpriteId::Money => "money.png\0",
             SpriteId::Xp => "xp.png\0",
+            SpriteId::Charger => "charger.png\0",
+            SpriteId::Spitter => "spitter.png\0",
+            SpriteId::Miser => "miser.png\0",
         }
     }
 
@@ -61,6 +69,11 @@ impl SpriteId {
             SpriteId::Sword => 54.0,
             SpriteId::Money => 24.0,
             SpriteId::Xp => 22.0,
+            // Sized so a charger reads as a body, a spitter as a fat target and
+            // a miser as a small, quick pest.
+            SpriteId::Charger => 58.0,
+            SpriteId::Spitter => 62.0,
+            SpriteId::Miser => 46.0,
         }
     }
 
@@ -92,6 +105,9 @@ pub fn all_sprites() -> [SpriteId; SPRITE_COUNT] {
         SpriteId::Sword,
         SpriteId::Money,
         SpriteId::Xp,
+        SpriteId::Charger,
+        SpriteId::Spitter,
+        SpriteId::Miser,
     ]
 }
 
