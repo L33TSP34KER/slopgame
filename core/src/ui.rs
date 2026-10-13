@@ -427,6 +427,23 @@ fn draw_hud(w: &World, r: &mut Renderer, theme: &Theme, layout: &UiLayout) {
     r.text(sub.as_str(), content.x + content.w * 0.5, content.y + gap + theme.h3 * 1.15,
            theme.small, 0.5, fade(color::WHITE, 0.75), GC_FLAG_SHADOW);
 
+    // -- boss bar ---------------------------------------------------------
+    // Found live rather than tracked, so it can never drift out of sync.
+    if let Some(boss) = w.enemies.iter().find(|e| e.boss) {
+        let frac = (boss.hp / boss.hp_max).clamp(0.0, 1.0);
+        let bw = (content.w * 0.34).clamp(220.0, 520.0);
+        let bh = (10.0 * theme.scale).max(7.0);
+        let bx = content.x + (content.w - bw) * 0.5;
+        // Below the clock, not on top of it.
+        let by = content.y + gap + theme.h3 * 1.15 + theme.small * 3.6;
+        let label = crate::buf_format!(32, "BOSS");
+        r.text_center(label.as_str(), content.center().x, by - theme.small * 1.25,
+                      theme.small, color::HP, GC_FLAG_SHADOW);
+        r.rect(Rect::new(bx, by, bw, bh), fade(color::BLACK, 0.55), 0);
+        r.rect(Rect::new(bx, by, bw * frac, bh), color::HP, 0);
+        r.outline(Rect::new(bx, by, bw, bh), 1.5, fade(color::WHITE, 0.35));
+    }
+
     let mins = (w.time / 60.0).floor() as i32;
     let secs = (w.time % 60.0).floor() as i32;
     let clock = crate::buf_format!(16, "{}:{:02}", mins, secs);
@@ -511,6 +528,13 @@ fn draw_banner(w: &World, r: &mut Renderer, theme: &Theme) {
             let text = crate::buf_format!(24, "WAVE {}", b.value);
             r.text_center(text.as_str(), content.center().x, y, theme.h1,
                           fade(color::WHITE, alpha), GC_FLAG_SHADOW);
+        }
+        BannerKind::BossWave => {
+            r.text_center("BOSS WAVE", content.center().x, y, theme.h1,
+                          fade(color::HP, alpha), GC_FLAG_SHADOW);
+            let sub = crate::buf_format!(24, "ONE ENORMOUS ENEMY - WAVE {}", b.value);
+            r.text_center(sub.as_str(), content.center().x, y + theme.h1 * 1.1, theme.h3,
+                          fade(color::GOLD, alpha), GC_FLAG_SHADOW);
         }
         BannerKind::WaveCleared => {
             r.text_center("WAVE CLEARED", content.center().x, y, theme.h1,

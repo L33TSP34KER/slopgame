@@ -173,8 +173,14 @@ prototype-bevy/              the original Bevy prototype, kept for reference
   fade away after a few seconds.
   Drag to pan the hive, tap a node to buy it. The tree reveals itself one layer
   ahead, so it grows as you do.
-* **Every 10 waves: a tax.** You must have *earned* `$250 x 3.0^n` in total by
-  wave 10, 20, 30… — 250, 750, 2.3K, 6.8K, 20.3K, 61K, 182K, 547K. It is a real
+* **Every 5 waves: a boss wave.** No mixed bag: one **enormous** enemy (16× the
+  health, 3.1× the size, 2.4× the damage of its kind, worth 26× the loot) plus an
+  escort that is entirely its own kind, so the wave has one readable idea. Bosses
+  rotate through the kinds — brute, charger, spitter, miser, grunt — with a
+  "BOSS WAVE" banner, a named health bar at the top of the screen, a gold halo
+  and a crown marker so it is findable in a crowd. Kill it for a pile of coins.
+* **Every 10 waves: a tax.** You must have *earned* `$750 x 3.0^n` in total by
+  wave 10, 20, 30… — 750, 2.3K, 6.8K, 20.3K, 60.8K, 182K, 547K, 1.6M. It is a real
   exponential (each checkpoint is ×3 the last, so the jumps grow rather than
   flatten) but it is calibrated against what an economy build can *earn*: coin
   value scales with the wave (`x(1 + 0.10 x wave)`), the wave bounty grows with
@@ -317,7 +323,7 @@ Everything below was actually executed on the Linux build host.
 
 | Check | Result |
 |---|---|
-| `cargo test` | **78 passed** — 53 core unit (tree structure, tax curve, backdrop and scenery, settings, enemy behaviours, ABI layout, layout maths), 10 renderer unit (audio synthesis, detuned takes, WAV decode, Vorbis decode checked against ffmpeg and against a stutter/rate regression) and 15 end-to-end through the C ABI |
+| `cargo test` | **81 passed** — 56 core unit (tree structure, tax curve, backdrop and scenery, settings, enemy behaviours, ABI layout, layout maths), 10 renderer unit (audio synthesis, detuned takes, WAV decode, Vorbis decode checked against ffmpeg and against a stutter/rate regression) and 15 end-to-end through the C ABI |
 | `tools/run_abi_harness.sh` | **PASSED** — C program `dlopen`s the real `.so`, `_Static_assert`s the ABI, and plays a whole run (~735 frames, 17 838 sprite / 69 784 glyph / 148 648 rect commands) including a hive purchase at exactly the quoted price, a locked node refusing to sell, a drag that must not buy, level-up, pause, save/load and restart |
 | Linux renderer | builds warning-free, loads `libgame_core.so` at runtime (`dlopen`), runs headless |
 | Headless captures | 9 landscape + 9 portrait (1170×2532) PNGs in `screenshots/`, generated from scripted input by clicking the *real* UI rectangles |

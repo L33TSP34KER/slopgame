@@ -55,6 +55,8 @@ pub const GC_EVT_REVIVED: i32 = 18;
 pub const GC_EVT_ENEMY_SHOT: i32 = 19;
 /// A miser lifted coins off the player.  value = coins taken.
 pub const GC_EVT_MONEY_STOLEN: i32 = 20;
+/// A boss wave's boss arrived.  value = its kind index.
+pub const GC_EVT_BOSS_SPAWN: i32 = 21;
 
 // gc_debug_cmd
 pub const GC_DBG_GIVE_MONEY: i32 = 1;

@@ -686,7 +686,7 @@ fn update_enemies(w: &mut World, dt: f32) {
                 throws.push((
                     e.pos + aim * (e.radius + 6.0),
                     aim * BLOOD_SPEED,
-                    e.kind.blood_damage(),
+                    e.kind.blood_damage() * e.damage_mult(),
                 ));
             }
         } else if e.kind.is_miser() {
@@ -726,7 +726,8 @@ fn update_enemies(w: &mut World, dt: f32) {
             let dashing = e.kind.is_charger()
                 && e.state_t >= CHARGER_WINDUP + CHARGER_COIL
                 && e.state_t < CHARGER_WINDUP + CHARGER_COIL + CHARGER_DASH;
-            contact_damage += if dashing { e.kind.dash_damage() } else { e.kind.damage() };
+            let base = if dashing { e.kind.dash_damage() } else { e.kind.damage() };
+            contact_damage += base * e.damage_mult();
             retaliate.push(idx);
             if e.kind.is_miser() && e.stolen < e.kind.purse() {
                 pocket.push(idx);
@@ -1095,7 +1096,18 @@ fn update_spawns(w: &mut World, view: &View, dt: f32) {
     }
 }
 
+/// Test-only window onto `choose_kind`, which is private to this module.
+#[cfg(test)]
+pub(crate) fn choose_kind_for_test(w: &mut World) -> EnemyKind {
+    choose_kind(w)
+}
+
 fn choose_kind(w: &mut World) -> EnemyKind {
+    // On a boss wave the escort is all one kind, matching the boss: no mixed
+    // bag, so the wave reads as a single idea.
+    if w.boss_wave {
+        return w.boss_kind;
+    }
     // Colossi first: they are rare and should not be crowded out by the chaff.
     if w.colossi_left > 0 {
         let share = w.colossi_left as f32 / (w.spawn_left.max(1)) as f32;
@@ -1158,6 +1170,7 @@ fn spawn_enemy(w: &mut World, view: &View, kind: EnemyKind) {
         siphon: 0.0,
         stolen: 0,
         leak_cd: 0.0,
+        boss: false,
     });
 }
 

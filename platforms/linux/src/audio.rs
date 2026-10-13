@@ -181,6 +181,7 @@ impl Cue {
             18 => Cue::Revived,
             19 => Cue::Hit,          // blood hits something
             20 => Cue::BuyFail,      // money going the wrong way
+            21 => Cue::WaveStart,    // a boss arriving
             _ => return None,
         })
     }

@@ -236,6 +236,8 @@ pub struct Enemy {
     pub stolen: i32,
     /// Counts down while a fleeing miser leaks a coin behind itself.
     pub leak_cd: f32,
+    /// A boss: an enormous version of its kind, and the point of the wave.
+    pub boss: bool,
 }
 
 /// A clot of blood thrown by a spitter.  Hostile projectiles live in their own
@@ -261,6 +263,20 @@ impl Enemy {
 
     pub fn is_alive(&self) -> bool {
         self.hp > 0.0
+    }
+
+    /// How much harder than its kind this enemy hits.
+    pub fn damage_mult(&self) -> f32 {
+        if self.boss {
+            crate::world::BOSS_DAMAGE_MULT
+        } else {
+            1.0
+        }
+    }
+
+    /// Draw size multiplier, including boss bulk.
+    pub fn scale_now(&self) -> f32 {
+        self.kind.scale() * if self.boss { crate::world::BOSS_SIZE_MULT } else { 1.0 }
     }
 
     pub fn is_materialising(&self) -> bool {

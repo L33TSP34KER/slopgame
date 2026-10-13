@@ -107,7 +107,7 @@ fn draw_enemies(w: &World, r: &mut Renderer) {
     for e in &w.enemies {
         let sprite = e.kind.sprite();
         let spawn_t = 1.0 - (e.spawn_t / SPAWN_TIME).clamp(0.0, 1.0);
-        let base = e.kind.scale();
+        let base = e.scale_now();
         let scale = if e.is_materialising() {
             base * (0.25 + 0.75 * spawn_t)
         } else {
@@ -115,6 +115,20 @@ fn draw_enemies(w: &World, r: &mut Renderer) {
         };
         let height = sprite.design_height() * scale;
         let alpha = if e.is_materialising() { 0.35 + 0.65 * spawn_t } else { 1.0 };
+
+        // A boss announces itself: a breath of gold under it, and a slow pulse.
+        if e.boss {
+            let pulse = 0.16 + 0.06 * (w.time * 2.4).sin();
+            let p = r.world_to_screen(e.pos + Vec2::new(0.0, e.radius * 0.35));
+            let wide = e.radius * 2.6 * r.zoom;
+            r.rect_screen(p, wide, wide * 0.55, 0.0, fade(color::GOLD, pulse), GC_FLAG_FLASH);
+            // Crown-ish marker above, so it is findable in a crowd.
+            let above = r.world_to_screen(e.pos + Vec2::new(0.0, -e.radius * 1.35));
+            r.rect_screen(above, e.radius * 0.7 * r.zoom, e.radius * 0.7 * r.zoom,
+                          std::f32::consts::FRAC_PI_4, fade(color::GOLD, 0.75), GC_FLAG_NONE);
+            r.rect_screen(above, e.radius * 0.34 * r.zoom, e.radius * 0.34 * r.zoom,
+                          std::f32::consts::FRAC_PI_4, fade(color::WHITE, 0.8), GC_FLAG_NONE);
+        }
 
         // Shadow keeps enemies readable against the floor.
         let shadow = r.world_to_screen(e.pos + Vec2::new(0.0, e.radius * 0.55));
@@ -190,7 +204,8 @@ fn draw_enemies(w: &World, r: &mut Renderer) {
 
         // Health bar, only once damaged.
         let frac = (e.hp / e.hp_max).clamp(0.0, 1.0);
-        if frac < 0.98 && !e.is_materialising() {
+        // A boss always shows its bar, however healthy it is.
+        if (frac < 0.98 || e.boss) && !e.is_materialising() {
             let bw = e.radius * 1.5;
             let bh = 3.0;
             let bar = Rect::new(e.pos.x - bw * 0.5, e.pos.y - e.radius - 12.0, bw, bh);

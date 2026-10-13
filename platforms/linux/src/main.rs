@@ -296,6 +296,8 @@ enum Scenario {
     /// All three specialist enemies on screen at once, for the art and behaviour
     /// to be looked at rather than assumed.
     Enemies,
+    /// A boss wave: one enormous enemy and an escort of its own kind.
+    Boss,
     LevelUp,
     Shop,
     GameOver,
@@ -308,6 +310,7 @@ impl Scenario {
             "phantom" => Scenario::Phantom,
             "options" => Scenario::Options,
             "enemies" => Scenario::Enemies,
+            "boss" => Scenario::Boss,
             "title" => Scenario::Title,
             "survive" => Scenario::Survive,
             "combat" => Scenario::Combat,
@@ -339,6 +342,8 @@ impl Driver {
         let (end, shots) = match scenario {
             Scenario::Title => (8, vec![(6, "01_title")]),
             Scenario::Survive => (90000, vec![]),
+            Scenario::Boss => (260, vec![(40, "01_boss_arrives"), (140, "02_boss_bar"),
+                                         (240, "03_boss_escort")]),
             Scenario::Enemies => (420, vec![(70, "01_enemy_charger"), (170, "02_enemy_spitter"),
                                             (300, "03_enemy_miser")]),
             Scenario::Options => (260, vec![(60, "01_options_open"), (150, "02_options_rows"),
@@ -495,6 +500,20 @@ impl Driver {
                 if self.scenario == Scenario::GameOver && f == 200 {
                     debug(game_core::GC_DBG_KILL_PLAYER, 0.0);
                 }
+            }
+            Scenario::Boss => {
+                if f == 2 {
+                    let (x, y) = button_center(0);
+                    self.click(x, y);
+                }
+                if f == 6 {
+                    debug(game_core::GC_DBG_GIVE_MONEY, 2000.0);
+                    debug(game_core::GC_DBG_GIVE_WEAPON, 0.0);
+                    debug(game_core::GC_DBG_GIVE_WEAPON, 1.0);
+                    // Wave 10 is a boss wave.
+                    debug(game_core::GC_DBG_SET_WAVE, 10.0);
+                }
+
             }
             Scenario::Enemies => {
                 if f == 2 {

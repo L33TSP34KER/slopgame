@@ -62,6 +62,8 @@ pub struct InputState {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum BannerKind {
     WaveStart,
+    /// A boss wave is starting (value = the wave).
+    BossWave,
     WaveCleared,
     /// The 10-wave money quota was met (value = the goal that was met).
     CheckpointPassed,
@@ -159,6 +161,15 @@ pub struct World {
     pub wave_t: f32,
     /// Set while the "wave cleared" banner is showing; counts down to the shop.
     pub wave_break_t: f32,
+    /// True on a boss wave: one enormous enemy, and the rest of the wave is its
+    /// own kind rather than the usual mix.
+    pub boss_wave: bool,
+    /// Which kind the boss (and its escort) is, on a boss wave.
+    pub boss_kind: EnemyKind,
+    /// Id of the live boss, or 0 when there is none.
+    pub boss_id: u32,
+    pub boss_hp: f32,
+    pub boss_hp_max: f32,
 
     pub time: f32,
     pub best_score: i32,
@@ -229,6 +240,11 @@ impl World {
             spawn_timer: 0.0,
             wave_t: 0.0,
             wave_break_t: 0.0,
+            boss_wave: false,
+            boss_kind: EnemyKind::Grunt,
+            boss_id: 0,
+            boss_hp: 0.0,
+            boss_hp_max: 0.0,
             time: 0.0,
             best_score,
             money_earned: 0,
@@ -290,6 +306,29 @@ impl World {
     }
 
     pub fn start_wave(&mut self) {
+        self.boss_wave = is_boss_wave(self.wave);
+        self.boss_id = 0;
+        self.boss_hp = 0.0;
+        self.boss_hp_max = 0.0;
+
+        if self.boss_wave {
+            // Boss waves are one enormous enemy plus a crowd of its own kind --
+            // no mixed bag, so the wave has a single, readable idea.
+            self.boss_kind = boss_kind_for_wave(self.wave);
+            let escort = (10 + self.wave * 2).clamp(12, 90);
+            self.spawn_left = escort;
+            self.brutes_left = 0;
+            self.colossi_left = 0;
+            self.spawn_timer = 0.9;
+            self.wave_t = 0.0;
+            self.wave_break_t = 0.0;
+            self.state = State::Playing;
+            self.banner = Some(Banner { kind: BannerKind::BossWave, t: 2.6, max: 2.6, value: self.wave });
+            self.add_event(GC_EVT_WAVE_START, self.player.pos.x, self.player.pos.y, self.wave as f32);
+            self.spawn_boss();
+            return;
+        }
+
         let (grunts, brutes, colossi) = wave_plan(self.wave);
         self.spawn_left = grunts + brutes + colossi;
         self.brutes_left = brutes;
@@ -300,6 +339,47 @@ impl World {
         self.state = State::Playing;
         self.banner = Some(Banner { kind: BannerKind::WaveStart, t: 1.9, max: 1.9, value: self.wave });
         self.add_event(GC_EVT_WAVE_START, self.player.pos.x, self.player.pos.y, self.wave as f32);
+    }
+
+    /// Summons the wave's boss: a much larger, much angrier version of a kind
+    /// you already know, so its tells still read.
+    fn spawn_boss(&mut self) {
+        let kind = self.boss_kind;
+        let angle = self.rng.angle();
+        let dist = 430.0;
+        let at = self.player.pos + Vec2::from_angle(angle) * dist;
+        let pos = Vec2::new(at.x.clamp(80.0, ARENA_W - 80.0), at.y.clamp(80.0, ARENA_H - 80.0));
+        let hp = kind.hp_at(self.wave) * BOSS_HP_MULT;
+        self.next_id += 1;
+        let id = self.next_id;
+        self.enemies.push(crate::entities::Enemy {
+            id,
+            kind,
+            pos,
+            vel: Vec2::ZERO,
+            hp,
+            hp_max: hp,
+            radius: kind.radius() * BOSS_SIZE_MULT,
+            spawn_t: 1.1,
+            hurt_flash: 0.0,
+            knock: Vec2::ZERO,
+            slow_t: 0.0,
+            bob_phase: self.rng.angle(),
+            attack_cd: 0.0,
+            dash_cd: 0.0,
+            state_t: 0.0,
+            shoot_cd: 1.2,
+            siphon: 0.0,
+            stolen: 0,
+            leak_cd: 0.0,
+            boss: true,
+        });
+        self.boss_id = id;
+        self.boss_hp = hp;
+        self.boss_hp_max = hp;
+        self.shake = (self.shake + 14.0).min(22.0);
+        self.burst(pos, 26, color::GOLD, 260.0, 8.0, 0.8, true);
+        self.add_event(GC_EVT_BOSS_SPAWN, pos.x, pos.y, kind_index(kind) as f32);
     }
 
     pub(crate) fn on_wave_cleared(&mut self) {
@@ -744,6 +824,7 @@ impl World {
         let pos = e.pos;
         let kind = e.kind;
         let e_stolen = e.stolen;
+        let e_boss = e.boss;
         self.player.kills += 1;
         let leech = self.player.stats.lifesteal;
         if leech > 0.0 && self.player.hp < self.player.hp_max() {
@@ -756,6 +837,21 @@ impl World {
                        if kind.is_brute() { 2.0 } else { 1.0 });
         self.shake = (self.shake + if kind.is_brute() { 7.0 } else { 2.6 }).min(18.0);
 
+        // A boss is worth a pile, and its death is an event.
+        if e_boss {
+            self.boss_id = 0;
+            self.boss_hp = 0.0;
+            self.boss_hp_max = 0.0;
+            self.shake = (self.shake + 20.0).min(26.0);
+            self.burst(pos, 60, color::GOLD, 340.0, 12.0, 1.1, true);
+            self.burst(pos, 24, color::WHITE, 240.0, 8.0, 0.7, true);
+            let haul = 40 + self.wave * 6;
+            for _ in 0..6 {
+                self.drop_pickup(pos, PickupKind::Money, haul / 3);
+            }
+            self.floater(pos + Vec2::new(0.0, -70.0), FloaterKind::Label("BOSS DOWN"),
+                         color::GOLD, 30.0);
+        }
         // A miser drops what it lifted: the chase pays for itself.
         if e_stolen > 0 {
             let per = (e_stolen / 3).max(1);
@@ -783,7 +879,8 @@ impl World {
         // Coins scale with the wave: without this, income flattens out (the
         // wave caps its enemy count) while the tax keeps compounding.
         let wave_worth = 1.0 + 0.10 * (self.wave - 1).max(0) as f32;
-        let value = ((kind.money() as f32) * self.player.stats.money_mult * wave_worth)
+        let loot_mult = if e_boss { BOSS_LOOT_MULT as f32 } else { 1.0 };
+        let value = ((kind.money() as f32) * loot_mult * self.player.stats.money_mult * wave_worth)
             .round()
             .max(1.0) as i32;
         for _ in 0..drops {
@@ -998,6 +1095,7 @@ impl World {
                             siphon: 0.0,
                             stolen: 0,
                             leak_cd: 0.0,
+                            boss: false,
                         });
                     }
                 }
@@ -1328,26 +1426,57 @@ impl World {
     }
 }
 
+/// Every fifth wave is a boss wave.
+pub const BOSS_EVERY: i32 = 5;
+/// How much more health and size the boss gets over its kind.
+pub const BOSS_HP_MULT: f32 = 16.0;
+pub const BOSS_SIZE_MULT: f32 = 3.1;
+/// How much harder it hits, and how much more it is worth.
+pub const BOSS_DAMAGE_MULT: f32 = 2.4;
+pub const BOSS_LOOT_MULT: i32 = 26;
+
+pub fn is_boss_wave(wave: i32) -> bool {
+    wave > 0 && wave % BOSS_EVERY == 0
+}
+
+/// Bosses cycle through the kinds, so each boss wave teaches its escort's tells
+/// before turning them up to eleven.
+pub fn boss_kind_for_wave(wave: i32) -> EnemyKind {
+    const ROTATION: [EnemyKind; 5] = [
+        EnemyKind::Brute,
+        EnemyKind::Charger,
+        EnemyKind::Spitter,
+        EnemyKind::Miser,
+        EnemyKind::Grunt,
+    ];
+    let step = (wave / BOSS_EVERY - 1).max(0) as usize;
+    ROTATION[step % ROTATION.len()]
+}
+
+fn kind_index(kind: EnemyKind) -> i32 {
+    crate::entities::ALL_KINDS.iter().position(|k| *k == kind).unwrap_or(0) as i32
+}
+
 /// Waves between quota checkpoints.
 pub const GOAL_WAVE_STEP: i32 = 10;
 /// The quota is a *tax*: it escalates hard, and the only way to keep paying it
 /// is to invest in the economy (Greed, Interest, Bounty, Scavenger) rather than
 /// pure damage.  Tuning knob, right here.
-const GOAL_BASE: f64 = 250.0;
+const GOAL_BASE: f64 = 750.0;
 const GOAL_GROWTH: f64 = 3.0;
 
 /// The money quota for checkpoint `tier`:
 ///
 /// | wave | tax |
 /// |------|-----|
-/// | 10 | $250 |
-/// | 20 | $750 |
-/// | 30 | $2 250 |
-/// | 40 | $6 750 |
-/// | 50 | $20 250 |
-/// | 60 | $60 750 |
-/// | 70 | $182 250 |
-/// | 80 | $546 750 |
+/// | 10 | $750 |
+/// | 20 | $2 250 |
+/// | 30 | $6 750 |
+/// | 40 | $20 250 |
+/// | 50 | $60 750 |
+/// | 60 | $182 250 |
+/// | 70 | $546 750 |
+/// | 80 | $1.64M |
 ///
 /// Calibrated against what a maxed economy can actually *earn*.  An earlier
 /// x4.5 curve looked fine on paper and was impossible in practice: income is
@@ -1386,11 +1515,60 @@ mod tests {
         for r in &ratios {
             assert!(*r > 2.8 && *r < 3.2, "ratio {} is not ~3.0", r);
         }
-        assert_eq!(goal_for_tier(0), 250);
-        assert!(goal_for_tier(1) >= 700, "second checkpoint must be four figures");
-        assert!(goal_for_tier(2) >= 2_000);
-        assert!(goal_for_tier(5) >= 60_000);
-        assert!(goal_for_tier(7) >= 500_000);
+        // The first checkpoint is the one that has to be felt immediately.
+        assert_eq!(goal_for_tier(0), 750);
+        assert!(goal_for_tier(1) >= 2_000);
+        assert!(goal_for_tier(2) >= 6_000);
+        assert!(goal_for_tier(5) >= 180_000);
+        assert!(goal_for_tier(7) >= 1_600_000);
+    }
+
+    #[test]
+    fn every_fifth_wave_is_a_boss_wave() {
+        assert!(!is_boss_wave(1));
+        assert!(!is_boss_wave(4));
+        assert!(is_boss_wave(5));
+        assert!(is_boss_wave(10));
+        assert!(is_boss_wave(50));
+        // The rotation visits every kind before repeating.
+        let kinds: Vec<EnemyKind> = (1..=5).map(|i| boss_kind_for_wave(i * BOSS_EVERY)).collect();
+        for (i, k) in kinds.iter().enumerate() {
+            assert!(!kinds[..i].contains(k), "boss kind {:?} repeats too early", k);
+        }
+        assert_eq!(boss_kind_for_wave(BOSS_EVERY), boss_kind_for_wave(BOSS_EVERY * 6));
+    }
+
+    #[test]
+    fn a_boss_wave_spawns_one_boss_and_an_escort_of_its_own_kind() {
+        let mut w = World::new(3, 0);
+        w.start_run();
+        w.wave = 10; // a boss wave
+        w.start_wave();
+        assert!(w.boss_wave);
+        let bosses: Vec<&crate::entities::Enemy> = w.enemies.iter().filter(|e| e.boss).collect();
+        assert_eq!(bosses.len(), 1, "a boss wave must have exactly one boss");
+        let boss = bosses[0];
+        assert_eq!(boss.kind, w.boss_kind);
+        // It is enormous next to its own kind.
+        assert!(boss.radius > boss.kind.radius() * 2.5, "the boss is not big enough");
+        assert!(boss.hp_max > boss.kind.hp_at(10) * 10.0, "the boss is not tough enough");
+        // And the escort is all the same kind, with no mixed bag.
+        assert!(w.spawn_left > 0, "a boss wave with no escort");
+        for _ in 0..200 {
+            assert_eq!(crate::systems::choose_kind_for_test(&mut w), w.boss_kind,
+                       "the escort is not all one kind");
+        }
+    }
+
+    #[test]
+    fn a_normal_wave_has_no_boss() {
+        let mut w = World::new(3, 0);
+        w.start_run();
+        w.wave = 7;
+        w.start_wave();
+        assert!(!w.boss_wave);
+        assert!(w.enemies.is_empty(), "a normal wave spawns nothing up front");
+        assert_eq!(w.boss_id, 0);
     }
 
     #[test]

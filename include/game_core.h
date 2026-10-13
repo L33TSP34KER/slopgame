@@ -165,7 +165,8 @@ typedef enum {
     GC_EVT_CHECKPOINT_FAILED = 17, /* the quota was missed: run over      */
     GC_EVT_REVIVED     = 18, /* an extra life was spent                 */
     GC_EVT_ENEMY_SHOT  = 19, /* a spitter threw blood  value = damage   */
-    GC_EVT_MONEY_STOLEN = 20 /* a miser took coins     value = amount   */
+    GC_EVT_MONEY_STOLEN = 20, /* a miser took coins    value = amount    */
+    GC_EVT_BOSS_SPAWN  = 21  /* a boss wave's boss arrived              */
 } gc_event_type;
 
 typedef struct {
