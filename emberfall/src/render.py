@@ -657,9 +657,16 @@ class Renderer:
             if px < -64 or px > SCREEN_W + 64 or py < -40 or py > SCREEN_H + 40:
                 continue
             ph = time * 1.3 + x * 0.7 + y * 0.9
-            a = int(26 + 30 * (0.5 + 0.5 * math.sin(ph)))
+            # One aligned dash per diamond made the river read as a wireframe
+            # grid (player report: "water is a test pattern"). Keep life in the
+            # water, but only on ~1/6 of the tiles and with a longer, softer
+            # stroke so it reads as shimmer on a painted surface.
+            if (x * 7 + y * 13) % 6:
+                continue
+            a = int(12 + 16 * (0.5 + 0.5 * math.sin(ph)))
             pygame.draw.line(screen, (170, 216, 210, a),
-                             (int(px - 12 + math.sin(ph) * 4), int(py)), (int(px + 2 + math.sin(ph) * 4), int(py)), 1)
+                             (int(px - 16 + math.sin(ph) * 6), int(py)),
+                             (int(px + 4 + math.sin(ph) * 6), int(py)), 1)
 
     def _draw_debug(self, screen, game, cam):
         f = self.art.font(14, "sans")
