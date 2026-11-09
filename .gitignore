@@ -10,3 +10,6 @@ build/
 *.spec
 prototype-web/
 .discord-webhook
+vendor/
+design/notes/shots/
+design/notes/flare-tmp/
