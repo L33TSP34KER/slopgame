@@ -482,18 +482,18 @@ class UI:
             h = w.hero
             if h and h.alive:
                 ab = self.t("Abilities", 11, PARCH_D, "sans")
-                g.screen.blit(ab, (r.x + 14, r.y + 148))
+                g.screen.blit(ab, (r.x + 14, r.y + 138))
                 for i, aid in enumerate(("ember-lance", "aegis", "consecrate", "daybreak")):
                     a = ABILITIES[aid]
                     x = r.x + 80 + i * 46
-                    ic = self.icon(a["icon"], 28)
+                    ic = self.icon(a["icon"], 26)
                     if h.level < a["unlock"]:
                         ic = ic.copy(); ic.set_alpha(70)
-                    g.screen.blit(ic, (x, r.y + 140))
+                    g.screen.blit(ic, (x, r.y + 130))
                     cd = h.abil_cd.get(aid, 0)
                     if cd > 0:
-                        cdv = self.t(str(int(math.ceil(cd))), 14, PARCH, "sans")
-                        g.screen.blit(cdv, (x + 8, r.y + 144))
+                        cdv = self.t(str(int(math.ceil(cd))), 13, PARCH, "sans")
+                        g.screen.blit(cdv, (x + 8, r.y + 134))
         self.add(pygame.Rect(r.x, r.y, r.w, r.h), kind="noop")
 
     # ---------------------------------------------------------------- commands

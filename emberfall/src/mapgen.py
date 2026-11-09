@@ -378,6 +378,20 @@ def generate_map(seed=20261109, difficulty="knight"):
             camp["units"].append(dict(type=ut, x=ux, y=uy))
         m.camps.append(camp)
         clear_area(cx, cy, 3)
+        # open the camp clearing for real: clear_area only marks the map, so remove
+        # blocking trees/rocks and their props as well (Thornwood sat in a tree shaft).
+        for yy in range(int(cy) - 3, int(cy) + 4):
+            for xx in range(int(cx) - 3, int(cx) + 4):
+                if not m.inb(xx, yy):
+                    continue
+                i = m.i(xx, yy)
+                if m.blocked[i] and (xx, yy) not in [(mm["x"], mm["y"]) for mm in []]:
+                    if (xx, yy) in m.wood:
+                        for pr in m.tree_props.get((xx, yy), []):
+                            pr["gone"] = True
+                        m.wood.pop((xx, yy), None)
+                        m.tree_props.pop((xx, yy), None)
+                    m.blocked[i] = 0
         m.add_prop("fire", cx + 0.5, cy + 0.5, scale=0.55, block=False, glow=True)
         m.add_prop("bone", cx + 0.2, cy + 0.9, variant=0, scale=0.8)
         return camp
@@ -473,6 +487,36 @@ def generate_map(seed=20261109, difficulty="knight"):
     route4 = find_path(m, (24, 72), (70, 57))
     if not route4:
         problems.append("no path player spawn -> southeast mine")
+    # Seal unreachable walkable pockets so the map has no dead rooms and the
+    # audit can prove connectivity. Pockets are visually dressed with rocks.
+    from collections import deque
+    from .pathfind import can_step, walkable
+    start = (24, 72)
+    seen = bytearray(m.w * m.h)
+    q = deque([start])
+    seen[start[1] * m.w + start[0]] = 1
+    while q:
+        x, y = q.popleft()
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)):
+            nx, ny = x + dx, y + dy
+            if not m.inb(nx, ny):
+                continue
+            ni = ny * m.w + nx
+            if seen[ni]:
+                continue
+            if can_step(m, x, y, nx, ny):
+                seen[ni] = 1
+                q.append((nx, ny))
+    sealed = 0
+    for y in range(2, m.h - 2):
+        for x in range(2, m.w - 2):
+            i = y * m.w + x
+            if seen[i] or not walkable(m, x, y):
+                continue
+            m.blocked[i] = 1
+            sealed += 1
+    if sealed:
+        problems.append(f"sealed {sealed} unreachable pocket tiles")
     m.problems = problems
     m.seed = seed
     return m

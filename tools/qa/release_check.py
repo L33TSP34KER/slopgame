@@ -210,7 +210,7 @@ def check_boot(results: list[tuple[str, str, str]], seconds: float = 25.0) -> No
     results.append(("boot:headless", "FAIL" if crashed else "PASS",
                     f"crashed after {time.time()-t0:.1f}s" if crashed
                     else f"alive {seconds:.0f}s, rc={rc}"))
-    states = len(re.findall(r'\{"qa":', log))
+    states = len(re.findall(r'\{"(?:qa|t)":', log))
     results.append(("boot:state stream", "PASS" if states else "WARN",
                     f"{states} state lines"))
 

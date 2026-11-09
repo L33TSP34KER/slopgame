@@ -1,6 +1,6 @@
 """Compose professional Flare building crops into game buildings."""
 from __future__ import annotations
-import os
+import os, math
 import pygame
 from .defs import *
 from .art import shade, mix, INK, GOLD
@@ -10,20 +10,18 @@ DIR = os.path.join(ROOT, "assets", "flare", "buildings")
 
 LAYERS = {
     "townhall": [("human_town_hall", 1.0, 0.0, 0.0, None)],
-    "keep": [("human_keep", 1.0, 0.0, 0.0, None),
-             ("human_town_hall", 0.58, 0.08, 0.16, None)],
+    "keep": [("human_keep", 1.0, 0.0, 0.0, None)],
     "farm": [("human_house_farm", 1.0, 0.0, 0.0, None)],
-    "barracks": [("human_barracks", 1.0, 0.0, 0.0, None),
-                 ("human_town_hall", 0.52, -0.16, 0.12, None)],
+    "barracks": [("human_town_hall", 0.88, 0.0, 0.0, None),
+                 ("human_house_farm", 0.30, -0.30, 0.06, None)],
     "mill": [("human_workshop_lumber", 1.0, 0.0, 0.0, None),
              ("human_house_farm", 0.34, -0.22, 0.06, None)],
-    "blacksmith": [("human_blacksmith_smithy", 1.0, 0.0, 0.0, None),
-                   ("human_house_farm", 0.38, 0.18, -0.05, None)],
+    "blacksmith": [("human_house_farm", 0.64, 0.0, 0.05, None),
+                   ("human_blacksmith_smithy", 0.70, 0.16, -0.04, None)],
     "sanctum": [("human_temple_altar", 1.0, 0.0, 0.0, None)],
     "tower": [("human_guard_tower", 1.0, 0.0, 0.0, None)],
     "altar": [("human_temple_altar", 0.82, 0.0, 0.0, None)],
-    "necropolis": [("undead_ruined_house", 1.0, 0.0, 0.0, None),
-                   ("undead_necropolis_ruin", 0.55, -0.18, 0.12, (0.8, 0.72, 1.0))],
+    "necropolis": [("undead_necropolis_ruin", 1.0, 0.0, 0.0, None)],
     "ziggurat": [("undead_ziggurat_ruin", 1.0, 0.0, 0.0, None)],
     "crypt": [("undead_crypt", 1.0, 0.0, 0.0, None)],
     "slaughterhouse": [("undead_ruined_tower", 1.0, 0.0, 0.0, None),
@@ -33,9 +31,9 @@ LAYERS = {
     "bonetower": [("human_guard_tower", 1.0, 0.0, 0.0, (0.62, 0.54, 0.82))],
     "altarhollow": [("undead_bone_ritual", 1.0, 0.0, 0.0, (0.85, 0.75, 1.0))],
 }
-TARGET_W = {"townhall": 250, "keep": 285, "farm": 145, "barracks": 205, "mill": 195,
+TARGET_W = {"townhall": 250, "keep": 270, "farm": 145, "barracks": 205, "mill": 195,
             "blacksmith": 195, "sanctum": 195, "tower": 95, "altar": 120,
-            "necropolis": 390, "ziggurat": 135, "crypt": 195, "slaughterhouse": 205,
+            "necropolis": 380, "ziggurat": 135, "crypt": 195, "slaughterhouse": 205,
             "temple": 195, "bonetower": 95, "altarhollow": 190}
 BANNER = {PLAYER: (172, 58, 48), ENEMY: (110, 74, 150), NEUTRAL: (140, 120, 80)}
 
@@ -105,6 +103,7 @@ class BuildingArt:
                 s.blit(piece, (px, base_y - cut + dy * th))
             else:
                 s.blit(img, (px, py))
+        self._fx(s, bid, cx, base_y, tw, th, team)
         # team banner
         if stage >= 3:
             bx = cx - tw * 0.40
@@ -125,3 +124,61 @@ class BuildingArt:
                     pygame.draw.line(s, (96, 72, 46), (x, base_y - th * 0.35), (x + tw * 0.28, base_y - th * 0.35), 1)
         self.cache[key] = (s, W / 2, base_y)
         return self.cache[key]
+
+    def _fx(self, s, bid, cx, base_y, tw, th, team):
+        """Small painted effects that make each building read at a glance."""
+        def glow(x, y, rad, col, strength=90):
+            g = pygame.Surface((rad * 2, rad * 2), pygame.SRCALPHA)
+            for r in range(rad, 0, -2):
+                a = int(strength * (r / rad))
+                pygame.draw.circle(g, (*col, a), (rad, rad), r)
+            s.blit(g, (int(x - rad), int(y - rad)))
+        def flame(x, y, h, col=(255, 150, 60)):
+            pygame.draw.polygon(s, (40, 26, 18), [(x - 7, y), (x + 7, y), (x + 4, y - h * 0.55), (x, y - h), (x - 5, y - h * 0.5)])
+            pygame.draw.polygon(s, col, [(x - 4, y), (x + 4, y), (x + 2, y - h * 0.5), (x, y - h * 0.85), (x - 3, y - h * 0.45)])
+            pygame.draw.circle(s, (255, 226, 150), (int(x), int(y - h * 0.25)), 2)
+        def motes(x, y, n, col):
+            for i in range(n):
+                pygame.draw.circle(s, col, (int(x + (i % 4) * 9 - 12), int(y - (i // 2) * 8)), 1 + (i % 2))
+        if bid == "blacksmith":
+            glow(cx + tw * 0.16, base_y - th * 0.16, 30, (130, 60, 24), 80)
+            flame(cx + tw * 0.17, base_y - th * 0.12, 26)
+            for i in range(3):
+                pygame.draw.circle(s, (90, 84, 80, 90), (int(cx + tw * 0.28 + i * 8), int(base_y - th * 0.55 - i * 12)), 5 + i * 2)
+        elif bid == "altar":
+            glow(cx, base_y - th * 0.45, 34, (150, 100, 36), 85)
+            flame(cx, base_y - th * 0.30, 38, (255, 190, 90))
+            pygame.draw.line(s, (238, 232, 210), (cx, base_y - th * 0.30), (cx, base_y - th * 0.66), 3)
+            pygame.draw.line(s, (201, 162, 39), (cx - 9, base_y - th * 0.46), (cx + 9, base_y - th * 0.46), 3)
+        elif bid == "sanctum":
+            glow(cx, base_y - th * 0.45, 34, (70, 64, 36), 50)
+            glow(cx, base_y - th * 0.62, 20, (120, 110, 70), 80)
+            pygame.draw.circle(s, (245, 230, 170), (int(cx), int(base_y - th * 0.62)), 4)
+            pygame.draw.circle(s, (255, 250, 220), (int(cx), int(base_y - th * 0.62)), 2)
+            motes(cx, base_y - th * 0.55, 8, (255, 210, 130))
+        elif bid == "temple":
+            glow(cx, base_y - th * 0.42, 58, (54, 26, 80), 100)
+            motes(cx, base_y - th * 0.52, 9, (170, 120, 230))
+        elif bid == "necropolis":
+            glow(cx, base_y - th * 0.22, 70, (66, 34, 100), 70)
+            # ground rune ring
+            for i in range(8):
+                a = i / 8 * 6.283
+                pygame.draw.circle(s, (150, 100, 220), (int(cx + math.cos(a) * tw * 0.35), int(base_y - 8 + math.sin(a) * 10)), 2)
+            for ox in (-0.24, 0.24):
+                flame(cx + tw * ox, base_y - th * 0.12, 30, (120, 210, 130))
+        elif bid == "altarhollow":
+            glow(cx, base_y - th * 0.40, 38, (90, 44, 120), 75)
+            motes(cx, base_y - th * 0.50, 8, (190, 150, 240))
+        elif bid == "tower":
+            flame(cx + tw * 0.28, base_y - th * 0.70, 20)
+        elif bid == "keep":
+            glow(cx - tw * 0.30, base_y - th * 0.30, 34, (100, 60, 20), 60)
+        elif bid == "barracks":
+            # training yard: weapon rack + dummy, distinct from the town hall
+            for i in range(4):
+                pygame.draw.line(s, (60, 46, 32), (cx - tw * 0.34 + i * 7, base_y - 8), (cx - tw * 0.34 + i * 7, base_y - 34), 2)
+            dx = cx + tw * 0.38
+            pygame.draw.line(s, (70, 54, 36), (dx, base_y - 4), (dx, base_y - 30), 3)
+            pygame.draw.line(s, (70, 54, 36), (dx - 8, base_y - 22), (dx + 8, base_y - 22), 2)
+            pygame.draw.circle(s, (150, 138, 112), (int(dx), int(base_y - 31)), 4)

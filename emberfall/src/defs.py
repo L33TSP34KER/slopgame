@@ -306,16 +306,16 @@ FACTION = {
 }
 
 DIFFICULTY = {
-    "squire": dict(id="squire", name="Squire", income=0.75, hp=0.82, dmg=0.85,
-                   wave_gap=1.25, wave_size=0.75, speed=0.95,
+    "squire": dict(id="squire", name="Squire", income=0.75, hp=0.72, dmg=0.78,
+                   wave_gap=1.30, wave_size=0.70, speed=0.95,
                    blurb="The Host is slow to wake. For learning the vale."),
     "knight": dict(id="knight", name="Knight", income=1.0, hp=1.0, dmg=1.0,
                    wave_gap=1.0, wave_size=1.0, speed=1.0,
                    blurb="A war worth fighting. The intended balance."),
-    "warlord": dict(id="warlord", name="Warlord", income=1.3, hp=1.18, dmg=1.12,
-                    wave_gap=0.82, wave_size=1.25, speed=1.05,
+    "warlord": dict(id="warlord", name="Warlord", income=1.3, hp=1.32, dmg=1.24,
+                    wave_gap=0.78, wave_size=1.30, speed=1.05,
                     blurb="The vale drowns. Only a hard, fast game survives."),
 }
 
 OBJECTIVE_MAIN = "Destroy the Necropolis and end the Hollow King."
-OBJECTIVE_BONUS = "Break the wolf-packs at the old mines for coin."
+OBJECTIVE_BONUS = "Break the goblin warrens at the old mines for coin."

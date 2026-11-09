@@ -11,6 +11,8 @@ pygame-ce, 1600×900, handcrafted 84×84 map, painterly Flare art, fully headles
 
 ```bash
 ./play.sh
+# or the packaged Linux build:
+dist/Emberfall/Emberfall
 ```
 
 First run creates a local `.venv` and installs `pygame-ce` (network required once).

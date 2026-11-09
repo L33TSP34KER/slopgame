@@ -120,9 +120,12 @@ class Art:
         self.units = {}
         self.portraits = {}
         self.glow = {}
+        self._icon_cache = {}
+        self._text_cache = {}
         self._gen_tiles()
         self._load_fonts()
         self._load_icons()
+        self._prewarm_units()
 
     # ---- fonts
     def _load_fonts(self):
@@ -154,14 +157,22 @@ class Art:
         return f
 
     def text(self, text, size, color=PARCH, face="serif", shadow=True):
+        key = (str(text), int(size), tuple(color), face, bool(shadow))
+        hit = self._text_cache.get(key)
+        if hit is not None:
+            return hit
         f = self.font(size, face)
         img = f.render(str(text), True, color)
         if not shadow:
-            return img
-        out = pygame.Surface((img.get_width() + 2, img.get_height() + 2), pygame.SRCALPHA)
-        sh = f.render(str(text), True, (0, 0, 0, 160))
-        out.blit(sh, (1, 1))
-        out.blit(img, (0, 0))
+            out = img
+        else:
+            out = pygame.Surface((img.get_width() + 2, img.get_height() + 2), pygame.SRCALPHA)
+            sh = f.render(str(text), True, (0, 0, 0, 160))
+            out.blit(sh, (1, 1))
+            out.blit(img, (0, 0))
+        if len(self._text_cache) > 800:
+            self._text_cache.clear()
+        self._text_cache[key] = out
         return out
 
     def text_wrap(self, text, size, width, color, face="serif", line_gap=2):
@@ -201,6 +212,10 @@ class Art:
                     pass
 
     def icon(self, key, size=64):
+        ck = (key, int(size))
+        hit = self._icon_cache.get(ck)
+        if hit is not None:
+            return hit
         img = self.icons.get(key)
         if img is None:
             s = pygame.Surface((size, size), pygame.SRCALPHA)
@@ -208,8 +223,28 @@ class Art:
             pygame.draw.rect(s, (120, 104, 80), (0, 0, size, size), 2, border_radius=6)
             gl = self.font(max(12, size // 3), "display").render((key or "?")[0].upper(), True, PARCH)
             s.blit(gl, ((size - gl.get_width()) // 2, (size - gl.get_height()) // 2))
+            self._icon_cache[ck] = s
             return s
-        return pygame.transform.smoothscale(img, (size, size))
+        out = pygame.transform.smoothscale(img, (size, size))
+        self._icon_cache[ck] = out
+        return out
+
+    def _prewarm_units(self):
+        """Cache the most common frames so first contact does not hitch."""
+        if not getattr(self, "flare", None):
+            return
+        player = ("worker", "footman", "archer", "knight", "priest", "hero")
+        enemies = ("ghoul", "fiend", "necromancer", "abomination", "revenant",
+                   "skeleton", "goblin", "goblin-brute", "hollow-king")
+        plan = (("idle", 4), ("walk", 8), ("attack", 4))
+        for rig in player + enemies:
+            if not self.flare.can(rig):
+                continue
+            team = PLAYER if rig in player else ENEMY
+            for facing in range(4):
+                for anim, n in plan:
+                    for f in range(n):
+                        self.unit(rig, facing, anim, f, team)
 
     # ---- water/tile generation
     def _gen_tiles(self):
@@ -592,7 +627,7 @@ class Art:
             return self.portraits[key]
         res = self.unit(rig, 0, "idle", 0, team)
         img = res[0] if isinstance(res, tuple) else res
-        bb = img.get_bounding_rect(min_alpha=8)
+        bb = img.get_bounding_rect(min_alpha=36)
         if bb.w > 4 and bb.h > 4:
             img = img.subsurface(bb).copy()
         w, h = img.get_size()

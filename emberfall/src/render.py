@@ -74,6 +74,8 @@ class Renderer:
                 r=rng.uniform(0.6, 2.0), a=rng.uniform(0.15, 0.7),
                 ph=rng.uniform(0, 6.28), warm=rng.random() < 0.7))
         self.vignette = self._make_vignette()
+        self.unit_shadow = pygame.Surface((38, 14), pygame.SRCALPHA)
+        pygame.draw.ellipse(self.unit_shadow, (10, 9, 12, 48), (0, 0, 38, 14))
         self.dusk = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
         self.dusk.fill((26, 20, 16, 10))
 
@@ -273,8 +275,8 @@ class Renderer:
         sx0 = clamp(vx, 0, self.MW); sy0 = clamp(vy, 0, self.MH)
         r = pygame.Rect(sx0, sy0, min(SCREEN_W, self.MW - sx0), min(SCREEN_H, self.MH - sy0))
         screen.blit(self.surface, (0, 0), r)
-        # water shimmer (fords are read from sand banks + stepping stones)
-        self._draw_water(screen, cam, time)
+        # still water: flat painterly surface, foamed banks baked in
+
         # selection ground markers
         self._draw_ground_markers(screen, game, cam, time)
         # gather drawables, culled to the camera's tile neighbourhood
@@ -370,6 +372,11 @@ class Renderer:
         if not e.alive:
             img = img.copy()
             img.set_alpha(max(0, int(255 * (1 - (e.death_t - 1.5) / 2.5))))
+        sc = getattr(e, "scale", 1.0) or 1.0
+        sh = self.unit_shadow
+        if sc != 1.0:
+            sh = pygame.transform.smoothscale(sh, (max(8, int(sh.get_width() * sc)), max(4, int(sh.get_height() * sc))))
+        screen.blit(sh, (int(px - sh.get_width() / 2), int(py - sh.get_height() / 2)))
         screen.blit(img, (int(px - ax), int(py - ay)))
         # carried resource
         if getattr(e, "carry", 0) > 0:
@@ -460,6 +467,8 @@ class Renderer:
                 pygame.draw.rect(screen, (86, 130, 214), (int(px - w / 2), y + 5, int(w * clamp(e.mana / e.max_mana, 0, 1)), 2))
 
     def _draw_fog(self, screen, game, cam, time0=0):
+        if getattr(game, "mode", "play") in ("menu", "intro"):
+            return
         m = self.map
         # one uniform dimming veil (no per-tile alpha seams), then opaque unexplored
         screen.blit(self.dim_veil, (0, 0))
@@ -506,7 +515,7 @@ class Renderer:
             if not e.alive:
                 continue
             if e.is_building:
-                if e.bid in ("townhall", "keep", "necropolis", "sanctum", "temple", "altar", "altarhollow"):
+                if e.bid in ("townhall", "keep", "necropolis", "sanctum", "temple", "altar", "altarhollow", "blacksmith"):
                     lights.append((e.x + e.bw / 2, e.y + e.bh / 2, 34 if e.bid in ("townhall", "keep", "necropolis") else 26,
                                    (255, 170, 90) if e.team == PLAYER else (150, 120, 230), 0.16))
             elif e.is_hero:

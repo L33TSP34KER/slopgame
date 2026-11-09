@@ -24,6 +24,9 @@ class EnemyAI:
         self.boss_awake = False
         self.rng = random.Random(4242)
         self.defenders = []
+        self.pending = []
+        self.spawn_t = 0.0
+        self.wave_target = None
 
     def update(self, dt):
         w = self.w
@@ -34,6 +37,12 @@ class EnemyAI:
         d = w.diff
         self.gold += 7.0 * d["income"] * 0.8
         self.spawn_cd -= 0.8
+        if self.pending:
+            self.spawn_t -= 0.8
+            if self.spawn_t <= 0:
+                self.spawn_t = 0.18
+                utype = self.pending.pop(0)
+                self.spawn_wave_unit(utype)
         if self.spawn_cd <= 0:
             self.try_train()
         self.manage()
@@ -42,7 +51,7 @@ class EnemyAI:
     def try_train(self):
         w = self.w
         units = w.units_of(ENEMY)
-        if len(units) > 58:
+        if len(units) + len(self.pending) >= 44:
             self.spawn_cd = 4.0
             return
         t = w.time
@@ -99,13 +108,10 @@ class EnemyAI:
         self.wave += 1
         base_n = 4 + self.wave * 2
         n = int(base_n * w.diff["wave_size"])
-        # free wave batch at the Necropolis so waves always feel real
+        # wave batch is queued and spawned one per ~0.2s to avoid a spawn hitch
         necro = next((b for b in w.buildings_of(ENEMY) if b.bid == "necropolis"), None)
-        if necro:
+        if necro and len(w.units_of(ENEMY)) + len(self.pending) < 50:
             for i in range(n):
-                pos = w.find_spawn_spot(necro)
-                if not pos:
-                    break
                 utype = "ghoul"
                 if self.wave >= 2 and i % 3 == 0:
                     utype = "fiend"
@@ -113,12 +119,11 @@ class EnemyAI:
                     utype = "necromancer"
                 if self.wave >= 4 and i % 7 == 0:
                     utype = "abomination"
-                u = w.spawn_unit(utype, pos[0] + self.rng.uniform(-1.4, 1.4),
-                                 pos[1] + self.rng.uniform(-1.4, 1.4), ENEMY)
-                u.order = {"type": "hold"}
+                self.pending.append(utype)
         # gather the standing army + the new batch
         army = [u for u in w.units_of(ENEMY) if not u.boss]
         target = self.pick_target()
+        self.wave_target = target
         if target and army:
             for u in army:
                 if u.order is None or u.order.get("type") in ("hold", "attack_move", "move"):
@@ -132,11 +137,33 @@ class EnemyAI:
         gap = max(85.0, 150.0 * w.diff["wave_gap"] - self.wave * 2)
         self.next_wave = w.time + gap
 
+    def spawn_wave_unit(self, utype):
+        w = self.w
+        necro = next((b for b in w.buildings_of(ENEMY) if b.bid == "necropolis"), None)
+        if not necro:
+            return
+        if len(w.units_of(ENEMY)) >= 50:
+            return
+        pos = w.find_spawn_spot(necro)
+        if not pos:
+            return
+        u = w.spawn_unit(utype, pos[0] + self.rng.uniform(-1.4, 1.4),
+                         pos[1] + self.rng.uniform(-1.4, 1.4), ENEMY)
+        if self.wave_target:
+            u.order = {"type": "attack_move", "x": self.wave_target[0], "y": self.wave_target[1]}
+            w._set_path(u, self.wave_target)
+        else:
+            u.order = {"type": "hold"}
+
     def pick_target(self):
         w = self.w
         pb = w.buildings_of(PLAYER)
         if pb:
-            b = min(pb, key=lambda x: (x.x - 61) ** 2 + (x.y - 18) ** 2)
+            halls = [b for b in pb if b.bid in ("townhall", "keep")]
+            if halls:
+                b = min(halls, key=lambda x: (x.x - 61) ** 2 + (x.y - 18) ** 2)
+            else:
+                b = min(pb, key=lambda x: (x.x - 61) ** 2 + (x.y - 18) ** 2)
             return (b.x + b.bw / 2, b.y + b.bh / 2)
         pu = w.units_of(PLAYER)
         if pu:

@@ -9,11 +9,11 @@
 | setup: units exist to click | PASS | 16 candidates |
 | coords: unit projects on-screen | PASS | screen=(800,450) |
 | select: left-click a unit | PASS | click (800,450) -> 1 selected |
-| select: box select | PASS | 10 selected |
-| select: shift-add | PASS | 10 -> 10 |
+| select: box select | PASS | 12 selected |
+| select: shift-add | PASS | 12 -> 13 |
 | select: ctrl+1 store, 1 recall | PASS | stored=True recalled=3 |
-| order: right-click issues move | PASS | order=dict moved=6.85 tiles |
-| order: unit actually walks there | PASS | moved 6.85 tiles of ~8.6 requested (target screen 928,607) |
+| order: right-click issues move | PASS | order=dict moved=5.49 tiles |
+| order: unit actually walks there | PASS | moved 5.49 tiles of ~8.6 requested (target screen 911,584) |
 | hotkey: A arms attack-move, Esc cancels | PASS | armed=True |
 | hotkey: S stop handled | PASS | no exception |
 | hotkey: SPACE selects hero | PASS | selection=1 |

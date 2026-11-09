@@ -44,6 +44,7 @@ class Game:
         self.placement = None
         self.attack_move_mode = False
         self.targeting = None
+        self.rally_mode = False
         self.drag_start = None
         self.drag_now = None
         self.mouse_down_pos = None
@@ -82,9 +83,11 @@ class Game:
         if scene == "intro":
             self.state = "intro"
             self.world.started = False
+            self.world.mode = "intro"
         if scene in ("base", "battle", "qa", "play"):
             self.world.gold = 4200
             self.world.lumber = 1800
+            self.world.food_extra = 18
             hall = next((b for b in self.world.buildings_of(PLAYER) if b.bid == "townhall"), None)
             if hall:
                 for bid, ox, oy in (("barracks", 24, 64), ("farm", 14, 70), ("blacksmith", 18, 74),
@@ -94,7 +97,9 @@ class Game:
                         self.world.spawn_building(bid, ox, oy, PLAYER, complete=True)
             for i, rig in enumerate(("footman", "footman", "archer", "archer", "knight",
                                      "priest", "footman", "archer", "knight")):
-                u = self.world.spawn_unit(rig, 24.5 + (i % 3) * 1.5, 69.5 + (i // 3) * 1.5, PLAYER)
+                ang = i / 9 * 6.283
+                u = self.world.spawn_unit(rig, 23.0 + math.cos(ang) * 3.6,
+                                          70.0 + math.sin(ang) * 2.6, PLAYER)
                 u.order = None
             self.world.hero.x, self.world.hero.y = 24, 72
             self.world.update_fog(force=True)
@@ -139,7 +144,7 @@ class Game:
         self.difficulty = diff
         self.world = World(self, self.map, self.art, diff)
         self.world.ai = EnemyAI(self.world)
-        self.world.mode = "play"
+        self.world.mode = "play" if skip_intro else "intro"
         self.world.started = skip_intro
         self.renderer.game = self.world
         self.selection = []
@@ -148,7 +153,7 @@ class Game:
         self.attack_move_mode = False
         self.targeting = None
         self.world.placement = None
-        cx, cy = self.renderer.w2s(24, 69, 1)
+        cx, cy = self.renderer.w2s(24, 69, 1) if skip_intro else self.renderer.w2s(33, 60, 1)
         self.camera = Camera(cx, cy, self.renderer.cam_bounds())
         self.camera.clamp()
         self.state = "play" if skip_intro else "intro"
@@ -162,6 +167,8 @@ class Game:
 
     def begin_mission(self):
         self.world.started = True
+        self.world.mode = "play"
+        self.world.update_fog(force=True)
         self.state = "play"
         self.audio.play_music("battle")
         self.world.alert("The vale is yours to hold, Marshal. Raise the Emberhold.")
@@ -312,7 +319,10 @@ class Game:
         hero = self.world.hero
         tile = self.renderer.screen_to_tile(mx, my, self.camera)
         target = self.pick_entity(mx, my)
-        self.world.cmd_cast(hero, aid, target if target else (tile[0] + 0.5, tile[1] + 0.5))
+        if ABILITIES[aid]["target"] == "unit":
+            self.world.cmd_cast(hero, aid, target if target and target.team != PLAYER else None)
+        else:
+            self.world.cmd_cast(hero, aid, target if target else (tile[0] + 0.5, tile[1] + 0.5))
         self.targeting = None
         self.world.targeting = None
 
@@ -423,7 +433,9 @@ class Game:
                     if node:
                         w.cmd_gather([u], node)
         elif k == "rally":
-            pass
+            self.rally_mode = True
+            w.alert("Choose a rally point.")
+            return
         elif k == "minimap":
             tx, ty = a["x"], a["y"]
             if a.get("button", 1) == 3:
@@ -463,6 +475,13 @@ class Game:
                         self.place_building(mx, my); return
                     if self.targeting:
                         self.cast_at(mx, my); return
+                    if self.rally_mode:
+                        tile = self.renderer.screen_to_tile(mx, my, self.camera)
+                        for b in self.selected():
+                            if b.is_building:
+                                self.world.cmd_rally(b, tile[0] + 0.5, tile[1] + 0.5)
+                        self.rally_mode = False
+                        return
                     if self.attack_move_mode:
                         tile = self.renderer.screen_to_tile(mx, my, self.camera)
                         units = [u for u in self.selected() if not u.is_building]
@@ -528,6 +547,8 @@ class Game:
                 self.targeting = None; self.world.targeting = None; return
             if self.attack_move_mode:
                 self.attack_move_mode = False; self.world.attack_move_mode = False; return
+            if self.ui.build_menu:
+                self.ui.build_menu = False; self.build_menu = False; return
             if self.state == "play":
                 self.state = "paused"; self.world.paused = True
             elif self.state in ("paused", "settings", "controls", "credits"):
@@ -596,8 +617,8 @@ class Game:
         if self.state == "title":
             self.menu_t += dt
             ang = self.menu_t * 0.05
-            tx = 24 + math.sin(ang) * 9
-            ty = 67 + math.cos(ang) * 5
+            tx = 32 + math.sin(ang) * 8
+            ty = 61 + math.cos(ang) * 5
             px, py = self.renderer.w2s(tx, ty, 1)
             self.camera.x += (px - self.camera.x) * min(1, dt * 0.55)
             self.camera.y += (py - self.camera.y) * min(1, dt * 0.55)
@@ -610,6 +631,14 @@ class Game:
             if keys[pygame.K_a] or keys[pygame.K_LEFT]: self.camera.x -= sp
             if keys[pygame.K_d] or keys[pygame.K_RIGHT]: self.camera.x += sp
             self.camera.clamp()
+            mx, my = pygame.mouse.get_pos()
+            if not self.qa and my < 700:
+                edge = 620 * dt
+                if mx <= 2: self.camera.x -= edge
+                elif mx >= SCREEN_W - 3: self.camera.x += edge
+                if my <= 2: self.camera.y -= edge
+                elif my >= SCREEN_H - 3: self.camera.y += edge
+                self.camera.clamp()
             self.sim_acc += dt * self.time_scale
             steps = 0
             while self.sim_acc >= self.sim_step and steps < 4:
@@ -688,6 +717,7 @@ class Game:
             units=len(w.units_of(PLAYER)), enemies=len(w.units_of(ENEMY)),
             sel=[e.kind for e in self.selection], camera=[round(self.camera.x), round(self.camera.y)],
             wave=getattr(getattr(w, "ai", None), "wave", 0),
+            hall=max([b.hp for b in w.buildings_of(PLAYER) if b.bid in ("townhall", "keep")] or [0]),
             mode=w.state, upgrades=sorted(w.upgrades),
             music=getattr(self.audio, "_current", None), sfx_loaded=len(self.audio.sfx),
         )), flush=True)

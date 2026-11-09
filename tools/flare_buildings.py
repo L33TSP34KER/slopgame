@@ -61,7 +61,7 @@ import sys
 import xml.etree.ElementTree as ET
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 Image.MAX_IMAGE_PIXELS = None
 
@@ -414,6 +414,7 @@ BUILDINGS = [
     # ------------------------------- HUMAN -------------------------------- #
     dict(
         name="human_town_hall", kind="human", src="compose", footprint="3x3",
+        post="human_town_hall",
         parts=[
             dict(a="structures", id=1, gx=1, gy=1),
             dict(a="structures", id=0, gx=0, gy=1),
@@ -424,6 +425,7 @@ BUILDINGS = [
     ),
     dict(
         name="human_house_farm", kind="human", src="compose", footprint="2x2",
+        post="human_house_farm",
         parts=[
             dict(a="structures", id=7, gx=2, gy=0),
             dict(a="structures", id=4, gx=0, gy=1),
@@ -435,36 +437,46 @@ BUILDINGS = [
     dict(
         name="human_barracks", kind="human", src="compose", footprint="2x2",
         parts=[
+            dict(a="grassland", id=91, gx=0, gy=0),
+            dict(a="grassland", id=88, gx=1, gy=0),
+            dict(a="grassland", id=94, gx=2, gy=0),
             dict(a="grassland", id=59, gx=0, gy=1),
             dict(a="grassland", id=56, gx=1, gy=1),
             dict(a="grassland", id=80, gx=0, gy=2),
             dict(a="grassland", id=61, gx=2, gy=1),
         ],
-        note="two canvas/fur field tents + barrel + supply crate = encampment",
+        post="human_barracks",
+        note="tents + rail palisade behind + spear rack w/ shield + crimson/gold standard = military camp",
     ),
     dict(
         name="human_workshop_lumber", kind="human", src="compose", footprint="3x2",
         parts=[
+            dict(a="grassland", id=117, gx=0, gy=0),
+            dict(a="grassland", id=118, gx=1, gy=0),
+            dict(a="grassland", id=119, gx=2, gy=0),
             dict(a="grassland", id=84, gx=0, gy=2),
             dict(a="grassland", id=85, gx=1, gy=2),
             dict(a="grassland", id=121, gx=1, gy=1),
             dict(a="grassland", id=120, gx=0, gy=1),
             dict(a="grassland", id=92, gx=2, gy=2),
         ],
-        note="log piles + axe-in-stump + cutting stump + rail fence (lumber yard)",
+        post="human_workshop_lumber",
+        note="tall timber stacks + log piles + saw frame + small crimson pennant = lumber mill",
     ),
     dict(
         name="human_blacksmith_smithy", kind="human", src="compose", footprint="2x2",
+        post="human_blacksmith_smithy",
         parts=[
             dict(a="grassland", id=86, gx=0, gy=1),
             dict(a="grassland", id=87, gx=1, gy=1),
             dict(a="grassland", id=61, gx=2, gy=1),
             dict(a="grassland", id=80, gx=0, gy=2),
         ],
-        note="forge fire + anvil on stump + crate + barrel (work yard, not a shell)",
+        note="shingle lean-to on posts + stone chimney + forge ember = reads as a building",
     ),
     dict(
         name="human_guard_tower", kind="human", src="compose", footprint="2x2",
+        post="human_guard_tower", draw_width=104,
         parts=[
             dict(a="ruins", id=177, gx=1, gy=1),
             dict(a="ruins", id=177, gx=1, gy=1, above=True, overlap=120),
@@ -474,34 +486,30 @@ BUILDINGS = [
     ),
     dict(
         name="human_temple_altar", kind="human", src="compose", footprint="3x3",
+        post="human_temple_altar",
         parts=[
             dict(a="ruins", id=177, gx=0, gy=1),
             dict(a="grassland_2x2", id=0, gx=1, gy=1),
             dict(a="ruins", id=128, gx=1, gy=1, dy=-60),
             dict(a="ruins", id=177, gx=2, gy=1),
         ],
-        note="carved stone rune circle + stepped monument + flanking columns",
+        note="OPEN ARCH spanning two columns over the rune circle + standing ember flame (wide, low, no mass)",
     ),
     dict(
         name="human_keep", kind="human", src="compose", footprint="3x3",
-        parts=[
-            dict(a="ruins", id=177, gx=2, gy=0),
-            dict(a="ruins", id=177, gx=0, gy=1),
-            dict(a="ruins", id=177, gx=1, gy=1),
-            dict(a="ruins", id=177, gx=2, gy=1),
-            dict(a="ruins", id=199, gx=1, gy=1, above=True, overlap=150),
-        ],
-        note="four stone column blocks in the Flare house footprint + capped central tower",
+        parts=[], post="human_keep",
+        note="CASTLE: crenellated curtain wall + twin turrets + stacked keep, ember gate/windows, crimson+gold standards",
     ),
     # ---------------------------- UNDEAD/RUINED ---------------------------- #
     dict(
-        name="undead_ruined_tower", kind="undead", src="atlas",
+        name="undead_ruined_tower", kind="undead", src="atlas", post="undead_ruined_tower",
         footprint="3x3", atlas="tilesheets/grassland_rottentower.png",
         rect=(0, 0, 1074, 1074),
         note="Flare 'rottentower': ivy-covered stone tower, rotted plank roof",
     ),
     dict(
         name="undead_ruined_house", kind="undead", src="compose", footprint="3x3",
+        post="undead_ruined_house",
         parts=[
             dict(a="structures", id=8, gx=0, gy=3),
             dict(a="structures", id=9, gx=1, gy=3),
@@ -515,6 +523,7 @@ BUILDINGS = [
     ),
     dict(
         name="undead_crypt", kind="undead", src="compose", footprint="3x2",
+        post="undead_crypt",
         parts=[
             dict(a="ruins", id=336, gx=0, gy=1),
             dict(a="ruins", id=306, gx=1, gy=1),
@@ -525,30 +534,17 @@ BUILDINGS = [
     ),
     dict(
         name="undead_ziggurat_ruin", kind="undead", src="compose", footprint="2x2",
-        parts=[
-            dict(a="ruins", id=201, gx=0, gy=1),
-            dict(a="ruins", id=201, gx=2, gy=0),
-            dict(a="ruins", id=201, gx=2, gy=1),
-            dict(a="ruins", id=201, gx=1, gy=1),
-            dict(a="ruins", id=199, gx=1, gy=1, above=True, overlap=140),
-            dict(a="ruins", id=128, gx=1, gy=1, above=True, overlap=90),
-        ],
-        note="wide stepped base of tapered blocks + raised stepped core (ruins.png)",
+        parts=[], post="undead_ziggurat_ruin",
+        note="3-tier stepped pyramid (430->286->162 wide) + shrine with violet flame, violet seams, bone rim",
     ),
     dict(
         name="undead_necropolis_ruin", kind="undead", src="compose", footprint="3x3",
-        parts=[
-            dict(a="ruins", id=336, gx=1, gy=1),
-            dict(a="ruins", id=340, gx=2, gy=1),
-            dict(a="grassland", id=124, gx=1, gy=2),
-            dict(a="grassland", id=125, gx=2, gy=2),
-            dict(a="grassland", id=126, gx=3, gy=2),
-            dict(a="grassland", id=122, gx=2, gy=3),
-        ],
-        note="iron grave fence behind headstones, stone cross and wooden cross",
+        parts=[], post="undead_necropolis_ruin",
+        note="WIN CONDITION: tall tomb+spire (~950px) with violet flame, bone spikes/skulls, headstones + iron fence, violet+sickly-green glow",
     ),
     dict(
         name="undead_bone_ritual", kind="undead", src="compose", footprint="2x2",
+        post="undead_bone_ritual",
         parts=[
             dict(a="ruins", id=269, gx=1, gy=1),
             dict(a="ruins", id=128, gx=0, gy=1),
@@ -694,6 +690,9 @@ def compose(spec):
         else:
             descs.append("%s#%d@g(%d,%d)" % (p["a"], int(p["id"]), gx, gy))
         last = placed[-1]
+    if not placed:
+        # fully procedural sprite: the post-processor paints it from scratch
+        return Image.new("RGBA", (8, 8), (0, 0, 0, 0)), "procedural"
     min_l = min(e["l"] for e in placed)
     min_t = min(e["t"] for e in placed)
     max_r = max(e["l"] + e["img"].width for e in placed)
@@ -720,29 +719,39 @@ FACTION = {
                    sick=(158, 202, 96), sick_dk=(92, 130, 60)),
 }
 
-# kind -> (atlas key, tile id) sampled for surface texture
+# kind -> (atlas key, tile id, optional fraction box of the content bbox)
+# sampled for surface texture.  Only fully-painted tiles are used: wall blocks
+# carry a pure-black "back face" paint which would show as flat blotches.
 _TEX_SRC = {
-    "stone": ("ruins", 152),        # mossy grey masonry
-    "stone_light": ("ruins", 0),    # clean slab floor
-    "stone_dark": ("ruins", 160),   # broken dark masonry
-    "wood": ("structures", 6),      # log wall
-    "wood_dark": ("grassland", 117),  # stacked timber
-    "shingle": ("structures", 7),   # shingled roof
-    "iron": ("ruins", 338),         # iron fence -> dark metal
-    "bone": ("dungeon", 162),       # bone pile
+    "stone": ("ruins", 5, None),          # cracked slab floor -> masonry
+    "stone_light": ("ruins", 0, None),    # clean slab floor
+    "stone_dark": ("ruins", 2, None),     # darker slab
+    "wood": ("grassland", 117, None),     # stacked timber -> bark grain
+    "wood_dark": ("grassland", 118, None),
+    "shingle": ("structures", 7, (0.0, 0.0, 1.0, 0.62)),
+    "iron": ("ruins", 338, None),         # iron fence -> dark metal
+    "bone": ("dungeon", 162, None),       # bone pile
 }
 _TEX_CACHE = {}
+# target mean luminance per surface so procedural stone sits in the same
+# mid-tone range as the painted Flare blocks (raw slab samples are darker)
+_TEX_TARGET = {"stone": 126, "stone_light": 138, "stone_dark": 106, "wood": 96,
+               "wood_dark": 86, "shingle": 84, "iron": 92, "bone": 150}
 
 
 def _tex_source(kind):
     if kind in _TEX_CACHE:
         return _TEX_CACHE[kind]
-    key, gid = _TEX_SRC.get(kind, _TEX_SRC["stone"])
+    key, gid, frac = _TEX_SRC.get(kind, _TEX_SRC["stone"])
     a = _atlas(key)
     col, row = gid % a["cols"], gid // a["cols"]
     cell = a["img"].crop((col * a["tw"], row * a["th"],
                           col * a["tw"] + a["tw"], row * a["th"] + a["th"]))
     bb = content_bbox(cell)
+    if frac:
+        bw, bh = bb[2] - bb[0], bb[3] - bb[1]
+        bb = (bb[0] + int(bw * frac[0]), bb[1] + int(bh * frac[1]),
+              bb[0] + int(bw * frac[2]), bb[1] + int(bh * frac[3]))
     inner = cell.crop(bb)
     arr = np.array(inner).astype(np.float32)
     op = arr[:, :, 3] > 0
@@ -762,14 +771,44 @@ def _tex_source(kind):
             ch = rgb[:, :, i]
             arr[:, :, i] = np.where(good, ch, mean[i])
         arr[:, :, 3] = 255.0
+    target = _TEX_TARGET.get(kind)
+    if target:
+        m = arr[:, :, :3].mean()
+        if m > 1.0:
+            arr[:, :, :3] *= float(target) / m
     out = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGBA")
     _TEX_CACHE[kind] = out
     return out
 
 
+# masonry is generated (not sampled): the painted floor tiles carry a diamond
+# tile outline which, tiled across a wall, reads as a lattice/glassy seam.
+_NOISE_COL = {"stone": (126, 131, 117), "stone_light": (142, 146, 134),
+              "stone_dark": (104, 108, 97)}
+
+
+def _stone_texture(kind, w, h, seed=0):
+    base = np.array(_NOISE_COL[kind], dtype=np.float32)
+    fine = np.array(Image.fromarray(rng_noise(w, h, seed + 11))
+                    .filter(ImageFilter.GaussianBlur(0.7))).astype(np.float32)
+    coarse = np.array(Image.fromarray(rng_noise(w, h, seed + 12))
+                      .filter(ImageFilter.GaussianBlur(max(w, h) / 18.0))).astype(np.float32)
+    blotch = np.array(Image.fromarray(rng_noise(w, h, seed + 13))
+                      .filter(ImageFilter.GaussianBlur(max(w, h) / 7.0))).astype(np.float32)
+    v = ((fine - 127.0) / 127.0 * 9.0 + (coarse - 127.0) / 127.0 * 14.0
+         + (blotch - 127.0) / 127.0 * 10.0)
+    rgb = base[None, None, :] + v[:, :, None]
+    rgb[:, :, 2] += (coarse - 127.0) / 127.0 * 4.0     # slight cool/warm drift
+    out = np.dstack([np.clip(rgb, 0, 255),
+                     np.full((h, w), 255.0)]).astype(np.uint8)
+    return Image.fromarray(out, "RGBA")
+
+
 def texture(kind, w, h, seed=0, grain=5.0, mottle=7.0):
-    """Mirror-tiled sample of a real atlas surface, sized (w, h), RGBA opaque."""
+    """Painterly surface texture, sized (w, h), RGBA opaque."""
     w, h = max(2, int(w)), max(2, int(h))
+    if kind in _NOISE_COL:
+        return _stone_texture(kind, w, h, seed)
     src = _tex_source(kind)
     sw, sh = src.size
     rng = random.Random(seed * 7919 + 13)
@@ -840,8 +879,18 @@ def _blur(arr, r):
     return np.array(im.filter(ImageFilter.GaussianBlur(r))).astype(np.float32) / 255.0
 
 
-def prism_layer(w, h, kind="stone", seed=0, shade=(0.56, 0.80, 1.02), grad=0.16,
-                battlement=0, over=0, rim=True):
+def _course_mask(w, h, spacing, slope, width=2):
+    m = Image.new("L", (w, h), 0)
+    d = ImageDraw.Draw(m)
+    c = -h - w
+    while c < h + w:
+        d.line([(0, c), (w, c + slope * w)], fill=255, width=width)
+        c += spacing
+    return np.array(m).astype(np.float32) / 255.0
+
+
+def prism_layer(w, h, kind="stone", seed=0, shade=(0.75, 1.02, 1.24), grad=0.11,
+                battlement=0, over=0, rim=True, courses=34, top_dim=1.0):
     """Isometric 2:1 prism.
 
     Returns (RGBA image, (ax, ay)) where (ax, ay) is the front (bottom) vertex
@@ -871,12 +920,20 @@ def prism_layer(w, h, kind="stone", seed=0, shade=(0.56, 0.80, 1.02), grad=0.16,
     tlin = np.clip((yy - pad) / float(max(1, h + D)), 0.0, 1.0)
     sh = np.ones((H, W), dtype=np.float32)
     sh = sh * (1.0 - grad * tlin)
-    sh = sh * (1.0 + (shade[2] - 1.0) * m_top)
+    sh = sh * (1.0 + (shade[2] * top_dim - 1.0) * m_top)
     sh = sh * (1.0 + (shade[0] - 1.0) * m_left)
     sh = sh * (1.0 + (shade[1] - 1.0) * m_right)
 
     tex = np.array(texture(kind, W, H, seed=seed)).astype(np.float32)
     rgb = tex[:, :, :3] * sh[:, :, None]
+
+    if courses:
+        # stone courses: joints follow each face's iso direction
+        for slope, fmask in ((0.5, m_left), (-0.5, m_right)):
+            j = _blur(_course_mask(W, H, courses, slope, 2) * fmask, 0.9)
+            hl = _blur(_course_mask(W, H, courses + 4, slope, 1) * fmask, 1.4)
+            rgb *= (1.0 - 0.15 * j)[:, :, None]
+            rgb += (hl * 7.0)[:, :, None]
 
     if rim:
         e_top = _blur(_line_mask((W, H), [tL, tB, tR], 2), 0.9)
@@ -900,7 +957,7 @@ def _add_parapet(base_img, w, h, mh, kind, seed, over=4):
     """Cap the prism with a parapet ring cut by crenel slots (battlements)."""
     W2 = w + 2 * over
     cap, (cx, cy) = prism_layer(W2, mh, kind=kind, seed=seed + 91,
-                                shade=(0.62, 0.86, 1.05), grad=0.10, rim=True)
+                                shade=(0.74, 0.98, 1.20), grad=0.10, rim=True)
     cap = _cut_crenels(cap, W2, mh)
     pad = 4
     D = w // 2
@@ -969,6 +1026,17 @@ def grow_canvas(img, extra_top=0, extra_bottom=0, extra_left=0, extra_right=0):
                     (0, 0, 0, 0))
     out.alpha_composite(img, (extra_left, extra_top))
     return out, (extra_left, extra_top)
+
+
+_GROW_OFF = [0, 0]
+
+
+def _grow(img, top=760, left=420, right=420, bottom=40):
+    """Give a post-processor room; the final extract trims back to content."""
+    out, off = grow_canvas(img, extra_top=top, extra_bottom=bottom,
+                           extra_left=left, extra_right=right)
+    _GROW_OFF[0], _GROW_OFF[1] = off
+    return out
 
 
 def add_glow(img, cx, cy, rx, ry, color, strength=0.7, blur=None, add_alpha=0.55):
@@ -1186,7 +1254,7 @@ def draw_arch(img, p0, p1, height, arch_h=None, fill=(14, 10, 16), glow_color=No
         cx = (P(u0, 0)[0] + P(u1, 0)[0]) / 2.0
         cy = (P(u0, 0)[1] + P(u1, 0)[1]) / 2.0 - ah * 0.55
         img = add_glow(img, cx, cy, span * (u1 - u0) * 0.75, ah * 0.85,
-                       glow_color, strength=glow_strength, add_alpha=0.30)
+                       glow_color, strength=glow_strength, add_alpha=0.16)
     return img
 
 
@@ -1214,8 +1282,8 @@ def draw_window(img, p0, p1, height, u=0.5, wfrac=0.14, hfrac=0.18, vfrac=0.5,
     img = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGBA")
     cx = sum(p[0] for p in poly) / 4.0
     cy = sum(p[1] for p in poly) / 4.0
-    return add_glow(img, cx, cy, ww * 2.6, ww * 2.6, warm, strength=strength,
-                    add_alpha=0.18)
+    return add_glow(img, cx, cy, ww * 2.0, ww * 2.0, warm, strength=strength,
+                    add_alpha=0.10)
 
 
 def bone_rim(img, strength=0.5, kind="undead"):
@@ -1320,6 +1388,20 @@ def draw_bone_spike(img, x, y, height, seed=0, lean=0.0, skull=True):
     return img
 
 
+def warm_rim(img, strength=0.35, color=None):
+    """Gold/ember rim light on the brightest pixels (human faction identity)."""
+    col = np.array(color or FACTION["human"]["gold"], dtype=np.float32)
+    arr = np.array(img).astype(np.float32)
+    lum = arr[:, :, :3].mean(axis=2)
+    a = arr[:, :, 3] / 255.0
+    hi = np.clip((lum - 150.0) / 95.0, 0, 1) * a * strength
+    edge = np.clip(_blur(a, 1.6) - _blur(a, 3.4), 0, 1)
+    hi = np.clip(hi + edge * strength * 0.45, 0, 1)
+    arr[:, :, :3] = 255.0 - (255.0 - arr[:, :, :3]) * (
+        255.0 - col[None, None, :] * hi[:, :, None]) / 255.0
+    return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGBA")
+
+
 def wash(img, color, strength=0.10, mode="screen"):
     arr = np.array(img).astype(np.float32)
     col = np.array(color, dtype=np.float32)[None, None, :]
@@ -1330,6 +1412,124 @@ def wash(img, color, strength=0.10, mode="screen"):
         blended = arr[:, :, :3] * col / 255.0
     arr[:, :, :3] = arr[:, :, :3] * (1 - strength * a) + blended * (strength * a)
     return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGBA")
+
+
+def paste_cell(img, atlas_key, gid, x, y, scale=1.0, flip=None, key_black=False,
+               dim=None, tint_mul=None, anchor="bottom"):
+    """Paste one atlas cell so its content bottom-centre lands on (x, y)."""
+    layer = _part_image(dict(a=atlas_key, id=gid, scale=scale, flip=flip,
+                             key_black=key_black, dim=dim, tint_mul=tint_mul))
+    cb = content_bbox(layer)
+    ax = cb[0] + (cb[2] - cb[0]) // 2
+    ay = cb[3] if anchor == "bottom" else cb[1]
+    return paste(img, layer, (ax, ay), x, y)
+
+
+def gable_roof(w, ridge, kind="shingle", seed=0, bright=0.90):
+    """Isometric gable roof: big slope faces front-right, gable end front-left.
+
+    Returns (layer, anchor) with the anchor at the front vertex of the eave
+    diamond (the same convention as prism_layer).
+    """
+    import math
+    w = max(8, int(w))
+    D = w // 2
+    pad = 4
+    W, H = w + 2 * pad, int(ridge) + D + 2 * pad
+    ax, ay = pad + w // 2, pad + int(ridge) + D
+    S = (pad + w / 2.0, ay)                      # front
+    L = (pad, pad + int(ridge) + D / 2.0)        # left
+    R = (pad + w, pad + int(ridge) + D / 2.0)    # right
+    sw_a = ((S[0] + L[0]) / 2.0, (S[1] + L[1]) / 2.0 - ridge)   # ridge end (front-left)
+    ne_a = ((S[0] + R[0]) / 2.0, (S[1] + R[1]) / 2.0 - ridge)   # ridge end (front-right)
+    # visible faces: gable triangle over the front-left edge + slope over front-right
+    m_slope = _poly_mask((W, H), [[S, R, ne_a, sw_a]])
+    m_gable = _poly_mask((W, H), [[S, L, sw_a]])
+    tex = np.array(texture(kind, W, H, seed=seed)).astype(np.float32)
+    yy = np.arange(H, dtype=np.float32)[:, None]
+    tlin = np.clip((yy - pad) / float(max(1, int(ridge) + D)), 0.0, 1.0)
+    sh = (1.02 - 0.24 * tlin) * np.ones((1, W), dtype=np.float32)
+    sh = sh * (1.0 + (bright - 1.0) * m_slope)
+    sh = sh * (1.0 + (0.62 - 1.0) * m_gable)
+    rgb = tex[:, :, :3] * sh[:, :, None]
+    ridge_line = _blur(_line_mask((W, H), [sw_a, ne_a], 3), 1.0)
+    eave = _blur(_line_mask((W, H), [S, R], 3), 1.2) + \
+        _blur(_line_mask((W, H), [S, L], 3), 1.2)
+    rgb += ridge_line[:, :, None] * 46.0
+    rgb -= eave[:, :, None] * 34.0
+    alpha = np.clip(m_slope + m_gable, 0, 1) * 255.0
+    # thin board edge under the eaves
+    out = np.dstack([np.clip(rgb, 0, 255), alpha]).astype(np.uint8)
+    return Image.fromarray(out, "RGBA"), (ax, ay)
+
+
+def span_arch(img, pL, pR, rise, thick, kind="stone", seed=0, joints=9,
+              bright=1.14, dark=0.66):
+    """Free-standing stone arch between two springing points (screen px)."""
+    import math
+    W, H = img.size
+
+    def arc(p0, p1, hgt, n=30):
+        pts = []
+        for i in range(n + 1):
+            t = i / float(n)
+            x = p0[0] + (p1[0] - p0[0]) * t
+            y = p0[1] + (p1[1] - p0[1]) * t - hgt * math.sin(math.pi * t)
+            pts.append((x, y))
+        return pts
+
+    outer = arc(pL, pR, rise)
+    inL = (pL[0] + (pR[0] - pL[0]) * 0.11, pL[1] + (pR[1] - pL[1]) * 0.11 + thick * 0.55)
+    inR = (pL[0] + (pR[0] - pL[0]) * 0.89, pL[1] + (pR[1] - pL[1]) * 0.89 + thick * 0.55)
+    inner = arc(inL, inR, max(6.0, rise - thick))
+    band = outer + inner[::-1]
+    mask = _poly_mask((W, H), [band])
+    tex = np.array(texture(kind, W, H, seed=seed + 5)).astype(np.float32)
+    ys = [p[1] for p in band]
+    y0, y1 = min(ys), max(ys)
+    yy = np.arange(H, dtype=np.float32)[:, None]
+    tlin = np.clip((yy - y0) / max(1.0, (y1 - y0)), 0.0, 1.0)
+    sh = (bright - (bright - dark) * tlin) * np.ones((1, W), dtype=np.float32)
+    rgb = tex[:, :, :3] * sh[:, :, None]
+    top_line = _blur(_line_mask((W, H), outer, 3), 1.0)
+    under_line = _blur(_line_mask((W, H), inner, 4), 1.2)
+    rgb += top_line[:, :, None] * 40.0
+    rgb -= under_line[:, :, None] * 30.0
+    # voussoir joints
+    jm = np.zeros((H, W), dtype=np.float32)
+    for i in range(1, joints):
+        a = outer[int(round(i * (len(outer) - 1) / float(joints)))]
+        b = inner[int(round(i * (len(inner) - 1) / float(joints)))]
+        jm = np.maximum(jm, _line_mask((W, H), [a, b], 2))
+    jm = _blur(jm, 0.8)
+    rgb -= jm[:, :, None] * 30.0
+    a = mask * 255.0
+    lay = Image.fromarray(np.dstack([np.clip(rgb, 0, 255), a]).astype(np.uint8), "RGBA")
+    img.alpha_composite(lay)
+    return img
+
+
+def ink_outline(img, width=2, ink=(20, 18, 22), amount=0.40, inside=0.55):
+    """Dark silhouette edge so props separate from terrain (art direction)."""
+    arr = np.array(img).astype(np.float32)
+    a = arr[:, :, 3]
+    m = Image.fromarray(((a > 40) * 255).astype(np.uint8), "L")
+    dil = m.filter(ImageFilter.MaxFilter(2 * width + 1))
+    ero = m.filter(ImageFilter.MinFilter(2 * width + 1))
+    d = np.array(dil).astype(np.float32)
+    e = np.array(ero).astype(np.float32)
+    ring = np.clip(d - a, 0, 255) / 255.0
+    band = np.clip(a - e, 0, 255) / 255.0
+    inkc = np.array(ink, dtype=np.float32)
+    arr[:, :, :3] = (arr[:, :, :3] * (1 - (band * inside)[:, :, None])
+                     + inkc[None, None, :] * (band * inside)[:, :, None])
+    base = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGBA")
+    ring_rgba = np.zeros((a.shape[0], a.shape[1], 4), dtype=np.float32)
+    ring_rgba[:, :, :3] = inkc[None, None, :]
+    ring_rgba[:, :, 3] = ring * 255.0 * amount
+    base.alpha_composite(Image.fromarray(
+        np.clip(ring_rgba, 0, 255).astype(np.uint8), "RGBA"))
+    return base
 
 
 POSTS = {}
@@ -1361,6 +1561,397 @@ def anchor_of(img):
     """(cx, bottom_y) of the content bbox == anchor convention point."""
     bb = content_bbox(img)
     return bb[0] + (bb[2] - bb[0]) // 2, bb[3]
+
+
+def part_geometry(spec):
+    """Compose-space placement of every part: [(left, top, cb), ...], origin."""
+    placed = []
+    last = None
+    for p in spec["parts"]:
+        a = _atlas(p["a"])
+        img = _part_image(p)
+        gx, gy = int(p["gx"]), int(p["gy"])
+        left = (gx - gy) * MAP_TILE_W // 2 + int(p.get("dx", 0))
+        top = (gx + gy) * MAP_TILE_H // 2 + MAP_TILE_H - a["th"] + int(p.get("dy", 0))
+        cb = content_bbox(img)
+        if p.get("above") and last is not None:
+            prev_content_top = last[1] + last[2][1]
+            top = prev_content_top + int(p.get("overlap", 16)) - cb[3]
+        placed.append((left, top, cb))
+        last = placed[-1]
+    if not placed:
+        return [], (0, 0)
+    min_l = min(e[0] for e in placed)
+    min_t = min(e[1] for e in placed)
+    return placed, (min_l, min_t)
+
+
+def part_anchor(spec, img, index, where="bottom"):
+    """Position of part `index` in FINAL (trimmed) image coordinates."""
+    placed, (min_l, min_t) = part_geometry(spec)
+    l, t, cb = placed[index]
+    bb = content_bbox(img)
+    x = l - min_l + cb[0] + (cb[2] - cb[0]) // 2 + _GROW_OFF[0]
+    y = (t - min_t + (cb[3] if where == "bottom" else cb[1])) + _GROW_OFF[1]
+    return x, y
+
+
+def draw_post(img, x, y_ground, y_top, w=13, seed=0, tone=(94, 68, 42)):
+    """Simple vertical timber post with lit left edge."""
+    lay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(lay)
+    d.rectangle([x - w // 2, y_top, x + w // 2, y_ground], fill=tone + (255,))
+    d.rectangle([x - w // 2, y_top, x - w // 2 + max(1, w // 3), y_ground],
+                fill=(min(255, tone[0] + 44), min(255, tone[1] + 38),
+                      min(255, tone[2] + 30), 255))
+    d.rectangle([x + w // 2 - max(1, w // 4), y_top, x + w // 2, y_ground],
+                fill=(max(0, tone[0] - 34), max(0, tone[1] - 28),
+                      max(0, tone[2] - 22), 255))
+    img.alpha_composite(lay)
+    return img
+
+
+def draw_weapon_rack(img, x, y, width, height, seed=0):
+    """Rack of spears + shield: reads 'barracks' next to the tents."""
+    rng = random.Random(seed + 41)
+    W, H = img.size
+    lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(lay)
+    wood = (88, 62, 38)
+    hw = width / 2.0
+    leg = max(3, int(width * 0.05))
+    # frame: two uprights + two cross rails
+    d.line([(x - hw, y), (x - hw, y - height)], fill=wood + (255,), width=leg)
+    d.line([(x + hw, y), (x + hw, y - height * 0.94)], fill=wood + (255,), width=leg)
+    for f in (0.30, 0.78):
+        yy = y - height * f
+        d.line([(x - hw, yy), (x + hw, yy - height * 0.03)],
+               fill=(118, 86, 52, 255), width=max(2, leg - 1))
+    # spears leaning in the rack
+    for i in range(4):
+        u = (i + 0.5) / 4.0
+        bx = x - hw * 0.82 + hw * 1.64 * u
+        lean = rng.uniform(-0.16, 0.16)
+        tx = bx + lean * height
+        ty = y - height * rng.uniform(1.12, 1.34)
+        d.line([(bx, y - height * 0.05), (tx, ty)], fill=(70, 52, 34, 255),
+               width=max(2, int(leg * 0.7)))
+        # iron head
+        d.polygon([(tx, ty - height * 0.10), (tx + 5, ty + 4), (tx - 5, ty + 4)],
+                  fill=(176, 180, 188, 255))
+    # round shield on the left upright, crimson + gold boss
+    r = height * 0.30
+    sx, sy = x - hw * 0.72, y - height * 0.52
+    d.ellipse([sx - r, sy - r, sx + r, sy + r], fill=(126, 40, 42, 255))
+    d.ellipse([sx - r, sy - r, sx + r, sy + r], outline=(217, 164, 65, 255),
+              width=max(2, int(r * 0.16)))
+    d.ellipse([sx - r * 0.3, sy - r * 0.3, sx + r * 0.3, sy + r * 0.3],
+              fill=(217, 164, 65, 255))
+    img.alpha_composite(lay)
+    return img
+
+
+@post("human_barracks")
+def post_barracks(img, spec):
+    img = _grow(img, top=620, left=460, right=460, bottom=60)
+    cx, by = anchor_of(img)
+    img = draw_weapon_rack(img, cx - 118, by - 26, 168, 118, seed=3)
+    img = draw_banner(img, cx + 150, by - 58, 300, width=104, seed=2)
+    img = add_glow(img, cx - 6, by - 26, 66, 34, (250, 170, 96), strength=0.30,
+                   add_alpha=0.0)
+    return img, "rail palisade corner + spear rack + crimson/gold standard"
+
+
+@post("human_blacksmith_smithy")
+def post_smithy(img, spec):
+    img = _grow(img, top=640, left=320, right=320, bottom=60)
+    cx, by = anchor_of(img)
+    # real log shed corner (shingle roof + walls) set back behind forge+anvil
+    img = paste_cell(img, "structures", 1, cx - 4, by - 116, scale=0.86)
+    # forge ember light under the eaves
+    img = add_glow(img, cx - 74, by - 46, 74, 46, (250, 150, 66), strength=0.42,
+                   add_alpha=0.10)
+    img = warm_rim(img, 0.30, color=(240, 176, 96))
+    return img, "log shed w/ shingle roof behind forge + ember light (reads as a building)"
+
+
+@post("human_workshop_lumber")
+def post_lumber(img, spec):
+    img = _grow(img, top=520, left=460, right=460, bottom=60)
+    cx, by = anchor_of(img)
+    img = draw_saw_frame(img, cx + 96, by - 26, 216, 132, seed=6)
+    img = draw_banner(img, cx - 178, by - 92, 205, width=74, seed=7, scale_cloth=0.85)
+    img = add_glow(img, cx + 96, by - 70, 70, 40, (255, 196, 110), strength=0.22,
+                   add_alpha=0.0)
+    return img, "tall timber stacks + saw frame + small crimson pennant"
+
+
+@post("human_keep")
+def post_keep(img, spec):
+    img = _grow(img, top=900, left=460, right=460, bottom=60)
+    cx, by = anchor_of(img)
+    by -= 30
+    pal = FACTION["human"]
+    # ---- curtain wall ------------------------------------------------------
+    bw, bh = 476, 176
+    D = bw // 2
+    base, (ax, ay) = prism_layer(bw, bh, kind="stone", seed=21, battlement=30,
+                                 shade=(0.74, 0.98, 1.20), top_dim=0.70)
+    img = paste(img, base, (ax, ay), cx, by)
+    img = draw_arch(img, (cx, by), (cx + D, by - D // 2), bh, arch_h=bh * 0.80,
+                    fill=(16, 10, 12), glow_color=(246, 156, 74),
+                    glow_strength=0.34, bars=3)
+    img = draw_window(img, (cx - D, by - D // 2), (cx, by), bh, u=0.34,
+                      warm=(250, 186, 108), strength=0.34)
+    img = draw_window(img, (cx - D, by - D // 2), (cx, by), bh, u=0.66,
+                      warm=(250, 186, 108), strength=0.7)
+    # ---- flanking turrets --------------------------------------------------
+    for sx, seed in ((-1, 23), (1, 24)):
+        tw_, th_ = 132, 214
+        t, (tx, ty) = prism_layer(tw_, th_, kind="stone", seed=seed, battlement=22,
+                                  shade=(0.74, 0.98, 1.20))
+        fx = cx + sx * (D - 6)
+        fy = by - (D - 6) / 2.0 + (tw_ // 2) / 2.0
+        img = paste(img, t, (tx, ty), fx, fy)
+    # ---- keep block --------------------------------------------------------
+    sw_, sh_ = 306, 196
+    stage_top = by - bh - D // 2            # centre of wall's top diamond
+    sa = stage_top + sw_ // 4               # stage front vertex
+    st, (stx, sty) = prism_layer(sw_, sh_, kind="stone", seed=25, battlement=28,
+                                 shade=(0.74, 0.98, 1.20))
+    img = paste(img, st, (stx, sty), cx, sa)
+    img = draw_window(img, (cx - sw_ // 2, sa - sw_ // 4), (cx, sa), sh_, u=0.42,
+                      vfrac=0.55, warm=(250, 186, 108), strength=0.34)
+    img = draw_window(img, (cx, sa - sw_ // 4), (cx + sw_ // 2, sa), sh_, u=0.55,
+                      vfrac=0.5, warm=(250, 186, 108), strength=0.34)
+    # ---- top block ---------------------------------------------------------
+    kw, kh = 186, 152
+    stage2_top = sa - sh_ - sw_ // 4
+    ka = stage2_top + kw // 4
+    kt, (ktx, kty) = prism_layer(kw, kh, kind="stone", seed=26, battlement=24,
+                                 shade=(0.74, 0.98, 1.20))
+    img = paste(img, kt, (ktx, kty), cx, ka)
+    top_centre = ka - kh - kw // 4
+    # ---- crimson & gold standard on the roof ------------------------------
+    img = draw_banner(img, cx + 46, top_centre + 18, 268, width=98, seed=11)
+    img = draw_banner(img, cx - 96, top_centre + 34, 176, width=60, seed=12,
+                      scale_cloth=0.8)
+    img = add_glow(img, cx, by - bh * 0.4, 150, 96, (255, 176, 96), strength=0.16,
+                   add_alpha=0.0)
+    return img, ("crenellated curtain wall + flanking turrets + stacked keep "
+                 "with ember windows + crimson/gold standards")
+
+
+@post("human_temple_altar")
+def post_temple(img, spec):
+    img = _grow(img, top=700, left=460, right=460, bottom=60)
+    cx, by = anchor_of(img)
+    # column tops (part 0 = left column, part 3 = right column)
+    lx, ly = part_anchor(spec, img, 0, "top")
+    rx, ry = part_anchor(spec, img, 3, "top")
+    lx += 12
+    rx -= 12
+    rise = max(150, int((rx - lx) * 0.50))
+    img = span_arch(img, (lx, ly + 58), (rx, ry + 58), rise, 54, seed=3,
+                    bright=1.12, dark=0.82)
+    # standing flame on the stepped monument (part 2)
+    mx, my = part_anchor(spec, img, 2, "top")
+    img = draw_flame(img, mx, my + 16, 94, palette="ember", seed=5, glow=0.55)
+    # gold keystone + ember spill on the rune circle
+    gx, gy = part_anchor(spec, img, 1, "bottom")
+    img = add_glow(img, gx, gy - 34, 150, 64, (246, 176, 96), strength=0.34,
+                   add_alpha=0.0)
+    return img, "open stone arch + standing ember flame on stepped monument"
+
+
+@post("undead_ziggurat_ruin")
+def post_ziggurat(img, spec):
+    img = _grow(img, top=760, left=460, right=460, bottom=60)
+    cx, by = anchor_of(img)
+    by -= 30
+    tiers = [(430, 112), (286, 96), (162, 86)]
+    y = by
+    tops = []
+    for i, (w, h) in enumerate(tiers):
+        lay, (ax, ay) = prism_layer(w, h, kind="stone_light" if i == 1 else "stone",
+                                    seed=31 + i, shade=(0.74, 0.98, 1.20))
+        img = paste(img, lay, (ax, ay), cx, y)
+        top_c = y - h - w // 4
+        tops.append(top_c)
+        img = add_glow(img, cx, top_c + 6, w * 0.36, 30, (118, 84, 168),
+                       strength=0.26, add_alpha=0.06)
+        if i + 1 < len(tiers):
+            y = top_c + tiers[i + 1][0] // 4
+    # shrine + violet flame on the summit
+    cell = _part_image(dict(a="ruins", id=128))
+    cb = content_bbox(cell)
+    mh = cb[3] - cb[1]
+    sx, sy = cx, tops[-1] + 14
+    img = paste_cell(img, "ruins", 128, sx, sy)
+    img = draw_flame(img, sx, sy - mh - 4, 96, palette="violet", seed=9, glow=0.8)
+    img = add_glow(img, sx, sy - mh * 0.6, 120, 150, (128, 92, 186), strength=0.42,
+                   add_alpha=0.07)
+    # rubble grounding either side of the bottom tier
+    img = paste_cell(img, "ruins", 162, cx - 178, by - 78, scale=0.9)
+    img = paste_cell(img, "ruins", 161, cx + 176, by - 76, scale=0.85)
+    img = wash(img, FACTION["undead"]["violet"], 0.06)
+    img = bone_rim(img, 0.40)
+    return img, "3 stepped tiers (wide->narrow) + shrine with violet flame | violet seams | bone rim"
+
+
+@post("undead_necropolis_ruin")
+def post_necropolis(img, spec):
+    img = _grow(img, top=1150, left=460, right=460, bottom=60)
+    cx, by = anchor_of(img)
+    by -= 30
+    pal = FACTION["undead"]
+    # ---- iron fence ring at the back (painted first: the tomb covers its feet)
+    img = paste_cell(img, "ruins", 340, cx, by - 288, scale=1.05)
+    img = paste_cell(img, "ruins", 344, cx - 150, by - 213, scale=1.05)
+    img = paste_cell(img, "ruins", 346, cx + 150, by - 213, scale=1.05, flip="h")
+    # ---- tomb house --------------------------------------------------------
+    bw, bh = 470, 192
+    D = bw // 2
+    base, (ax, ay) = prism_layer(bw, bh, kind="stone_dark", seed=41, battlement=28,
+                                 shade=(0.74, 0.98, 1.20), top_dim=0.74)
+    img = paste(img, base, (ax, ay), cx, by)
+    img = draw_arch(img, (cx, by), (cx + D, by - D // 2), bh, arch_h=bh * 0.82,
+                    fill=(11, 6, 18), glow_color=(146, 100, 226),
+                    glow_strength=0.42, bars=4)
+    img = draw_window(img, (cx - D, by - D // 2), (cx, by), bh, u=0.52,
+                      warm=(150, 214, 108), strength=0.34)
+    # ---- spire -------------------------------------------------------------
+    sw_, sh_ = 236, 430
+    wall_top = by - bh - D // 2
+    sa = wall_top + sw_ // 4
+    spr, (stx, sty) = prism_layer(sw_, sh_, kind="stone", seed=42, battlement=32,
+                                  shade=(0.74, 0.98, 1.20))
+    img = paste(img, spr, (stx, sty), cx, sa)
+    img = draw_window(img, (cx, sa - sw_ // 4), (cx + sw_ // 2, sa), sh_, u=0.5,
+                      wfrac=0.30, hfrac=0.30, vfrac=0.55,
+                      warm=(168, 128, 236), strength=0.62)
+    img = draw_window(img, (cx - sw_ // 2, sa - sw_ // 4), (cx, sa), sh_, u=0.5,
+                      vfrac=0.62, warm=(150, 214, 108), strength=0.34)
+    # ---- cap ---------------------------------------------------------------
+    kw, kh = 140, 128
+    spire_top = sa - sh_ - sw_ // 4
+    ka = spire_top + kw // 4
+    kt, (ktx, kty) = prism_layer(kw, kh, kind="stone_dark", seed=44, battlement=22,
+                                 shade=(0.74, 0.98, 1.20))
+    img = paste(img, kt, (ktx, kty), cx, ka)
+    cap_top = ka - kh - kw // 4
+    # ---- violet flame + bone spikes on top --------------------------------
+    img = draw_flame(img, cx, cap_top + 10, 104, palette="violet", seed=13, glow=0.9)
+    for dx, lean in ((-58, -0.06), (56, 0.05), (0, 0.0)):
+        img = draw_bone_spike(img, cx + dx, cap_top + 26, 96 if dx else 120,
+                              lean=lean, seed=17 + dx)
+    img = add_glow(img, cx, sa - sh_ * 0.5, 210, 250, (122, 88, 184), strength=0.45,
+                   add_alpha=0.07)
+    # ---- grounding: headstones, cross, skull stakes, bone piles ------------
+    def ground(dx, inset=8):
+        return cx + dx, by - abs(dx) * 0.5 - inset
+    img = paste_cell(img, "grassland", 124, *ground(-176), scale=1.05)
+    img = paste_cell(img, "grassland", 125, *ground(150), scale=0.95)
+    img = paste_cell(img, "grassland", 126, *ground(-108), scale=1.0)
+    img = paste_cell(img, "dungeon", 162, *ground(46), scale=1.1)
+    img = paste_cell(img, "dungeon", 134, *ground(-232), scale=1.25)
+    img = paste_cell(img, "dungeon", 134, *ground(224), scale=1.1)
+    img = paste_cell(img, "dungeon", 160, *ground(-40, 4), scale=1.0)
+    # ---- glows -------------------------------------------------------------
+    img = add_glow(img, cx, by - 120, 230, 150, (132, 96, 196), strength=0.28,
+                   add_alpha=0.16)
+    img = add_glow(img, cx - 250, by - 90, 120, 70, (150, 214, 108), strength=0.20,
+                   add_alpha=0.10)
+    img = wash(img, pal["violet"], 0.06)
+    img = bone_rim(img, 0.45)
+    return img, ("tall tomb spire + crenellated cap with violet flame, bone spikes, "
+                 "headstones + iron fence ring | violet + sickly-green glow")
+
+
+@post("human_town_hall")
+def post_town_hall(img, spec):
+    img = _grow(img, top=320, left=180, right=180, bottom=40)
+    cx, by = anchor_of(img)
+    img = draw_banner(img, cx + 36, by - 372, 150, width=56, seed=21,
+                      scale_cloth=0.8)
+    img = add_glow(img, cx + 46, by - 148, 46, 34, (255, 190, 112), strength=0.42,
+                   add_alpha=0.10)
+    img = warm_rim(img, 0.34)
+    return img, "roof pennant + warm window light (crimson/gold)"
+
+
+@post("human_house_farm")
+def post_farm(img, spec):
+    img = _grow(img, top=300, left=160, right=160, bottom=40)
+    cx, by = anchor_of(img)
+    img = draw_banner(img, cx - 54, by - 330, 132, width=48, seed=22,
+                      scale_cloth=0.8)
+    img = add_glow(img, cx + 92, by - 128, 40, 30, (255, 190, 112), strength=0.40,
+                   add_alpha=0.10)
+    img = warm_rim(img, 0.32)
+    return img, "roof pennant + warm window light (crimson/gold)"
+
+
+@post("human_guard_tower")
+def post_guard_tower(img, spec):
+    img = _grow(img, top=260, left=140, right=140, bottom=30)
+    cx, by = anchor_of(img)
+    img = draw_banner(img, cx + 30, by - 548, 150, width=52, seed=23,
+                      scale_cloth=0.8)
+    img = add_glow(img, cx, by - 300, 44, 30, (255, 190, 112), strength=0.34,
+                   add_alpha=0.08)
+    img = warm_rim(img, 0.30)
+    return img, "banner + ember slit high on the tower (crimson/gold)"
+
+
+@post("undead_crypt")
+def post_crypt(img, spec):
+    img = _grow(img, top=180, left=160, right=160, bottom=30)
+    cx, by = anchor_of(img)
+    img = add_glow(img, cx - 10, by - 150, 96, 74, (124, 90, 190), strength=0.42,
+                   add_alpha=0.12)
+    img = add_glow(img, cx + 96, by - 70, 70, 46, (150, 214, 108), strength=0.26,
+                   add_alpha=0.07)
+    img = wash(img, FACTION["undead"]["violet"], 0.06)
+    img = bone_rim(img, 0.45)
+    return img, "violet edge glow + sickly-green seam + bone rim (undead)"
+
+
+@post("undead_bone_ritual")
+def post_bone_ritual(img, spec):
+    img = _grow(img, top=160, left=140, right=140, bottom=30)
+    cx, by = anchor_of(img)
+    img = add_glow(img, cx - 30, by - 170, 88, 66, (126, 92, 190), strength=0.34,
+                   add_alpha=0.10)
+    img = wash(img, FACTION["undead"]["violet"], 0.07)
+    img = bone_rim(img, 0.42)
+    return img, "violet aura around the sick-green orb + bone rim (undead)"
+
+
+@post("undead_ruined_house")
+def post_ruined_house(img, spec):
+    img = _grow(img, top=180, left=160, right=160, bottom=30)
+    cx, by = anchor_of(img)
+    img = add_glow(img, cx + 40, by - 120, 92, 64, (128, 94, 194), strength=0.44,
+                   add_alpha=0.14)
+    img = add_glow(img, cx - 60, by - 60, 70, 40, (150, 214, 108), strength=0.22,
+                   add_alpha=0.06)
+    img = wash(img, FACTION["undead"]["violet"], 0.07)
+    img = bone_rim(img, 0.45)
+    return img, "violet pit glow + bone rim (undead)"
+
+
+@post("undead_ruined_tower")
+def post_ruined_tower(img, spec):
+    img = _grow(img, top=200, left=180, right=180, bottom=30)
+    cx, by = anchor_of(img)
+    img = add_glow(img, cx - 150, by - 300, 84, 96, (132, 96, 198), strength=0.46,
+                   add_alpha=0.14)
+    img = add_glow(img, cx + 150, by - 120, 74, 50, (150, 214, 108), strength=0.24,
+                   add_alpha=0.06)
+    img = wash(img, FACTION["undead"]["violet"], 0.07)
+    img = bone_rim(img, 0.45)
+    return img, "violet light behind the barred door + bone rim (undead)"
 
 
 def build_part(spec):
@@ -1401,6 +1992,7 @@ def cmd_extract(args):
         img, post_desc = apply_post(img, spec)
         if post_desc:
             src_desc = src_desc + " + " + post_desc
+        img = ink_outline(img, width=2, amount=args.ink)
         if args.trim:
             img, _bbox = trim_alpha(img)
         img = img.convert("RGBA")
@@ -1660,6 +2252,7 @@ def main(argv=None):
     e.add_argument("--catalog", default=None, help="JSON catalogue (default: tools/flare_buildings_catalog.json)")
     e.add_argument("--trim", type=int, default=1, help="1 = trim to alpha bbox (default)")
     e.add_argument("--only", default=None, help="comma separated sprite names to extract")
+    e.add_argument("--ink", type=float, default=0.40, help="silhouette edge ink 0..1")
     e.add_argument("--markdown", default=None, help="also write a markdown catalog table")
     e.add_argument("--json", default=None, help="also write machine readable rows")
     e.set_defaults(fn=cmd_extract)

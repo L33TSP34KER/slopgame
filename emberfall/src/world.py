@@ -93,6 +93,7 @@ class World:
         self.dmg_bonus = 0
         self.armor_bonus = 0
         self.hero = None
+        self.food_extra = 0
         self.stats = dict(kills=0, losses=0, gold_gathered=0, lumber_gathered=0,
                           units_trained=0, buildings_raised=0, damage=0, abilities=0)
         self.events = []
@@ -254,8 +255,8 @@ class World:
         return best
 
     def food_max(self, team):
-        return sum(BUILDINGS[b.bid].get("food", 0) for b in self.buildings_of(team)
-                   if b.build_progress >= 1)
+        return self.food_extra + sum(BUILDINGS[b.bid].get("food", 0) for b in self.buildings_of(team)
+                                     if b.build_progress >= 1)
 
     def food_used(self, team):
         return sum(u.food for u in self.units_of(team) if not u.is_building)
@@ -515,8 +516,9 @@ class World:
             return
         lv = hero.level
         if a["target"] == "unit":
-            if not target or not target.alive or target.team == PLAYER or dist(hero.x, hero.y, target.x, target.y) > a["range"]:
-                self.alert("Invalid target.")
+            if (target is None or not hasattr(target, "alive") or not target.alive
+                    or target.team == PLAYER or dist(hero.x, hero.y, target.x, target.y) > a["range"]):
+                self.alert(a["name"] + " needs a valid enemy target.")
                 self.play("error")
                 return
             self.damage(target, a["dmg"](lv), hero, "magic")
@@ -527,7 +529,12 @@ class World:
             hero.shield_t = a["duration"]
             self.burst(hero.x, hero.y, (255, 190, 100), 14, 1.0)
         else:
-            tx, ty = target if target else (hero.x, hero.y)
+            if hasattr(target, "x"):
+                tx, ty = target.x, target.y
+            elif isinstance(target, (tuple, list)) and len(target) >= 2:
+                tx, ty = target[0], target[1]
+            else:
+                tx, ty = hero.x, hero.y
             if dist(hero.x, hero.y, tx, ty) > a["range"]:
                 return
             for e in list(self.entities):
@@ -556,7 +563,7 @@ class World:
         if self.paused or self.mode != "play":
             return
         self.time += dt
-        self.path_budget = 16
+        self.path_budget = 10
         self.night = 0.5 + 0.5 * math.sin(self.time * 0.012 - 1.2)
         self._alert_tick(dt)
         for u in list(self.entities):
@@ -599,7 +606,7 @@ class World:
             if o is u or not o.alive or o.is_building or o.team != u.team:
                 continue
             d = dist(u.x, u.y, o.x, o.y)
-            need = (u.radius + o.radius) * 0.85
+            need = (u.radius + o.radius) * 1.35
             if 0.001 < d < need:
                 push = (need - d) * 1.05
                 nx = u.x + (u.x - o.x) / d * push
@@ -641,6 +648,7 @@ class World:
             else:
                 u.anim = "walk"
         elif t == "attack_move":
+            u.repath_t -= dt
             tgt = self.nearest_enemy(u, u.sight, team=PLAYER if u.team == ENEMY else ENEMY)
             if tgt:
                 self.engage(u, tgt, dt, leash=10)
@@ -706,15 +714,8 @@ class World:
                 continue
             move = min(left, d)
             dx, dy = (tx - u.x) / (d or 1), (ty - u.y) / (d or 1)
-            # separation
-            for o in self.grid.query(u.x, u.y, 1.0):
-                if o is u or not o.alive or o.is_building or o.team != u.team:
-                    continue
-                dd = dist(u.x, u.y, o.x, o.y)
-                if 0.001 < dd < (u.radius + o.radius) * 0.95:
-                    push = ((u.radius + o.radius) * 0.95 - dd) * 0.5
-                    dx += (u.x - o.x) / dd * push * 1.5
-                    dy += (u.y - o.y) / dd * push * 1.5
+            # moving units ghost through each other; idle separation below
+            # keeps formations readable without choking ramps/fords.
             mag = math.hypot(dx, dy) or 1
             nx = u.x + dx / mag * move
             ny = u.y + dy / mag * move
@@ -784,14 +785,24 @@ class World:
                 u.anim_t = 0.0
                 self.perform_attack(u, tgt)
         else:
+            # close-range melee: step directly instead of A* (crowd-safe)
+            if d <= u.range + 2.2:
+                dd = max(0.001, dist(u.x, u.y, tx, ty))
+                step = min(u.speed * dt, max(0.0, d - u.range + 0.05))
+                nx = u.x + (tx - u.x) / dd * step
+                ny = u.y + (ty - u.y) / dd * step
+                if self._passable(nx, ny, u):
+                    u.x, u.y = nx, ny
+                    self.face_to(u, tx, ty)
+                u.anim = "walk"
+                return
             u.anim = "walk"
             u.repath_t -= dt
             if (not u.path or u.path_i >= len(u.path)) and u.repath_t <= 0:
                 near = nearest_walkable(self.map, int(tx), int(ty), self.blocked, 4)
                 if near:
                     self._set_path(u, near)
-                else:
-                    u.repath_t = 1.0
+                u.repath_t = 0.8
             self.follow_path(u, dt)
 
     def perform_attack(self, u, tgt):
@@ -799,8 +810,10 @@ class World:
             ptype = "arrow" if u.kind == "archer" else "frost" if u.kind == "revenant" else \
                     "shadow" if u.kind == "necromancer" else "bolt" if u.kind in ("fiend", "bonetower") else "holy" if u.kind == "priest" else "arrow"
             self.spawn_projectile(u, tgt, ptype)
+            self.play("bow" if ptype in ("arrow", "bolt", "siege") else "holy" if ptype == "holy" else "magic")
         else:
-            dmg = self.rng.uniform(u.dmg_min, u.dmg_max)
+            bonus = self.dmg_bonus if u.team == PLAYER else 0
+            dmg = self.rng.uniform(u.dmg_min + bonus, u.dmg_max + bonus)
             self.damage(tgt, dmg, u, u.damage_type)
             self.hit_fx(tgt)
             self.play("sword")
@@ -934,6 +947,7 @@ class World:
     def remove_tree(self, x, y):
         i = y * self.map.w + x
         self.map.blocked[i] = 0
+        self.map._base_walk = None
         for p in self.map.tree_props.get((x, y), []):
             p["gone"] = True
         self.map.wood.pop((x, y), None)
@@ -948,6 +962,18 @@ class World:
             u.order = None
             u.anim = "idle"
             return
+        if b.build_progress >= 1 and u.order.get("repair"):
+            cx, cy = b.x + b.bw / 2, b.y + b.bh / 2
+            if dist(u.x, u.y, cx, cy) < max(b.bw, b.bh) * 0.8 + 1.4:
+                u.path = None
+                u.anim = "gather"
+                u.face_to(u, cx, cy)
+                b.hp = min(b.max_hp, b.hp + b.max_hp * 0.055 * dt)
+                self.burst(cx, cy, (220, 190, 120), 1, 0.2)
+                if b.hp >= b.max_hp:
+                    u.order = None
+                    b.hp = b.max_hp
+                return
         cx, cy = b.x + b.bw / 2, b.y + b.bh / 2
         if dist(u.x, u.y, cx, cy) < max(b.bw, b.bh) * 0.8 + 1.4:
             u.path = None
@@ -1249,6 +1275,11 @@ class World:
                     self.play("level")
         player_b = self.buildings_of(PLAYER)
         player_u = self.units_of(PLAYER)
+        halls = [b for b in player_b if b.bid in ("townhall", "keep") and b.build_progress >= 1]
+        if not halls and not self.announced.get("hall_lost"):
+            self.announced["hall_lost"] = 1
+            self.alert("The Emberhold Hall has fallen. The vale is lost.")
+            self.end_mission("defeat")
         if not player_b and not player_u and self.state == "playing":
             self.end_mission("defeat")
 

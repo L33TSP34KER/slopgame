@@ -1,6 +1,6 @@
-# release-check — 2026-11-09 02:35:41
+# release-check — 2026-11-09 08:36:03
 
-**3 FAIL / 4 WARN / 43 checks**
+**0 FAIL / 0 WARN / 37 checks**
 
 | check | status | detail |
 |---|---|---|
@@ -32,19 +32,13 @@
 | icons:png runtime | PASS | all present |
 | art:flare buildings | PASS | 14 sprites (want >=14) |
 | doc:design/notes/flare-buildings.md | PASS | 22 lines |
-| doc:LICENSES-FLARE.md | PASS | 41 lines |
+| doc:LICENSES-FLARE.md | PASS | 24 lines |
 | doc:design/notes/flare-import.md | PASS | 522 lines |
 | license:flare | PASS | attribution complete |
 | doc:design/DESIGN.md | PASS | present |
 | doc:design/COLLAB.md | PASS | present |
 | doc:design/ASSET-CONTRACT.md | PASS | present |
 | doc:collaboration.md | PASS | present |
-| doc:README run instructions | FAIL | still the broker README — no game run instructions |
-| map:audit | FAIL | FAIL: 4 findings |
-| map:finding | WARN | POCKET: 11 walkable region(s) of >=3 tiles are unreachable from the main map — sizes [20, 14, 13, 12, 9, 6, 5, 3], e.g. at [(16, 15), (23, 17), (17, 26), (21, 27), (10, 13), (42, 20), (10, 10), (13, 15)] |
-| map:finding | FAIL | BLOCKER: key points not reachable: ['camp:Thornwood Warren'] |
-| map:finding | WARN | player base cannot reach: ['camp:Thornwood Warren'] |
-| map:finding | WARN | enemy base cannot reach: ['camp:Thornwood Warren'] |
-| boot:headless | PASS | alive 25s, rc=0 |
-| boot:state stream | WARN | 0 state lines |
+| doc:README run instructions | PASS | mentions the run command |
+| map:audit | PASS | PASS: 0 findings |
 

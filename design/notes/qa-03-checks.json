@@ -1,0 +1,17 @@
+[
+  [
+    "setup: player has a hall",
+    "PASS",
+    "1 hall(s)"
+  ],
+  [
+    "hall loss -> defeat state",
+    "PASS",
+    "state=defeat world=defeat after 0.3s"
+  ],
+  [
+    "siege autoplay reaches victory",
+    "PASS",
+    "state=victory world=victory necropolis_hp=0 samples=[(24.0, 5200), (42.0, 5200), (60.0, 5200), (78.0, 5200), (96.0, 5200), (114.0, 4661), (132.0, 3489), (150.0, 2315), (168.0, 975), (180.1, 0)]"
+  ]
+]

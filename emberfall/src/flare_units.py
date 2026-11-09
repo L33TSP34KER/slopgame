@@ -47,7 +47,7 @@ RANGED = {"archer": "shoot", "priest": "shoot", "fiend": "shoot",
           "necromancer": "cast", "revenant": "cast", "hero": "swing"}
 UNIT_SCALE = {
     "worker": 1.0, "footman": 1.05, "archer": 1.0, "knight": 1.15, "priest": 1.02,
-    "hero": 1.2, "ghoul": 1.0, "fiend": 1.05, "necromancer": 1.0, "abomination": 1.2,
+    "hero": 1.32, "ghoul": 1.0, "fiend": 1.05, "necromancer": 1.0, "abomination": 1.2,
     "revenant": 1.1, "skeleton": 0.9, "goblin": 0.92, "goblin-brute": 1.1,
     "hollow-king": 1.35,
 }
@@ -156,7 +156,15 @@ class FlareUnits:
         sc = UNIT_SCALE.get(rig, 0.85)
         w, h = surf.get_size()
         surf = pygame.transform.smoothscale(surf, (max(1, int(w * sc)), max(1, int(h * sc))))
-        res = (surf, ax * sc, ay * sc)
+        # 1px ink silhouette so units read against the dark vale like the UI icons do
+        sil = surf.copy()
+        sil.fill((26, 21, 24, 255), special_flags=pygame.BLEND_RGBA_MULT)
+        out = pygame.Surface((surf.get_width() + 2, surf.get_height() + 2), pygame.SRCALPHA)
+        for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1)):
+            out.blit(sil, (dx + 1, dy + 1))
+        out.blit(surf, (1, 1))
+        surf = out
+        res = (surf, ax * sc + 1, ay * sc + 1)
         self.cache[key] = res
         return res
 
