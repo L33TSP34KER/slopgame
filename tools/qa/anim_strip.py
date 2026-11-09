@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import math
 import json
 import os
 import sys
@@ -71,6 +72,43 @@ def summary(art, args) -> int:
     for r in rows:
         lines.append(f"| {r['rig']} | {r['anim']} | d{r['dir']} | "
                      f"{r['unique']}/{r['frames']} | {r['feet_spread_px']} |")
+    # faction colour separation: if player and enemy means converge, the teams
+    # stop reading at a glance (this regressed once already)
+    try:
+        def accent_share(rig, team, kind):
+            """Fraction of opaque pixels wearing the faction accent.
+
+            Mean colour barely moves when a tabard is 5% of the sprite, so the
+            gate measures accent *coverage* instead: warm red/orange for the
+            player, violet/cold for the enemy. This regressed to ~0 once
+            already (teams looked identical in-game).
+            """
+            img, _, _ = art.unit(UNITS[rig]["rig"], 0, "idle", 0, team)
+            w, h = img.get_size()
+            hit = n = 0
+            for y in range(0, h, 2):
+                for x in range(0, w, 2):
+                    r, g, b, a = img.get_at((x, y))
+                    if a <= 200:
+                        continue
+                    n += 1
+                    if kind == "warm" and r - max(g, b) > 35:
+                        hit += 1
+                    elif kind == "cold" and b - r > 10 and b >= g:
+                        hit += 1
+            return (hit / n) if n else 0.0
+
+        pw = accent_share("footman", PLAYER, "warm")
+        ec = accent_share("ghoul", ENEMY, "cold")
+        rows.append({"rig": "TEAMS", "anim": f"accent warm={pw:.3f} cold={ec:.3f}",
+                     "dir": "-", "unique": 0, "frames": 0, "feet_spread_px": 0})
+        if pw < 0.03:
+            issues.append(f"player accent coverage {pw:.3f} < 0.03 (footman wears no crimson/orange)")
+        if ec < 0.03:
+            issues.append(f"enemy accent coverage {ec:.3f} < 0.03 (ghoul wears no violet/cold)")
+    except Exception as exc:  # noqa: BLE001
+        issues.append(f"team colour check failed: {exc}")
+
     lines += ["", "## Anomalies", ""]
     lines += [f"- {i}" for i in issues] or ["- none"]
     lines.append("")
