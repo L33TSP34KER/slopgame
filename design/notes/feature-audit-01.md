@@ -1,6 +1,6 @@
 # feature-audit-01 — DESIGN.md promises vs build
 
-**0 GAP / 0 PARTIAL / 31 checks** — static + dynamic audit by mimo.
+**0 GAP / 0 PARTIAL / 32 checks** — static + dynamic audit by mimo.
 
 | feature | status | evidence |
 |---|---|---|
@@ -17,7 +17,8 @@
 | control groups ctrl+1..9 | PASS | evidence in app.py |
 | attack-move / stop / hold hotkeys | PASS | evidence in app.py/ui.py |
 | build placement ghost + validity | PASS | evidence in app.py/world |
-| camera: WASD + edge + middle-drag + wheel zoom | PASS | evidence in app.py |
+| camera: arrows + edge + middle-drag | PASS | evidence in app.py |
+| fullscreen: F11 and Alt+Enter | PASS | evidence in app.py |
 | idle worker F1 / objectives O / pause Esc | PASS | evidence in app.py |
 | subgroup tabs (Tab) | PASS | evidence in app.py/ui.py |
 | victory + defeat screens with stats | PASS | evidence in app |

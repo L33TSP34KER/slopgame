@@ -1,6 +1,6 @@
 # display-probe — resolution & input correctness at any window size
 
-**0 FAIL / 14 checks**
+**0 FAIL / 15 checks**
 
 | check | result | detail |
 |---|---|---|
@@ -18,3 +18,4 @@
 | window click hits the minimap (non-native window) | PASS | window (1920, 1080): click (1768, 979) -> logical (1473, 815), camera moved 1648px |
 | letterbox click ignored | PASS | state play->play |
 | present() paints the logical picture into the window | PASS | window 1600x900: centre=(12, 34, 56) (want ~(12,34,56)), corner/bar=(12, 34, 56) |
+| Alt+Enter switches display mode | PASS | windowed (1600, 900) -> (1024, 768) |
