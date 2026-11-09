@@ -1,0 +1,6 @@
+Creating Python environment (first run)…
+WARNING: The directory '/home/wyene/.cache/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.
+
+[notice] A new release of pip is available: 26.2.1 -> 26.3
+[notice] To update, run: /run/media/wyene/disk/project/game/.smoke-tree/.venv/bin/python3 -m pip install --upgrade pip
+pygame-ce 2.5.8 (SDL 2.32.10, Python 3.14.7)
