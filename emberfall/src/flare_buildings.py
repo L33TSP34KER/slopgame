@@ -180,13 +180,6 @@ class BuildingArt:
             # stone steps + a crimson market awning: the hall is not a farm cabin
             pygame.draw.rect(s, (92, 84, 72), (cx - tw * 0.18, base_y - 8, tw * 0.36, 7))
             pygame.draw.rect(s, (128, 116, 98), (cx - tw * 0.20, base_y - 11, tw * 0.40, 4))
-            ay = base_y - th * 0.46
-            for i in range(5):
-                col = (150, 48, 38) if i % 2 == 0 else (206, 168, 88)
-                pygame.draw.polygon(s, col, [(cx - tw * 0.30 + i * tw * 0.12, ay),
-                                             (cx - tw * 0.30 + (i + 1) * tw * 0.12, ay),
-                                             (cx - tw * 0.27 + (i + 1) * tw * 0.12, ay + 13),
-                                             (cx - tw * 0.33 + i * tw * 0.12, ay + 13)])
             flame(cx - tw * 0.30, base_y - 6, 18)
             flame(cx + tw * 0.30, base_y - 6, 18)
         elif bid == "farm":

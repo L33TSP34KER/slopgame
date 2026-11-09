@@ -180,6 +180,14 @@ class Renderer:
                 s.blit(ov, (x0, y0))
         # warm late-afternoon grade
         s.fill((26, 24, 14), special_flags=pygame.BLEND_RGB_ADD)
+        # soften the hard per-tile diamonds into a painted field
+        try:
+            soft = pygame.transform.smoothscale(s, (max(1, self.MW // 4), max(1, self.MH // 4)))
+            soft = pygame.transform.smoothscale(soft, (self.MW, self.MH))
+            soft.set_alpha(58)
+            s.blit(soft, (0, 0))
+        except Exception:
+            pass
         self.bake_done = True
 
     def _draw_cliffs(self, s, x, y):
