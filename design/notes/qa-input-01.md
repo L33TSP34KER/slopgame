@@ -1,6 +1,6 @@
 # qa-input-01 — controls probe (play scene)
 
-**0 FAIL / 18 checks** — synthetic pygame events driven through the engine's own `handle_event` / `update` paths (headless, no xdotool).
+**0 FAIL / 19 checks** — synthetic pygame events driven through the engine's own `handle_event` / `update` paths (headless, no xdotool).
 
 | control | result | detail |
 |---|---|---|
@@ -19,6 +19,7 @@
 | hotkey: SPACE selects hero | PASS | selection=1 |
 | hotkey: F1 idle worker | PASS | selection=1 |
 | build: B opens build menu, Esc cancels | PASS | menu=True placement=True after_esc=False |
+| build: place a structure on clear ground | PASS | action=build_farm spot=(22, 69) in_progress=1 buildings 4->5 |
 | hotkey: O toggles objectives | PASS | False -> False |
 | hotkey: Esc pause/unpause | PASS | paused=True |
 | minimap: click repositions camera | PASS | moved 2941px |

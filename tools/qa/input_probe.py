@@ -233,6 +233,59 @@ def main() -> int:
         else:
             record("build: B opens build menu, Esc cancels", False, "no workers found")
 
+        # ---- construction end to end: menu -> pick building -> place -------
+        if workers:
+            before_count = len(list(g.world.buildings_of(PLAYER_TEAM)))
+            g.select([workers[0]])
+            key(pygame.K_b, unicode="b")
+            step(1)
+            choices = [a for a in g.ui.actions
+                       if a.get("kind") == "build" and a.get("rect")]
+            armed = False
+            chosen = None
+            if choices:
+                chosen = choices[0]
+                g.handle_action(dict(chosen))
+                step(2)
+                armed = bool(getattr(g, "placement", None))
+            spot = None
+            hall = next(iter(g.world.buildings_of(PLAYER_TEAM)), None)
+            if hall and armed:
+                # ask the ENGINE what is legal for the armed footprint instead
+                # of guessing from clear/terrain flags (my guess picked a spot
+                # the 2x2 farm footprint could not use)
+                for dy in range(0, 12):
+                    for dx in range(0, 12):
+                        tx, ty = int(hall.x) + 3 + dx, int(hall.y) + 3 + dy
+                        if g.world.placement_valid(tx, ty):
+                            spot = (tx, ty)
+                            break
+                    if spot:
+                        break
+            if spot:
+                fake = type("_P", (), {"x": spot[0] + 0.5, "y": spot[1] + 0.5,
+                                       "height": 0, "is_building": False,
+                                       "bw": 0, "bh": 0})()
+                px, py = (int(v) for v in g.screen_pos(fake))
+                down((px, py), 1)
+                step(120)
+                sites = [b for b in g.world.buildings_of(PLAYER_TEAM)
+                         if (getattr(b, "build_progress", 1.0) or 1.0) < 1.0]
+                after = len(list(g.world.buildings_of(PLAYER_TEAM)))
+                record("build: place a structure on clear ground",
+                       bool(sites) or after > before_count,
+                       f"action={chosen.get('id') if chosen else None} spot={spot} "
+                       f"in_progress={len(sites)} buildings {before_count}->{after}")
+            else:
+                record("build: place a structure on clear ground", False,
+                       f"armed={armed} chosen={chosen.get('id') if chosen else None}, "
+                       "no clear spot found near the hall")
+        else:
+            record("build: place a structure on clear ground", False, "no workers")
+        if getattr(g, "placement", None):     # leave state clean for later tests
+            key(pygame.K_ESCAPE, unicode="")
+            g.ui.build_menu = False
+
     # ------------------------------------------------------------------ panels
     if g.state != "play":  # an earlier Esc may have paused us; normalise
         g.state = "play"
