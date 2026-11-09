@@ -275,17 +275,31 @@ class Art:
                         self.tile_avg[(terr, v)] = (38, 88, 101)
                         continue
                     kind = BASE_KIND.get(terr, "grass")
-                    base = src[kind][(v * 7 + terr * 3) % len(src[kind])]
+                    # ONE source diamond per terrain. Picking a different crop
+                    # per variant equalises the *mean* colour but not the
+                    # pattern phase: adjacent cobble cells put their light
+                    # stones in different places, which is the patchwork players
+                    # read as a checkerboard. Mirroring had the same effect on
+                    # high-contrast floors. A single crop repeats uniformly,
+                    # which looks like paving rather than noise.
+                    base = src[kind][(terr * 3) % len(src[kind])]
                     img = tint(base, TINTS.get(terr), LIGHT.get(terr, 1.0))
-                    # normalise variant brightness so the floor reads as a continuous field
+                    # Normalise brightness BOTH ways onto the terrain target
+                    # (the old code could only darken, so bright cells and dark
+                    # cells sat side by side).
                     try:
                         c = pygame.transform.average_color(img)
                         tgt = TARGET.get(terr, (100, 90, 70))
-                        mul = (min(1.0, tgt[0] / max(1, c[0])), min(1.0, tgt[1] / max(1, c[1])),
-                               min(1.0, tgt[2] / max(1, c[2])), 1.0)
-                        if min(mul[:3]) < 0.999:
-                            img.fill((int(mul[0] * 255), int(mul[1] * 255), int(mul[2] * 255), 255),
+                        if any(c[i] > tgt[i] for i in range(3)):
+                            k = [min(255, int(round(255.0 * tgt[i] / max(1, c[i]))))
+                                 for i in range(3)]
+                            img.fill((k[0], k[1], k[2], 255),
                                      special_flags=pygame.BLEND_RGBA_MULT)
+                        if any(c[i] < tgt[i] for i in range(3)):
+                            d = [max(0, min(255, int(round(tgt[i] - c[i]))))
+                                 for i in range(3)]
+                            img.fill((d[0], d[1], d[2], 0),
+                                     special_flags=pygame.BLEND_RGBA_ADD)
                     except Exception:
                         pass
                     # use only the interior texture, then mask with a clean diamond so
@@ -295,7 +309,9 @@ class Art:
                     mask = pygame.Surface((64, 32), pygame.SRCALPHA)
                     pygame.draw.polygon(mask, (255, 255, 255, 255), [(32, 0), (63, 15), (32, 31), (1, 15)])
                     tex.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-                    tex.set_alpha(58)
+                    # OPAQUE: at alpha 58 the flat base colour showed through
+                    # every cell, so each masked diamond outlined itself.
+                    tex.set_alpha(255)
                     s = new_sprite(68, 36)
                     s.blit(tex, (2, 2))
                     out = finish(s, 68, 36)

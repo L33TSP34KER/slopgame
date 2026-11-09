@@ -1,0 +1,8 @@
+{
+ "label": "baseline",
+ "cells_sampled": 541,
+ "neighbour_delta": 11.81,
+ "within_cell_delta": 7.77,
+ "lattice_ratio": 1.52,
+ "verdict": "PASS"
+}
