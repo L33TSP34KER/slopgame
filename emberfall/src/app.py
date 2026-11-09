@@ -13,6 +13,22 @@ from .ui import UI
 from .core import clamp, dist
 
 
+def open_display(fullscreen: bool):
+    """Open the window as a logical 1600x900 surface mapped onto the real display.
+
+    SCALED keeps the aspect ratio, scales mouse coordinates for us, and lets the
+    player resize the window or toggle fullscreen (F11) without the game
+    stretching or coming out at the wrong resolution. Falls back to a plain
+    1600x900 mode when a driver (SDL dummy in headless QA) refuses SCALED.
+    """
+    flags = (pygame.FULLSCREEN if fullscreen else pygame.RESIZABLE) | pygame.SCALED
+    try:
+        return pygame.display.set_mode((SCREEN_W, SCREEN_H), flags)
+    except pygame.error:
+        return pygame.display.set_mode((SCREEN_W, SCREEN_H),
+                                       pygame.FULLSCREEN if fullscreen else 0)
+
+
 class Game:
     def __init__(self, args=None):
         self.args = args or argparse.Namespace(difficulty="knight", qa=False, shot=None,
@@ -20,7 +36,7 @@ class Game:
                                                fullscreen=False, music=0.5, sfx=0.72, autoplay=False)
         pygame.mixer.pre_init(44100, -16, 2, 512)
         pygame.init()
-        self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
+        self.screen = open_display(bool(getattr(self.args, "fullscreen", False)))
         pygame.display.set_caption("Emberfall — The Hollow Crown")
         self.clock = pygame.time.Clock()
         self.art = Art()
@@ -62,7 +78,7 @@ class Game:
         self.auto_done = set()
         self.auto_train_t = 0
         self.auto_next = 0
-        self.fullscreen = False
+        self.fullscreen = bool(getattr(self.args, "fullscreen", False))
         self.audio.set_music(self.args.music)
         self.audio.set_sfx(self.args.sfx)
         self.audio.play_music("menu")
@@ -572,7 +588,7 @@ class Game:
             self.ui.show_objectives = not self.ui.show_objectives; return
         if k == pygame.K_F11:
             self.fullscreen = not self.fullscreen
-            pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.FULLSCREEN if self.fullscreen else 0)
+            self.screen = open_display(self.fullscreen)
             return
         if pygame.K_1 <= k <= pygame.K_9:
             num = k - pygame.K_0
@@ -761,6 +777,8 @@ def parse_args(argv=None):
     p.add_argument("--music", type=float, default=0.5)
     p.add_argument("--sfx", type=float, default=0.72)
     p.add_argument("--autoplay", action="store_true")
+    p.add_argument("--fullscreen", action="store_true",
+                   help="start in fullscreen (F11 toggles at runtime)")
     return p.parse_args(argv)
 
 

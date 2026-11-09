@@ -303,15 +303,40 @@ class World:
         if not units:
             return
         n = len(units)
-        cols = max(1, int(math.ceil(math.sqrt(n))))
+
+        def formation_slots(count):
+            """One distinct cell per unit: centre, then square rings outwards.
+
+            The old ring math overlapped ring 1 with ring 0 (offset 0.4 vs
+            slot spacing 0.85), so 10+ unit groups were handed overlapping
+            targets and piled onto one point — which is exactly the crowd the
+            player saw pushing and shimmering.
+            """
+            cells = [(0.0, 0.0)]
+            r = 1
+            while len(cells) < count and r <= 8:
+                for ry in range(-r, r + 1):
+                    for rx in range(-r, r + 1):
+                        if max(abs(rx), abs(ry)) == r:
+                            cells.append((rx * 0.85, ry * 0.85))
+                r += 1
+            return cells[:count]
+
+        slots = formation_slots(n)
         for k, u in enumerate(units):
-            ring = k // 9
-            slot = k % 9
-            ox = (slot % 3 - 1) * 0.85 + (ring * 0.4 if ring else 0)
-            oy = (slot // 3 - 1) * 0.85 + (ring * 0.4 if ring else 0)
+            ox, oy = slots[k]
             tx, ty = x + ox, y + oy
-            if not walkable(self.map, int(tx), int(ty), self.blocked):
-                tx, ty = x, y
+            # validate against STATIC terrain/buildings only: a tile that is
+            # merely occupied by another unit must not collapse the slot onto
+            # the shared centre (that was the pile-up), and a blocked slot
+            # falls back to its own nearest free tile, not to everyone's.
+            if not walkable(self.map, int(tx), int(ty)):
+                alt = nearest_walkable(self.map, int(tx), int(ty),
+                                       prefer=(int(x), int(y)))
+                if alt is not None:
+                    tx, ty = alt[0] + 0.5, alt[1] + 0.5
+                elif walkable(self.map, int(x), int(y)):
+                    tx, ty = x, y
             u.order = {"type": "attack_move" if attack_move else "move", "x": tx, "y": ty}
             u.target = None
             self._set_path(u, (tx, ty))
@@ -602,17 +627,41 @@ class World:
         self._build_grid()
 
     def _separate(self, u):
+        """Smooth crowd separation for idle units.
+
+        Every neighbour contributes a push measured from the *original*
+        position (no cascading inside one tick), the vectors are averaged, and
+        the impulse is capped. That removes the ping-pong shimmer units showed
+        when they packed at a destination, while still keeping centres at least
+        a radius-sum apart (verified by tools/qa collision probes).
+        """
+        px = py = 0.0
+        n = 0
         for o in self.grid.query(u.x, u.y, 1.35):
             if o is u or not o.alive or o.is_building or o.team != u.team:
                 continue
             d = dist(u.x, u.y, o.x, o.y)
             need = (u.radius + o.radius) * 1.35
-            if 0.001 < d < need:
-                push = (need - d) * 1.05
-                nx = u.x + (u.x - o.x) / d * push
-                ny = u.y + (u.y - o.y) / d * push
-                if self._passable(nx, ny, u):
-                    u.x, u.y = nx, ny
+            if 0.001 < d < need - 0.06:      # deadband: no micro-pushes at rest
+                px += (u.x - o.x) / d * (need - d)
+                py += (u.y - o.y) / d * (need - d)
+                n += 1
+        if not n:
+            return
+        px /= n
+        py /= n
+        mag = math.hypot(px, py)
+        if mag <= 1e-6:
+            return
+        # Relaxation step: never close more than ~55% of the remaining gap in
+        # one call, and never teleport more than 0.15 tiles. Both sides of a
+        # pair resolve to the resting distance in a single tick and then stop
+        # (the old "apply the whole correction" version overshot the deadband
+        # and ping-ponged — that was the shimmer players saw in crowds).
+        step = min(mag, 0.15) * 0.55
+        nx, ny = u.x + px * step / mag, u.y + py * step / mag
+        if self._passable(nx, ny, u):
+            u.x, u.y = nx, ny
 
     def update_unit(self, u, dt):
         # mana

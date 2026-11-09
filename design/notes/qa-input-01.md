@@ -12,8 +12,8 @@
 | select: box select | PASS | 12 selected |
 | select: shift-add | PASS | 12 -> 13 |
 | select: ctrl+1 store, 1 recall | PASS | stored=True recalled=3 |
-| order: right-click issues move | PASS | order=dict moved=5.49 tiles |
-| order: unit actually walks there | PASS | moved 5.49 tiles of ~8.6 requested (target screen 911,584) |
+| order: right-click issues move | PASS | order=dict moved=7.01 tiles |
+| order: unit actually walks there | PASS | moved 7.01 tiles of ~8.6 requested (target screen 947,592) |
 | hotkey: A arms attack-move, Esc cancels | PASS | armed=True |
 | hotkey: S stop handled | PASS | no exception |
 | hotkey: SPACE selects hero | PASS | selection=1 |
