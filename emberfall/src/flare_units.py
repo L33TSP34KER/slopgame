@@ -54,6 +54,12 @@ UNIT_SCALE = {
 TINT = {
     "hero": (1.0, 0.9, 0.62),
 }
+TEAM_TINT = {
+    PLAYER: (1.0, 0.66, 0.55),     # warm ember cloth
+    ENEMY: (0.72, 0.72, 1.0),      # cold violet cloth
+    NEUTRAL: (1.0, 1.0, 1.0),
+}
+TEAM_CLOTH = ("cloth_", "leather_", "mage_", "shield", "hood")
 
 
 def parse_def(path):
@@ -175,10 +181,10 @@ class FlareUnits:
             return self.cache[key]
         d = DIRS[facing % 4]
         if rig in AVATARS:
-            surf = self._compose_avatar(rig, d, anim, frame)
+            surf = self._compose_avatar(rig, d, anim, frame, team)
             ax, ay = 64, 96
         elif rig in self.enemies:
-            surf, ax, ay = self._compose_enemy(rig, d, anim, frame)
+            surf, ax, ay = self._compose_enemy(rig, d, anim, frame, team)
         else:
             return None
         sc = UNIT_SCALE.get(rig, 0.85)
@@ -220,7 +226,7 @@ class FlareUnits:
             name = SECT.get(anim, "stance")
         return name
 
-    def _compose_avatar(self, rig, direction, anim, frame):
+    def _compose_avatar(self, rig, direction, anim, frame, team=PLAYER):
         W, H, ax, ay = self._avatar_bounds()
         s = pygame.Surface((W, H), pygame.SRCALPHA)
         ranged = self.ranged.get(rig) in ("shoot",) or rig in ("archer", "priest")
@@ -256,11 +262,15 @@ class FlareUnits:
                 part = img.subsurface(pygame.Rect(x, y, w, h)).copy()
                 part = _tint(part, (0.78, 0.76, 0.72))
                 s.blit(part, (int(dx), int(dy)))
+            elif ln.startswith(TEAM_CLOTH):
+                part = img.subsurface(pygame.Rect(x, y, w, h)).copy()
+                part = _tint(part, TEAM_TINT.get(team, TEAM_TINT[NEUTRAL]))
+                s.blit(part, (int(dx), int(dy)))
             else:
                 s.blit(img, (int(dx), int(dy)), pygame.Rect(x, y, w, h))
         return s
 
-    def _compose_enemy(self, rid, direction, anim, frame):
+    def _compose_enemy(self, rid, direction, anim, frame, team=ENEMY):
         W, H, ax, ay, img = self._enemy_bounds(rid)
         d = self.edefs[rid]
         sec = d.get(self._section_for(None, anim, rid in ("fiend", "necromancer", "revenant"))) or d.get("stance")
@@ -275,4 +285,6 @@ class FlareUnits:
         if rect:
             x, y, w, h, ox, oy = rect
             s.blit(img, (ax - ox, ay - oy), pygame.Rect(x, y, w, h))
+        if team == ENEMY:
+            s.fill((212, 205, 255, 255), special_flags=pygame.BLEND_RGBA_MULT)
         return s, ax, ay
