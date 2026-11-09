@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Daybreak">
+  <defs>
+    <radialGradient id="db-glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff8a3d" stop-opacity="0.55"/>
+      <stop offset="0.55" stop-color="#ff8a3d" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#ff8a3d" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="32" cy="32" r="31" fill="url(#db-glow)"/>
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M32 4 L35 17 L32 20 L29 17 Z" fill="#d9a441"/>
+    <path d="M50 9 L43 20 L39 20 L40 16 Z" fill="#d9a441"/>
+    <path d="M14 9 L21 20 L25 20 L24 16 Z" fill="#d9a441"/>
+    <path d="M57 26 L44 29 L41 26 L46 23 Z" fill="#d9a441"/>
+    <path d="M7 26 L20 29 L23 26 L18 23 Z" fill="#d9a441"/>
+    <path d="M55 44 L43 36 L40 38 L44 43 Z" fill="#d9a441"/>
+    <path d="M9 44 L21 36 L24 38 L20 43 Z" fill="#d9a441"/>
+    <circle cx="32" cy="30" r="13" fill="#ff8a3d"/>
+    <circle cx="32" cy="30" r="9" fill="#f0c66a"/>
+    <circle cx="32" cy="30" r="4.5" fill="#ece7d6" stroke="none"/>
+    <path d="M32 18 V14 M44 30 H48 M20 30 H16 M39 23 L42 20 M25 23 L22 20" fill="none" stroke-width="1.5" stroke="#ffb066"/>
+    <path d="M4 52 Q16 46 32 46 Q48 46 60 52 Z" fill="#6d6a63"/>
+    <path d="M4 52 Q16 46 32 46 Q48 46 60 52" fill="none" stroke="#d9a441"/>
+    <path d="M10 56 H54 V58 H10 Z" fill="#161018" stroke="none"/>
+    <path d="M23 49 Q26 47 29 49 M36 47 Q40 45 44 48" fill="none" stroke-width="1.5" stroke="#8d877c"/>
+  </g>
+</svg>

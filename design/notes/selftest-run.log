@@ -1,0 +1,38 @@
+MESA-EGL: warning: failed to get driver name for fd -1
+MESA-EGL: warning: MESA-LOADER: failed to retrieve device information
+MESA-EGL: warning: failed to get driver name for fd -1
+MESA: error: ZINK: vkEnumeratePhysicalDevices failed (VK_ERROR_INITIALIZATION_FAILED)
+MESA: error: ZINK: failed to choose pdev
+MESA-EGL: warning: egl: failed to create dri2 screen
+pygame-ce 2.5.8 (SDL 2.32.10, Python 3.14.7)
+{"qa": {"frame": 60, "fps": 62.5, "elapsed": 1.0}}
+{"qa": {"frame": 120, "fps": 62.5, "elapsed": 1.9}}
+{"qa": {"frame": 180, "fps": 62.1, "elapsed": 2.9}}
+{"qa": {"frame": 240, "fps": 62.5, "elapsed": 3.8}}
+{"qa": {"frame": 300, "fps": 61.7, "elapsed": 4.8}}
+{"qa": {"frame": 360, "fps": 62.1, "elapsed": 5.8}}
+{"qa": {"frame": 420, "fps": 62.1, "elapsed": 6.7}}
+{"qa": {"frame": 480, "fps": 62.5, "elapsed": 7.7}}
+{"qa": {"frame": 540, "fps": 62.5, "elapsed": 8.7}}
+{"qa": {"frame": 600, "fps": 62.5, "elapsed": 9.6}}
+{"qa": {"frame": 660, "fps": 62.5, "elapsed": 10.6}}
+{"qa": {"frame": 720, "fps": 62.5, "elapsed": 11.6}}
+{"qa": {"frame": 780, "fps": 62.5, "elapsed": 12.5}}
+{"qa": {"frame": 840, "fps": 62.5, "elapsed": 13.5}}
+{"qa": {"frame": 900, "fps": 62.1, "elapsed": 14.4}}
+{"qa": {"frame": 960, "fps": 62.1, "elapsed": 15.4}}
+{"qa": {"frame": 1020, "fps": 62.5, "elapsed": 16.4}}
+{"qa": {"frame": 1080, "fps": 62.5, "elapsed": 17.3}}
+{"qa": {"frame": 1140, "fps": 62.5, "elapsed": 18.3}}
+{"qa": {"frame": 1200, "fps": 62.5, "elapsed": 19.2}}
+{"qa": {"frame": 1260, "fps": 62.5, "elapsed": 20.2}}
+{"qa": {"frame": 1320, "fps": 62.1, "elapsed": 21.2}}
+{"qa": {"frame": 1380, "fps": 62.1, "elapsed": 22.1}}
+{"qa": {"frame": 1440, "fps": 62.5, "elapsed": 23.1}}
+{"qa": {"frame": 1500, "fps": 62.5, "elapsed": 24.0}}
+{"qa": {"frame": 1560, "fps": 62.5, "elapsed": 25.0}}
+{"qa": {"frame": 1620, "fps": 62.5, "elapsed": 26.0}}
+{"qa": {"frame": 1680, "fps": 61.7, "elapsed": 26.9}}
+{"qa": {"frame": 1740, "fps": 62.5, "elapsed": 27.9}}
+{"qa": {"frame": 1800, "fps": 62.5, "elapsed": 28.9}}
+{"qa": {"frame": 1860, "fps": 62.5, "elapsed": 29.8}}

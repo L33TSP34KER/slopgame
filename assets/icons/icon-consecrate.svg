@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Consecrate">
+  <defs>
+    <radialGradient id="cs-glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff8a3d" stop-opacity="0.42"/>
+      <stop offset="0.65" stop-color="#ff8a3d" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#ff8a3d" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="url(#cs-glow)"/>
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <ellipse cx="32" cy="41" rx="24" ry="9" fill="none" stroke-width="4" stroke="#161018"/>
+    <ellipse cx="32" cy="41" rx="24" ry="9" fill="none" stroke="#d9a441"/>
+    <ellipse cx="32" cy="41" rx="17" ry="6" fill="none" stroke-width="1.5" stroke="#ff8a3d"/>
+    <path d="M9 41 L7 38 M55 41 L57 38 M32 50 V53 M32 32 V29 M14 46 L11 48 M50 46 L53 48 M18 35 L15 34 M46 35 L49 34" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+    <path d="M9 41 L11 44 L9 47 L7 44 Z" fill="#d9a441"/>
+    <path d="M55 41 L57 44 L55 47 L53 44 Z" fill="#d9a441"/>
+    <path d="M32 50 L34 52 L32 54 L30 52 Z" fill="#d9a441"/>
+    <path d="M20 28 L19 18 M26 22 L24 12 M32 19 V7 M38 22 L40 12 M44 28 L45 18" fill="none" stroke-width="2" stroke="#d9a441"/>
+    <path d="M28 41 Q26 33 31 28 Q29 24 31 20 Q35 25 34 29 Q38 34 36 41 Q32 45 28 41 Z" fill="#ff8a3d"/>
+    <path d="M30 41 Q29 34 32 30 Q33 34 33 38 Q35 35 35 41 Z" fill="#f0c66a" stroke="none"/>
+    <path d="M32 20 Q30 15 32 12 Q34 16 33 20 Z" fill="#ffb066" stroke="none"/>
+    <path d="M13 41 L10 39 M51 41 L54 39" fill="none" stroke-width="1.5" stroke="#ff8a3d"/>
+  </g>
+</svg>

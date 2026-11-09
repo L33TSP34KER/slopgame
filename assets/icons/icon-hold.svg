@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Hold Position">
+  <defs>
+    <linearGradient id="hd-steel" x1="0" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#eef2f7"/>
+      <stop offset="0.55" stop-color="#cfd6df"/>
+      <stop offset="1" stop-color="#8e97a4"/>
+    </linearGradient>
+  </defs>
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M18 40 Q16 33 20 30 Q19 24 25 23 Q26 17 32 19 Q35 14 40 17 Q45 15 47 21 Q52 24 49 31 L48 39 Q48 45 41 45 H26 Q19 45 18 40 Z" fill="url(#hd-steel)"/>
+    <path d="M24 30 V36 M30 29 V37 M36 29 V37 M42 31 V38" fill="none" stroke-width="1.5" stroke="#8e97a4"/>
+    <path d="M22 34 Q20 37 22 40 Q26 42 29 39 L34 37 L32 32 Z" fill="url(#hd-steel)"/>
+    <path d="M25 23 Q27 20 29 23 M31 19 Q33 16 35 19" fill="none" stroke-width="1.5" stroke="#eef2f7"/>
+    <path d="M25 41 H44" fill="none" stroke-width="1.5" stroke="#161018" opacity="0.3"/>
+    <path d="M17 44 H48 V53 H17 Z" fill="#a83a3a"/>
+    <path d="M17 47 H48" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+    <path d="M28 47 V52 M36 47 V52" fill="none" stroke-width="1.5" stroke="#6e2226"/>
+    <circle cx="23" cy="50" r="1.8" fill="#d9a441"/>
+    <path d="M11 57 H53" fill="none" stroke-width="3" stroke="#6d6a63"/>
+    <path d="M12 50 L9 46 M16 51 L13 48" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+  </g>
+</svg>

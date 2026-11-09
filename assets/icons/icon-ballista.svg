@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Ballista">
+  <defs>
+    <linearGradient id="bl-wood" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#f0c66a"/>
+      <stop offset="1" stop-color="#b07a2c"/>
+    </linearGradient>
+    <linearGradient id="bl-steel" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#eef2f7"/>
+      <stop offset="1" stop-color="#8e97a4"/>
+    </linearGradient>
+  </defs>
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <ellipse cx="32" cy="58" rx="24" ry="3.5" fill="#161018" opacity="0.2" stroke="none"/>
+    <path d="M22 44 L27 21 H32 L28 44 Z" fill="url(#bl-wood)"/>
+    <path d="M42 44 L37 21 H32 L36 44 Z" fill="url(#bl-wood)"/>
+    <path d="M23 22 H41 V26 H23 Z" fill="#8f6420"/>
+    <path d="M32 26 C24 20 16 17 10 16 L11 21 C19 23 26 26 30 30 Z" fill="url(#bl-wood)"/>
+    <path d="M32 26 C40 20 48 17 54 16 L53 21 C45 23 38 26 34 30 Z" fill="url(#bl-wood)"/>
+    <circle cx="12" cy="19" r="3" fill="url(#bl-steel)"/>
+    <circle cx="52" cy="19" r="3" fill="url(#bl-steel)"/>
+    <path d="M12 19 L32 31 L52 19" fill="none" stroke-width="1.5" stroke="#d8d2bd"/>
+    <rect x="8" y="42" width="48" height="8" rx="2" fill="url(#bl-wood)"/>
+    <path d="M8 47 H56" fill="none" stroke-width="1.5" stroke="#8f6420"/>
+    <circle cx="16" cy="51" r="7" fill="url(#bl-wood)"/>
+    <circle cx="16" cy="51" r="2.2" fill="#cfd6df"/>
+    <path d="M16 44 V50 M9 51 H15 M21 51 H27" fill="none" stroke-width="1.5"/>
+    <circle cx="48" cy="51" r="7" fill="url(#bl-wood)"/>
+    <circle cx="48" cy="51" r="2.2" fill="#cfd6df"/>
+    <path d="M48 44 V50 M41 51 H47 M53 51 H59" fill="none" stroke-width="1.5"/>
+    <path d="M14 32 H50 V36 H14 Z" fill="#8f6420"/>
+    <path d="M18 28 H44 V32 H18 Z" fill="url(#bl-wood)"/>
+    <path d="M44 28 L56 30 L44 34 Z" fill="url(#bl-steel)"/>
+    <path d="M16 29 L20 26 M16 33 L20 36 M12 28 L16 25" stroke-width="2" stroke="#a83a3a"/>
+    <path d="M30 30 L30 24" fill="none" stroke-width="1.5"/>
+  </g>
+</svg>

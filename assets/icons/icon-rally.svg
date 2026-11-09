@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Rally">
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M30 8 V52" stroke-width="7" fill="none"/>
+    <path d="M30 8 V52" stroke="#d9a441" stroke-width="3" fill="none"/>
+    <path d="M30 3 L34 9 L30 14 L26 9 Z" fill="#d9a441"/>
+    <path d="M31 11 C40 7 48 12 57 8 L54 18 C53 23 47 25 41 23 C37 22 33 23 31 24 Z" fill="#a83a3a"/>
+    <path d="M33 13 C40 11 48 14 54 11" fill="none" stroke-width="1.5" stroke="#c85a4a"/>
+    <path d="M36 16 L38 19 L36 22 L34 19 Z" fill="#d9a441"/>
+    <path d="M6 56 Q18 46 32 49 Q46 46 58 56 Z" fill="#4b6b3f"/>
+    <path d="M6 56 Q18 46 32 49 Q46 46 58 56" fill="none" stroke-width="1.5" stroke="#6d8a58"/>
+    <path d="M12 52 Q10 47 13 44 M18 51 Q16 47 18 44 M46 50 Q48 46 46 43 M52 52 Q54 48 52 45" fill="none" stroke-width="1.5" stroke="#6d8a58"/>
+    <path d="M34 54 H44" fill="none" stroke-width="1.5" stroke="#2f4529"/>
+  </g>
+</svg>

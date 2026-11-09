@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Aegis">
+  <defs>
+    <radialGradient id="ae-glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff8a3d" stop-opacity="0.45"/>
+      <stop offset="0.6" stop-color="#ff8a3d" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#ff8a3d" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="url(#ae-glow)"/>
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M13 9 H51 V32 C51 44 42 52 32 57 C22 52 13 44 13 32 Z" fill="#d9a441"/>
+    <path d="M18 14 H46 V32 C46 41 39 48 32 52 C25 48 18 41 18 32 Z" fill="#a83a3a"/>
+    <path d="M18 14 H46 V32 C46 41 39 48 32 52 C25 48 18 41 18 32 Z" fill="#161018" opacity="0.16" stroke="none" transform="translate(4 2)"/>
+    <path d="M22 18 H42 V31 C42 38 37 44 32 47 C27 44 22 38 22 31 Z" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+    <path d="M32 21 C36 26 36 33 32 40 C28 33 28 26 32 21 Z" fill="#d9a441"/>
+    <path d="M31 26 C24 20 19 21 15 25 C21 26 24 29 26 33 C22 33 19 32 16 33 C22 38 28 37 31 33 Z" fill="#d9a441"/>
+    <path d="M33 26 C40 20 45 21 49 25 C43 26 40 29 38 33 C42 33 45 32 48 33 C42 38 36 37 33 33 Z" fill="#d9a441"/>
+    <circle cx="32" cy="20" r="3" fill="#d9a441"/>
+    <path d="M29 19 L24 17 L29 22 Z" fill="#d9a441"/>
+    <circle cx="31" cy="19" r="0.9" fill="#161018" stroke="none"/>
+    <path d="M32 38 Q35 42 32 47 Q29 42 32 38 Z" fill="#ff8a3d"/>
+    <circle cx="32" cy="11" r="2" fill="#d9a441"/>
+    <circle cx="20" cy="18" r="1.5" fill="#d9a441"/>
+    <circle cx="44" cy="18" r="1.5" fill="#d9a441"/>
+    <path d="M17 36 C18 40 20 44 23 47" fill="none" stroke-width="1.5" stroke="#d9a441" opacity="0.7"/>
+  </g>
+</svg>

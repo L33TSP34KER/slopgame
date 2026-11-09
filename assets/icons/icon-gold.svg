@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Gold">
+  <defs>
+    <linearGradient id="gd-coin" x1="0" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#f0c66a"/>
+      <stop offset="1" stop-color="#b07a2c"/>
+    </linearGradient>
+  </defs>
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <ellipse cx="32" cy="58" rx="24" ry="3.5" fill="#161018" opacity="0.2" stroke="none"/>
+    <path d="M13 46 C13 51 21 55 31 55 C41 55 49 51 49 46 V52 C49 57 41 61 31 61 C21 61 13 57 13 52 Z" fill="#8f6420"/>
+    <ellipse cx="31" cy="46" rx="18" ry="7" fill="url(#gd-coin)"/>
+    <path d="M17 37 C17 42 25 46 35 46 C45 46 53 42 53 37 V43 C53 48 45 52 35 52 C25 52 17 48 17 43 Z" fill="#8f6420"/>
+    <ellipse cx="35" cy="37" rx="18" ry="7" fill="url(#gd-coin)"/>
+    <path d="M20 28 C20 33 27 37 37 37 C47 37 54 33 54 28 V34 C54 39 47 43 37 43 C27 43 20 39 20 34 Z" fill="#8f6420"/>
+    <ellipse cx="37" cy="28" rx="17" ry="6.5" fill="url(#gd-coin)"/>
+    <ellipse cx="37" cy="28" rx="12" ry="4.3" fill="none" stroke-width="1.5" stroke="#8f6420"/>
+    <path d="M37 23.5 L40 28 L37 32.5 L34 28 Z" fill="#8f6420" stroke="none"/>
+    <path d="M14 30 L15.5 34 L19.5 35.5 L15.5 37 L14 41 L12.5 37 L8.5 35.5 L12.5 34 Z" fill="#f0c66a" stroke="none"/>
+    <path d="M52 17 L53 20 L56 21 L53 22 L52 25 L51 22 L48 21 L51 20 Z" fill="#f0c66a" stroke="none"/>
+    <path d="M47 37 L48 39.5 L50.5 40.5 L48 41.5 L47 44 L46 41.5 L43.5 40.5 L46 39.5 Z" fill="#ff8a3d" stroke="none"/>
+  </g>
+</svg>

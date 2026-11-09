@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Weapons Upgrade">
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M28 36 L28 15 L32 5 L36 15 L36 36 Z" fill="#cfd6df"/>
+    <path d="M32 12 V32" fill="none" stroke-width="1.5" stroke="#8e97a4"/>
+    <path d="M28 20 L36 20" fill="none" stroke-width="1.5" stroke="#eef2f7"/>
+    <rect x="21" y="36" width="22" height="5" rx="2" fill="#d9a441"/>
+    <rect x="29" y="41" width="6" height="7" fill="#a83a3a"/>
+    <circle cx="32" cy="50" r="3" fill="#d9a441"/>
+    <path d="M22 55 L32 50 L42 55 L42 58 L32 53 L22 58 Z" fill="#d9a441"/>
+    <path d="M24 60 L32 56 L40 60" fill="none" stroke-width="2" stroke="#d9a441"/>
+    <path d="M44 12 L45.5 16 L49.5 17.5 L45.5 19 L44 23 L42.5 19 L38.5 17.5 L42.5 16 Z" fill="#ff8a3d"/>
+    <path d="M19 22 L20 25 L23 26 L20 27 L19 30 L18 27 L15 26 L18 25 Z" fill="#f0c66a" stroke="none"/>
+  </g>
+</svg>

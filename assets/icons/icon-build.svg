@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Build">
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M4 46 H34 V52 H4 Z" fill="#d9a441"/>
+    <path d="M10 44 H42 V46 H10 Z" fill="#f0c66a"/>
+    <path d="M12 54 H46 V59 H12 Z" fill="#b07a2c"/>
+    <path d="M4 52 H34" fill="none" stroke-width="1.5" stroke="#8f6420"/>
+    <path d="M14 47 V51 M24 47 V51 M30 55 V58" fill="none" stroke-width="1.5" stroke="#8f6420"/>
+    <circle cx="38" cy="47" r="1.8" fill="#cfd6df"/>
+    <circle cx="42" cy="55" r="1.8" fill="#cfd6df"/>
+    <path d="M20 57 L44 26" stroke-width="8" fill="none"/>
+    <path d="M20 57 L44 26" stroke="#d9a441" stroke-width="4" fill="none"/>
+    <path d="M38 20 L50 12 L56 20 L48 27 L42 26 Z" fill="#cfd6df"/>
+    <path d="M38 20 L44 16 L50 22" fill="none" stroke-width="1.5" stroke="#eef2f7"/>
+    <path d="M48 27 Q54 28 56 24 Q52 25 50 22" fill="#cfd6df"/>
+    <path d="M44 18 L55 13" fill="none" stroke-width="1.5" stroke="#8e97a4"/>
+    <path d="M50 8 Q56 4 59 8 M52 12 Q58 10 60 14" fill="none" stroke-width="1.5" stroke="#f0c66a"/>
+    <path d="M14 40 L15.5 44 L19 45.5 L15.5 47 L14 51 L12.5 47 L9 45.5 L12.5 44 Z" fill="#ff8a3d"/>
+    <path d="M56 38 L57 40.5 L59.5 41.5 L57 42.5 L56 45 L55 42.5 L52.5 41.5 L55 40.5 Z" fill="#f0c66a" stroke="none"/>
+  </g>
+</svg>

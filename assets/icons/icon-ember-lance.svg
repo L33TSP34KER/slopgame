@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Ember Lance">
+  <defs>
+    <radialGradient id="el-glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff8a3d" stop-opacity="0.5"/>
+      <stop offset="0.6" stop-color="#ff8a3d" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#ff8a3d" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="url(#el-glow)"/>
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M10 56 L45 21" stroke-width="7" fill="none"/>
+    <path d="M10 56 L45 21" stroke="#d9a441" stroke-width="3" fill="none"/>
+    <path d="M36 30 L46 20" stroke="#8f6420" stroke-width="3" fill="none"/>
+    <path d="M42 24 Q54 14 58 5 Q48 12 38 18 Z" fill="#cfd6df"/>
+    <path d="M43 20 L52 9" fill="none" stroke-width="1.5" stroke="#eef2f7"/>
+    <path d="M40 22 L47 15" stroke="#d9a441" stroke-width="4" fill="none"/>
+    <path d="M45 14 Q38 16 34 24 Q40 20 44 22 Q42 28 44 33 Q38 28 32 33 Q35 24 41 17 Z" fill="#ff8a3d"/>
+    <path d="M41 20 Q37 23 36 29 Q40 26 42 27 Q41 31 42 34 Q37 31 34 34 Q37 27 41 20 Z" fill="#f0c66a" stroke="none"/>
+    <path d="M32 36 Q24 38 18 46 Q26 42 30 45 Q28 49 30 52 Q26 47 20 50 Q24 42 32 36 Z" fill="#ff8a3d"/>
+    <path d="M30 40 Q26 42 23 46 Q27 45 29 47 Q28 49 29 51 Q26 47 23 49 Q27 43 30 40 Z" fill="#f0c66a" stroke="none"/>
+    <path d="M51 12 L54 9 L52 15 Z" fill="#f0c66a" stroke="none"/>
+    <path d="M36 27 L38 30 L35 32 L33 29 Z" fill="#f0c66a" stroke="none"/>
+    <path d="M22 40 L24 43 L21 45 L19 42 Z" fill="#f0c66a" stroke="none"/>
+    <path d="M52 32 L53.5 35 L51 37 L49.5 34 Z" fill="#ffb066" stroke="none"/>
+  </g>
+</svg>

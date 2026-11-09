@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Town Hall">
+  <defs>
+    <linearGradient id="th-roof" x1="0.1" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#c85a4a"/>
+      <stop offset="1" stop-color="#7d2a2e"/>
+    </linearGradient>
+    <linearGradient id="th-wall" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#ece7d6"/>
+      <stop offset="1" stop-color="#c2b89e"/>
+    </linearGradient>
+  </defs>
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <ellipse cx="32" cy="57" rx="26" ry="4" fill="#161018" opacity="0.2" stroke="none"/>
+    <rect x="6" y="50" width="52" height="6" rx="2" fill="#6d6a63"/>
+    <path d="M9 51 H55" fill="none" stroke-width="1.5" stroke="#918d84"/>
+    <path d="M10 33 H54 V51 H10 Z" fill="url(#th-wall)"/>
+    <rect x="10" y="33" width="3" height="18" fill="#8f6420"/>
+    <rect x="51" y="33" width="3" height="18" fill="#8f6420"/>
+    <rect x="10" y="41" width="44" height="3" fill="#8f6420"/>
+    <path d="M14 41 L21 50 M50 41 L43 50" fill="none" stroke-width="1.5" stroke="#8f6420"/>
+    <path d="M13 44 L19 50 M51 44 L45 50" fill="none" stroke-width="1.5" stroke="#8f6420"/>
+    <path d="M4 35 L32 13 L60 35 Z" fill="url(#th-roof)"/>
+    <path d="M10 32 L32 21 L54 32" fill="none" stroke-width="1.5" stroke="#6e2226"/>
+    <path d="M15 29 L32 20 L49 29" fill="none" stroke-width="1.5" stroke="#6e2226"/>
+    <circle cx="32" cy="24" r="5.5" fill="#d9a441"/>
+    <circle cx="32" cy="24" r="3.8" fill="#d8d2bd"/>
+    <path d="M32 24 V21 M32 24 L34.5 25.5" fill="none" stroke-width="1.5"/>
+    <path d="M32 13 L30 7 L34 7 Z" fill="#d9a441"/>
+    <path d="M32 7 V4" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+    <path d="M24 51 V41 Q32 35 40 41 V51 Z" fill="#8f6420"/>
+    <path d="M32 37 V51" fill="none"/>
+    <path d="M25 45 H39 M25 49 H39" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+    <circle cx="29" cy="46" r="1.3" fill="#d9a441" stroke="none"/>
+    <circle cx="35" cy="46" r="1.3" fill="#d9a441" stroke="none"/>
+    <path d="M15 43 H21 V47 A3 3 0 0 1 15 47 Z" fill="#ff8a3d"/>
+    <path d="M43 43 H49 V47 A3 3 0 0 1 43 47 Z" fill="#ff8a3d"/>
+    <path d="M12 35 H18 V46 L15 43 L12 46 Z" fill="#a83a3a"/>
+    <path d="M46 35 H52 V46 L49 43 L46 46 Z" fill="#a83a3a"/>
+    <path d="M12 38 H18 M46 38 H52" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+    <path d="M20 51 H44 V53 H20 Z" fill="#d8d2bd"/>
+  </g>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Attack">
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M17 20 Q9 29 12 40" fill="none" stroke-width="3" stroke="#a83a3a"/>
+    <path d="M24 13 Q13 23 16 36" fill="none" stroke-width="2" stroke="#a83a3a"/>
+    <g transform="rotate(45 32 32)">
+      <path d="M28 42 L28 16 L32 5 L36 16 L36 42 Z" fill="#cfd6df"/>
+      <path d="M32 13 V38" fill="none" stroke-width="1.5" stroke="#8e97a4"/>
+      <path d="M28 21 L36 21" fill="none" stroke-width="1.5" stroke="#eef2f7"/>
+      <rect x="21" y="42" width="22" height="5" rx="2" fill="#d9a441"/>
+      <rect x="29" y="47" width="6" height="9" fill="#a83a3a"/>
+      <circle cx="32" cy="57" r="3.5" fill="#d9a441"/>
+    </g>
+    <path d="M50 6 L52 11 L57 13 L52 15 L50 20 L48 15 L43 13 L48 11 Z" fill="#ff8a3d"/>
+    <path d="M55 20 L56 23 L59 24 L56 25 L55 28 L54 25 L51 24 L54 23 Z" fill="#f0c66a" stroke="none"/>
+    <path d="M44 4 L45 6 L47 7 L45 8 L44 10 L43 8 L41 7 L43 6 Z" fill="#f0c66a" stroke="none"/>
+  </g>
+</svg>

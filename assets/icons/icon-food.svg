@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Food">
+  <defs>
+    <linearGradient id="fd-grain" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#f0c66a"/>
+      <stop offset="1" stop-color="#b07a2c"/>
+    </linearGradient>
+  </defs>
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <ellipse cx="32" cy="57" rx="15" ry="3" fill="#161018" opacity="0.18" stroke="none"/>
+    <path d="M37 46 Q43 32 47 18 L42 17 Q37 31 33 46 Z" fill="url(#fd-grain)"/>
+    <path d="M27 46 Q21 32 17 18 L22 17 Q27 31 31 46 Z" fill="url(#fd-grain)"/>
+    <path d="M30 47 Q30 28 31 13 L34 13 Q35 28 34 47 Z" fill="url(#fd-grain)"/>
+    <path d="M31 13 C27 10 26 5 30 2 C31 6 32 8 32 13 Z" fill="url(#fd-grain)"/>
+    <path d="M17 18 C13 15 12 10 16 7 C18 11 20 13 22 16 Z" fill="url(#fd-grain)"/>
+    <path d="M47 18 C51 15 52 10 48 7 C46 11 44 13 42 16 Z" fill="url(#fd-grain)"/>
+    <path d="M30 10 L27 3 M32 9 L33 1 M20 15 L15 9 M44 15 L49 9" fill="none" stroke-width="1.5" stroke="#f0c66a"/>
+    <path d="M31 12 Q29 9 30 6 M33 12 Q35 9 34 6" fill="none" stroke-width="1.5" stroke="#8f6420"/>
+    <path d="M18 16 Q20 13 21 10 M45 16 Q43 13 42 10" fill="none" stroke-width="1.5" stroke="#8f6420"/>
+    <path d="M23 43 Q32 48 41 43 L40 49 Q32 53 24 49 Z" fill="#a83a3a"/>
+    <path d="M32 48 L27 57 L31 53 L32 57 L33 53 L37 57 Z" fill="#a83a3a"/>
+    <path d="M25 46 Q32 43 39 46" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+    <path d="M25 46 C20 43 17 44 15 47 C19 47 21 49 22 52 C24 49 27 49 29 50 Z" fill="#4b6b3f"/>
+    <path d="M39 46 C44 43 47 44 49 47 C45 47 43 49 42 52 C40 49 37 49 35 50 Z" fill="#4b6b3f"/>
+    <path d="M28 30 Q31 26 34 30" fill="none" stroke-width="1.5" stroke="#f0c66a"/>
+  </g>
+</svg>

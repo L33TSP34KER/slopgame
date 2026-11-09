@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Blacksmith">
+  <defs>
+    <linearGradient id="bs-forge" x1="0" y1="1" x2="0.3" y2="0">
+      <stop offset="0" stop-color="#ffb066"/>
+      <stop offset="0.5" stop-color="#ff8a3d"/>
+      <stop offset="1" stop-color="#a83a3a"/>
+    </linearGradient>
+    <linearGradient id="bs-roof" x1="0.1" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#8d877c"/>
+      <stop offset="1" stop-color="#4a4842"/>
+    </linearGradient>
+  </defs>
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <ellipse cx="32" cy="58" rx="27" ry="4" fill="#161018" opacity="0.22" stroke="none"/>
+    <circle cx="47" cy="7" r="3" fill="#d8d2bd" opacity="0.5" stroke="none"/>
+    <circle cx="52" cy="4" r="2" fill="#d8d2bd" opacity="0.4" stroke="none"/>
+    <rect x="40" y="9" width="9" height="18" fill="#6d6a63"/>
+    <path d="M40 12 H49 M40 18 H49" fill="none" stroke-width="1.5" stroke="#918d84"/>
+    <path d="M11 33 H51 V52 H11 Z" fill="#bdb29a"/>
+    <path d="M11 35 H51 M11 43 H51" fill="none" stroke-width="1.5" stroke="#a89f85"/>
+    <path d="M18 35 V43 M34 35 V43 M27 43 V52 M43 43 V52" fill="none" stroke-width="1.5" stroke="#a89f85"/>
+    <path d="M6 34 L32 12 L58 34 Z" fill="url(#bs-roof)"/>
+    <path d="M12 31 L32 20 L52 31" fill="none" stroke-width="1.5" stroke="#45433e"/>
+    <path d="M24 52 V41 Q32 35 40 41 V52 Z" fill="#a83a3a"/>
+    <path d="M26 52 V42 Q32 37 38 42 V52 Z" fill="url(#bs-forge)"/>
+    <path d="M29 45 Q32 43 35 45" fill="none" stroke-width="1.5" stroke="#ffb066"/>
+    <path d="M32 52 V47 M27 50 H37" fill="none" stroke-width="1.5" stroke="#8f6420"/>
+    <path d="M13 40 H18 V45 H13 Z" fill="#ff8a3d"/>
+    <path d="M36 47 H54 L50 51 H48 V55 H56 V58 H38 V55 H41 L44 51 V49 H36 Z" fill="#6d6a63"/>
+    <path d="M37 47 H53" fill="none" stroke-width="1.5" stroke="#cfd6df"/>
+    <path d="M54 48 L58 46 L56 50 Z" fill="#6d6a63"/>
+    <path d="M26 18 L29 15" fill="none" stroke-width="1.5" stroke="#cfd6df"/>
+    <path d="M49 9 V6" fill="none" stroke-width="1.5" stroke="#45433e"/>
+  </g>
+</svg>

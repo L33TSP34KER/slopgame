@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Farm">
+  <defs>
+    <linearGradient id="fm-thatch" x1="0.1" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#6d8a58"/>
+      <stop offset="1" stop-color="#3c5733"/>
+    </linearGradient>
+    <linearGradient id="fm-wall" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#ece7d6"/>
+      <stop offset="1" stop-color="#c2b89e"/>
+    </linearGradient>
+  </defs>
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <ellipse cx="32" cy="57" rx="25" ry="4" fill="#161018" opacity="0.2" stroke="none"/>
+    <rect x="12" y="50" width="42" height="6" rx="2" fill="#6d6a63"/>
+    <path d="M16 34 H50 V50 H16 Z" fill="url(#fm-wall)"/>
+    <rect x="16" y="34" width="3" height="16" fill="#8f6420"/>
+    <rect x="47" y="34" width="3" height="16" fill="#8f6420"/>
+    <path d="M16 42 H50" fill="none" stroke-width="1.5" stroke="#8f6420"/>
+    <path d="M9 36 Q12 22 32 14 Q52 22 55 36 Q47 39 32 39 Q17 39 9 36 Z" fill="url(#fm-thatch)"/>
+    <path d="M14 31 Q32 24 50 31 M18 27 Q32 21 46 27" fill="none" stroke-width="1.5" stroke="#6d8a58"/>
+    <path d="M9 36 Q18 33 32 33 Q46 33 55 36" fill="none" stroke-width="1.5" stroke="#2f4529"/>
+    <path d="M27 50 V41 Q32 37 37 41 V50 Z" fill="#8f6420"/>
+    <path d="M27 44 H37 M27 48 H37" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+    <path d="M19 42 H24 V46 H19 Z" fill="#ff8a3d"/>
+    <path d="M41 42 H46 V46 H41 Z" fill="#ff8a3d"/>
+    <path d="M45 34 H48 V40 H45 Z" fill="#6d6a63"/>
+    <path d="M46 34 V30" fill="none" stroke-width="3" stroke="#6d6a63"/>
+    <circle cx="47" cy="28" r="2.5" fill="#d8d2bd" stroke="none" opacity="0.75"/>
+    <circle cx="51" cy="24" r="2" fill="#d8d2bd" stroke="none" opacity="0.6"/>
+    <path d="M9 54 Q8 47 12 43 L15 45 Q12 49 13 54 Z" fill="#d9a441"/>
+    <path d="M10 45 C7 41 8 37 12 35 C12 39 11 42 12 45 Z" fill="#d9a441"/>
+    <path d="M14 46 C15 42 18 40 21 40 C19 43 17 45 16 48 Z" fill="#d9a441"/>
+    <path d="M14 48 L14 54 M11 49 L11 55 M17 49 L17 55" fill="none" stroke-width="1.5" stroke="#8f6420"/>
+    <path d="M46 52 Q45 45 49 41 L52 43 Q49 47 50 52 Z" fill="#d8d2bd"/>
+    <path d="M49 42 Q52 39 55 40 Q53 43 51 45 Z" fill="#d8d2bd"/>
+    <path d="M47 47 H52" fill="none" stroke-width="1.5" stroke="#a89f85"/>
+  </g>
+</svg>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Worker">
+  <defs>
+    <linearGradient id="wk-tunic" x1="0.1" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#6d8a58"/>
+      <stop offset="1" stop-color="#4b6b3f"/>
+    </linearGradient>
+  </defs>
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="43" y="15" width="5" height="38" rx="2" fill="#d9a441" transform="rotate(22 45.5 34)"/>
+    <rect x="36" y="7" width="21" height="9" rx="3" fill="#cfd6df" transform="rotate(22 46.5 11.5)"/>
+    <path d="M38 14 L43 10" fill="none" stroke-width="1.5" stroke="#eef2f7"/>
+    <path d="M28 29 H36 V38 H28 Z" fill="#d8d2bd"/>
+    <path d="M12 56 C13 45 20 38 32 38 C44 38 51 45 52 56 Z" fill="url(#wk-tunic)"/>
+    <path d="M25 41 H39 L41 56 H23 Z" fill="#d9a441"/>
+    <path d="M27 41 V37 M37 41 V37" fill="none"/>
+    <path d="M26 37 Q32 42 38 37 L38 40 Q32 45 26 40 Z" fill="#d8d2bd"/>
+    <path d="M21 48 H43 V52 H21 Z" fill="#a83a3a"/>
+    <circle cx="32" cy="50" r="2.2" fill="#cfd6df"/>
+    <circle cx="23" cy="27" r="2.4" fill="#d8d2bd"/>
+    <circle cx="41" cy="27" r="2.4" fill="#d8d2bd"/>
+    <circle cx="32" cy="25" r="9" fill="#d8d2bd"/>
+    <path d="M23 24 C22 14 42 14 41 24 Z" fill="#d9a441"/>
+    <path d="M20 24 Q32 28 44 24 L44 27 Q32 31 20 27 Z" fill="#d9a441"/>
+    <path d="M25 20 C27 15 32 13 35 13 C30 15 27 18 26 22 Z" fill="#f0c66a" stroke="none"/>
+    <circle cx="28.5" cy="28" r="1.2" fill="#161018" stroke="none"/>
+    <circle cx="35.5" cy="28" r="1.2" fill="#161018" stroke="none"/>
+    <path d="M28 46 H36" fill="none" stroke-width="1.5" stroke="#8f6420"/>
+  </g>
+</svg>

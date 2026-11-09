@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Footman">
+  <defs>
+    <linearGradient id="ft-steel" x1="0" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#eef2f7"/>
+      <stop offset="0.55" stop-color="#cfd6df"/>
+      <stop offset="1" stop-color="#8e97a4"/>
+    </linearGradient>
+  </defs>
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M47 33 L56 9 L53 6 L44 30 Z" fill="url(#ft-steel)"/>
+    <path d="M45 33 H55 V37 H45 Z" fill="#d9a441"/>
+    <path d="M48 37 L45 45" stroke-width="4" stroke="#a83a3a"/>
+    <path d="M28 29 H36 V38 H28 Z" fill="#d8d2bd"/>
+    <path d="M10 56 C11 45 19 37 32 37 C45 37 53 45 54 56 Z" fill="#a83a3a"/>
+    <path d="M22 39 Q32 33 42 39 L41 50 Q32 56 23 50 Z" fill="url(#ft-steel)"/>
+    <path d="M32 41 L35 45 L32 49 L29 45 Z" fill="#d9a441"/>
+    <path d="M17 39 C14 41 13 45 13 49 L22 46 Z" fill="url(#ft-steel)"/>
+    <path d="M47 39 C50 41 51 45 51 49 L42 46 Z" fill="url(#ft-steel)"/>
+    <circle cx="23" cy="27" r="2.4" fill="#d8d2bd"/>
+    <circle cx="41" cy="27" r="2.4" fill="#d8d2bd"/>
+    <circle cx="32" cy="25" r="8.5" fill="#d8d2bd"/>
+    <path d="M23 24 A9 9 0 0 1 41 24 Z" fill="url(#ft-steel)"/>
+    <path d="M19 24 H45 V27 H19 Z" fill="url(#ft-steel)"/>
+    <path d="M24 27 C24 32 26 35 28 36 L28 30 Z" fill="url(#ft-steel)"/>
+    <path d="M40 27 C40 32 38 35 36 36 L36 30 Z" fill="url(#ft-steel)"/>
+    <path d="M32 24 V37" stroke-width="3" stroke="#cfd6df"/>
+    <circle cx="28.5" cy="29" r="1.2" fill="#161018" stroke="none"/>
+    <circle cx="35.5" cy="29" r="1.2" fill="#161018" stroke="none"/>
+    <path d="M18 52 H46" fill="none" stroke-width="1.5" stroke="#6e2226"/>
+    <path d="M8 36 H24 V46 C24 53 17 57 16 58 C15 57 8 53 8 46 Z" fill="#cfd6df"/>
+    <path d="M11 39 H21 V46 C21 50 17 53 16 54 C15 53 11 50 11 46 Z" fill="#a83a3a"/>
+    <circle cx="16" cy="45" r="3" fill="#d9a441"/>
+    <path d="M14 45 H18" stroke-width="1.5"/>
+  </g>
+</svg>

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Altar of Embers">
+  <defs>
+    <radialGradient id="al-glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff8a3d" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#ff8a3d" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="al-stone" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#ece7d6"/>
+      <stop offset="1" stop-color="#a89f85"/>
+    </linearGradient>
+  </defs>
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <ellipse cx="32" cy="58" rx="26" ry="4" fill="#161018" opacity="0.2" stroke="none"/>
+    <circle cx="32" cy="27" r="25" fill="url(#al-glow)" stroke="none"/>
+    <path d="M8 54 H56 V58 H8 Z" fill="#6d6a63"/>
+    <path d="M8 54 H56" fill="none" stroke-width="1.5" stroke="#918d84"/>
+    <path d="M13 49 H51 V54 H13 Z" fill="#8b877d"/>
+    <path d="M18 44 H46 V49 H18 Z" fill="#a89f85"/>
+    <path d="M20 44 H44" fill="none" stroke-width="1.5" stroke="#ece7d6"/>
+    <path d="M24 40 H40 V44 H24 Z" fill="url(#al-stone)"/>
+    <path d="M10 36 H17 V51 H10 Z" fill="url(#al-stone)"/>
+    <path d="M47 36 H54 V51 H47 Z" fill="url(#al-stone)"/>
+    <path d="M9 30 H18 V36 H9 Z" fill="#d9a441"/>
+    <path d="M46 30 H55 V36 H46 Z" fill="#d9a441"/>
+    <path d="M14 31 H20 V28 A3 3 0 0 1 14 28 Z" fill="#ff8a3d"/>
+    <path d="M48 31 H54 V28 A3 3 0 0 1 48 28 Z" fill="#ff8a3d"/>
+    <path d="M22 38 H42 V42 H22 Z" fill="#d9a441"/>
+    <path d="M24 35 H40 L38 39 H26 Z" fill="#d9a441"/>
+    <path d="M27 32 Q28 24 32 22 Q36 24 37 32 Z" fill="#ff8a3d"/>
+    <path d="M28 28 Q30 20 32 16 Q34 21 35 26 Q33 24 31 27 Q30 30 30 33 Z" fill="#ffb066"/>
+    <path d="M31 33 Q30 25 32 20 Q34 26 33 33 Z" fill="#f0c66a"/>
+    <path d="M32 14 L32 8" fill="none" stroke-width="1.5" stroke="#ff8a3d"/>
+    <path d="M26 18 L24 13 M38 18 L40 13" fill="none" stroke-width="1.5" stroke="#ff8a3d"/>
+    <path d="M28 41 L32 37 L36 41 L32 45 Z" fill="#a83a3a"/>
+    <circle cx="32" cy="41" r="2" fill="#f0c66a" stroke="none"/>
+    <path d="M13 51 H20 M44 51 H51" fill="none" stroke-width="1.5" stroke="#6d6a63"/>
+  </g>
+</svg>

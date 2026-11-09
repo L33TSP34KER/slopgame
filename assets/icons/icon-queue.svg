@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Queue">
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <g transform="translate(-12 -12)">
+      <rect x="22" y="22" width="26" height="18" rx="2" fill="#bdb29a"/>
+      <path d="M22 22 H48 V27 H22 Z" fill="#8f6420"/>
+    </g>
+    <g transform="translate(-6 -6)">
+      <rect x="22" y="22" width="26" height="18" rx="2" fill="#d8d2bd"/>
+      <path d="M22 22 H48 V27 H22 Z" fill="#a83a3a"/>
+      <path d="M27 32 H41 V36 H27 Z" fill="#c9c1a8"/>
+    </g>
+    <rect x="22" y="22" width="26" height="18" rx="2" fill="#ece7d6"/>
+    <path d="M22 22 H48 V27 H22 Z" fill="#a83a3a"/>
+    <path d="M26 31 H34 V36 H26 Z" fill="#cfd6df"/>
+    <path d="M37 31 H44 V36 H37 Z" fill="#cfd6df"/>
+    <circle cx="49" cy="49" r="9" fill="#d9a441"/>
+    <path d="M49 44 V54 M44 49 H54" fill="none" stroke-width="3" stroke="#161018"/>
+    <path d="M43 43 L45 40" fill="none" stroke-width="1.5" stroke="#f0c66a"/>
+  </g>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Attack Move">
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M8 36 H44" stroke-width="8" fill="none"/>
+    <path d="M8 36 H44" stroke="#d9a441" stroke-width="4" fill="none"/>
+    <path d="M43 28 L58 36 L43 44 Z" fill="#cfd6df"/>
+    <path d="M8 34 L15 30 M8 38 L15 42 M13 32 L20 28 M13 40 L20 44" fill="none" stroke-width="3" stroke="#a83a3a"/>
+    <path d="M47 31 L54 36 L47 41" fill="none" stroke-width="1.5" stroke="#eef2f7"/>
+    <g transform="rotate(42 32 32)">
+      <path d="M29.5 38 L29.5 12 L32 3 L34.5 12 L34.5 38 Z" fill="#cfd6df"/>
+      <path d="M32 10 V34" fill="none" stroke-width="1.5" stroke="#8e97a4"/>
+      <rect x="25" y="38" width="14" height="4" rx="1.5" fill="#d9a441"/>
+      <rect x="30" y="42" width="4" height="7" fill="#a83a3a"/>
+      <circle cx="32" cy="50.5" r="2.5" fill="#d9a441"/>
+    </g>
+    <path d="M50 8 L51.5 12 L55.5 13.5 L51.5 15 L50 19 L48.5 15 L44.5 13.5 L48.5 12 Z" fill="#ff8a3d"/>
+  </g>
+</svg>

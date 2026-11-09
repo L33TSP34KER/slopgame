@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Priest">
+  <defs>
+    <linearGradient id="pr-robe" x1="0" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#ece7d6"/>
+      <stop offset="1" stop-color="#c9c1a8"/>
+    </linearGradient>
+  </defs>
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <ellipse cx="32" cy="12" rx="13" ry="3.5" fill="none" stroke-width="4.5"/>
+    <ellipse cx="32" cy="12" rx="13" ry="3.5" fill="none" stroke="#d9a441"/>
+    <path d="M50 58 L52 18" stroke-width="4" stroke="#8f6420"/>
+    <path d="M50 58 L52 18" stroke-width="2" stroke="#d9a441"/>
+    <circle cx="52" cy="14" r="5" fill="none" stroke="#d9a441" stroke-width="3"/>
+    <circle cx="52" cy="14" r="3.5" fill="#ff8a3d"/>
+    <path d="M52 6 V3 M58 8 L60 6 M46 8 L44 6" stroke-width="1.5" stroke="#ffb066"/>
+    <path d="M28 30 H36 V39 H28 Z" fill="#d8d2bd"/>
+    <path d="M12 56 C13 44 21 37 32 37 C43 37 51 44 52 56 Z" fill="url(#pr-robe)"/>
+    <path d="M27 40 L30 56 H22 C22 50 24 44 27 40 Z" fill="#a83a3a"/>
+    <path d="M37 40 L34 56 H42 C42 50 40 44 37 40 Z" fill="#a83a3a"/>
+    <path d="M28 41 L27 55 M36 41 L37 55" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+    <circle cx="32" cy="43" r="4" fill="#d9a441"/>
+    <circle cx="32" cy="43" r="1.8" fill="#ff8a3d"/>
+    <circle cx="23" cy="27" r="2.4" fill="#d8d2bd"/>
+    <circle cx="41" cy="27" r="2.4" fill="#d8d2bd"/>
+    <circle cx="32" cy="26" r="8.5" fill="#d8d2bd"/>
+    <path d="M20 34 C17 20 24 12 32 12 C40 12 47 20 44 34 L39 34 C42 22 38 17 32 17 C26 17 22 22 25 34 Z" fill="url(#pr-robe)"/>
+    <path d="M22 33 C21 27 23 22 26 20" fill="none" stroke-width="1.5" stroke="#ece7d6"/>
+    <path d="M24 30 Q32 36 40 30" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+    <circle cx="28.5" cy="28" r="1.2" fill="#161018" stroke="none"/>
+    <circle cx="35.5" cy="28" r="1.2" fill="#161018" stroke="none"/>
+  </g>
+</svg>

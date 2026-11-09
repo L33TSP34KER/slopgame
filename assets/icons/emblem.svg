@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Emberhold Emblem">
+  <defs>
+    <linearGradient id="em-field" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#c25a48"/>
+      <stop offset="1" stop-color="#74262c"/>
+    </linearGradient>
+  </defs>
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M6 7 H58 V31 C58 45 47 54 32 59 C17 54 6 45 6 31 Z" fill="#d9a441"/>
+    <path d="M12 13 H52 V31 C52 42 43 49 32 53 C21 49 12 42 12 31 Z" fill="url(#em-field)"/>
+    <path d="M16 17 H48 V31 C48 40 41 46 32 49 C23 46 16 40 16 31 Z" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+    <path d="M30 23 C26 28 27 37 32 45 C37 37 38 28 34 23 Z" fill="#d9a441"/>
+    <path d="M31 27 C24 21 18 21 13 25 C19 26 22 28 24 31 C20 31 17 31 14 32 C20 36 27 35 30 31 Z" fill="#d9a441"/>
+    <path d="M33 27 C40 21 46 21 51 25 C45 26 42 28 40 31 C44 31 47 31 50 32 C44 36 37 35 34 31 Z" fill="#d9a441"/>
+    <circle cx="32" cy="22" r="3.4" fill="#d9a441"/>
+    <path d="M30 21 L25 19 L30 24 Z" fill="#d9a441"/>
+    <circle cx="31" cy="21" r="0.9" fill="#161018" stroke="none"/>
+    <path d="M32 18 Q30 14 34 12 Q33 15 34 18 Z" fill="#d9a441"/>
+    <path d="M32 34 Q35 38 32 44 Q29 38 32 34 Z" fill="#ff8a3d"/>
+    <path d="M32 44 L28 51 L32 48 L36 51 Z" fill="#d9a441"/>
+    <path d="M17 22 L20 25 M47 22 L44 25 M22 28 L25 30 M42 28 L39 30" fill="none" stroke-width="1.5" stroke="#8f6420"/>
+    <path d="M15 27 Q18 28 20 30 M49 27 Q46 28 44 30" fill="none" stroke-width="1.5" stroke="#ff8a3d"/>
+    <path d="M32 34 L32 40" fill="none" stroke-width="1.5" stroke="#f0c66a"/>
+  </g>
+</svg>

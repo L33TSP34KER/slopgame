@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Keep">
+  <defs>
+    <linearGradient id="kp-stone" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#ece7d6"/>
+      <stop offset="1" stop-color="#bdb29a"/>
+    </linearGradient>
+    <linearGradient id="kp-flag" x1="0" y1="0" x2="1" y2="0.6">
+      <stop offset="0" stop-color="#c85a4a"/>
+      <stop offset="1" stop-color="#8a2c30"/>
+    </linearGradient>
+  </defs>
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <ellipse cx="32" cy="57" rx="28" ry="4" fill="#161018" opacity="0.2" stroke="none"/>
+    <rect x="4" y="51" width="56" height="6" rx="2" fill="#6d6a63"/>
+    <path d="M7 52 H57" fill="none" stroke-width="1.5" stroke="#918d84"/>
+    <path d="M7 27 H21 V51 H7 Z" fill="url(#kp-stone)"/>
+    <path d="M43 27 H57 V51 H43 Z" fill="url(#kp-stone)"/>
+    <path d="M22 12 H42 V51 H22 Z" fill="url(#kp-stone)"/>
+    <path d="M21 51 H42 V54 H21 Z" fill="#6d6a63"/>
+    <path d="M8 28 H20 M44 28 H56 M23 13 H41" fill="none" stroke-width="1.5" stroke="#a89f85"/>
+    <path d="M12 34 H16 V38 H12 Z" fill="#ff8a3d"/>
+    <path d="M48 34 H52 V38 H48 Z" fill="#ff8a3d"/>
+    <path d="M31 40 V47 A2 2 0 0 1 33 47 V40 Z" fill="#161018" stroke="none"/>
+    <path d="M31 30 V36 A2 2 0 0 1 33 36 V30 Z" fill="#161018" stroke="none"/>
+    <path d="M7 27 V22 H12 V27 H13 V22 H18 V27 H19 V22 H24 V27 Z" fill="url(#kp-stone)"/>
+    <path d="M45 27 V22 H50 V27 H51 V22 H56 V27 Z" fill="url(#kp-stone)"/>
+    <path d="M23 12 V7 H28 V12 H29 V7 H34 V12 H35 V7 H40 V12 Z" fill="url(#kp-stone)"/>
+    <path d="M26 51 V43 Q32 39 38 43 V51 Z" fill="#8f6420"/>
+    <path d="M32 41 V51 M26 46 H38" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+    <path d="M29 44 V49 M35 44 V49" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+    <path d="M32 7 V3" fill="none" stroke-width="2" stroke="#161018"/>
+    <path d="M33 4 L46 7 L40 11 L46 15 L33 15 Z" fill="url(#kp-flag)"/>
+    <path d="M33 7 H42" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+    <path d="M39 27 V35 H45 V27" fill="#a83a3a"/>
+    <circle cx="42" cy="31" r="2" fill="#d9a441"/>
+    <path d="M11 39 H17 V44 H11 Z" fill="#161018" stroke="none"/>
+    <path d="M47 39 H53 V44 H47 Z" fill="#161018" stroke="none"/>
+    <path d="M25 24 H30 V29 H25 Z" fill="#ff8a3d"/>
+    <path d="M34 24 H39 V29 H34 Z" fill="#ff8a3d"/>
+  </g>
+</svg>
