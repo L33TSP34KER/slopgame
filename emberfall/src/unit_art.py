@@ -626,6 +626,19 @@ class UnitSprite:
         dark = (82, 58, 38)
         team_col = ACCENT[self.team]
         dellipse(self.surf, (12, 10, 14, 80), (cx - 30 * s, feet - 4, 60 * s, 11))
+        # Attack used to render one static frame (the rig read "machines don't
+        # animate"), so firing looked like standing still. The chassis now rocks
+        # back through the swing, the bolt leaves on the second half with a
+        # flash, and idle breathes through the bow limbs.
+        atk = self.anim == "attack"
+        t = self.t
+        kick = math.sin(t * math.pi) * 3.0 if atk else 0.0
+        released = atk and t >= 0.5
+        # FRAMES["idle"] is 2, so sin(t*TAU) is 0 on both frames — step the
+        # limb per frame instead so idle is not a frozen still.
+        sway = ((0.06 if (self.frame % 2) else -0.06)
+                if self.anim == "idle" else 0.0)
+        cx = cx - kick
         # wheels
         for ox in (-22, 20):
             dcircle(self.surf, INK, (cx + ox * s, feet - 10 * s), 10 * s)
@@ -641,13 +654,21 @@ class UnitSprite:
         dline(self.surf, INK, (cx - 26 * s, feet - 40 * s), (cx + 11 * s, feet - 58 * s), 5)
         dline(self.surf, dark, (cx - 25 * s, feet - 40 * s), (cx + 10 * s, feet - 56 * s), 2.6)
         # bow limbs + string
-        pygame.draw.arc(self.surf, INK, pygame.Rect(int((cx + 6) * SS), int((feet - 74) * SS), int(26 * SS), int(38 * SS)), -1.2, 1.2, int(3.4 * SS))
-        pygame.draw.arc(self.surf, wood, pygame.Rect(int((cx + 7) * SS), int((feet - 73) * SS), int(25 * SS), int(36 * SS)), -1.15, 1.15, int(2 * SS))
+        pygame.draw.arc(self.surf, INK, pygame.Rect(int((cx + 6) * SS), int((feet - 74) * SS), int(26 * SS), int(38 * SS)), -1.2 + sway, 1.2 + sway, int(3.4 * SS))
+        pygame.draw.arc(self.surf, wood, pygame.Rect(int((cx + 7) * SS), int((feet - 73) * SS), int(25 * SS), int(36 * SS)), -1.15 + sway, 1.15 + sway, int(2 * SS))
         dline(self.surf, (226, 220, 196), (cx + 13 * s, feet - 71 * s), (cx + 13 * s, feet - 37 * s), 1.2)
-        # bolt
-        dline(self.surf, INK, (cx - 4 * s, feet - 48 * s), (cx + 34 * s, feet - 54 * s), 3.4)
-        dline(self.surf, STEEL, (cx - 3 * s, feet - 48 * s), (cx + 33 * s, feet - 54 * s), 1.6)
-        dpoly(self.surf, STEEL, [(cx + 33 * s, feet - 54 * s), (cx + 39 * s, feet - 55 * s), (cx + 34 * s, feet - 51 * s)])
+        # bolt — present until released, then flash + flight streak
+        if not released:
+            dline(self.surf, INK, (cx - 4 * s, feet - 48 * s), (cx + 34 * s, feet - 54 * s), 3.4)
+            dline(self.surf, STEEL, (cx - 3 * s, feet - 48 * s), (cx + 33 * s, feet - 54 * s), 1.6)
+            dpoly(self.surf, STEEL, [(cx + 33 * s, feet - 54 * s), (cx + 39 * s, feet - 55 * s), (cx + 34 * s, feet - 51 * s)])
+        else:
+            dline(self.surf, mix(STEEL, (255, 255, 255), 0.5),
+                  (cx + 12 * s, feet - 52 * s), (cx + 54 * s, feet - 58 * s), 2.2)
+            if t < 0.78:
+                fr = max(0.0, 1.0 - (t - 0.5) / 0.28)
+                dcircle(self.surf, (255, 216, 148), (cx + 36 * s, feet - 54 * s), (8.0 * fr + 2) * s)
+                dcircle(self.surf, (255, 248, 220), (cx + 36 * s, feet - 54 * s), (3.6 * fr + 1) * s)
         # operator banner
         dline(self.surf, (70, 54, 36), (cx - 22 * s, feet - 40 * s), (cx - 22 * s, feet - 64 * s), 2)
         dpoly(self.surf, INK, [(cx - 22 * s, feet - 64 * s), (cx - 8 * s, feet - 61 * s), (cx - 22 * s, feet - 55 * s)])

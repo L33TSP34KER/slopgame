@@ -60,9 +60,9 @@ def summary(art, args) -> int:
                              "feet_spread_px": base_spread})
                 if anim in ("walk", "attack", "death") and uniq <= 1:
                     issues.append(f"{rig}/{anim}/d{d}: FROZEN ({uniq} unique frame)")
-                if anim == "idle" and uniq > 1:
-                    # idle may breathe, but more unique than walk is suspicious
-                    issues.append(f"{rig}/idle/d{d}: {uniq} unique frames (idle should hold)")
+                # idle deliberately breathes (Flare idles are 4-frame loops and
+                # procedural rigs step per frame) — not an anomaly, so it is
+                # recorded in the table but never flagged.
                 if base_spread > 14 and anim in ("idle", "attack"):
                     issues.append(f"{rig}/{anim}/d{d}: feet line swings {base_spread}px "
                                   "(anchor jitter -> sliding)")
