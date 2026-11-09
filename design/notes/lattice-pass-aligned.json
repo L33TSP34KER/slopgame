@@ -1,0 +1,8 @@
+{
+ "label": "pass-aligned",
+ "cells_sampled": 541,
+ "neighbour_delta": 10.83,
+ "within_cell_delta": 8.61,
+ "lattice_ratio": 1.26,
+ "verdict": "PASS"
+}

@@ -112,8 +112,14 @@ class Renderer:
                 cyp = sy(x, y, h) + OY
                 base = getattr(self.art, "terrain_avg", {}).get(terr, TERRAIN_COL[terr])
                 base = shade(base, 1.0)
-                pygame.draw.polygon(s, base, [(int(cxp), int(cyp - 18)), (int(cxp + 34), int(cyp + 16)),
-                                              (int(cxp), int(cyp + 34)), (int(cxp - 34), int(cyp + 16))])
+                # MUST match the texture diamond blitted in pass 2 (same
+                # centre and size): the old fat diamond extended 17px above it,
+                # so the flat base colour showed as a rim around every cell —
+                # the last of the ground lattice.
+                pygame.draw.polygon(s, base, [(int(cxp - 1), int(cyp - 1)),
+                                              (int(cxp + 30), int(cyp + 14)),
+                                              (int(cxp - 1), int(cyp + 30)),
+                                              (int(cxp - 32), int(cyp + 14))])
         # pass 2: painterly textures
         for d in range(m.w + m.h - 1):
             for x in range(max(0, d - m.h + 1), min(m.w - 1, d) + 1):
@@ -233,7 +239,9 @@ class Renderer:
             base = (100, 94, 84) if terr != MG.SAND else (156, 138, 100)
             if m.terr(nx, ny) == MG.WATER:
                 base = (122, 106, 78)
-            col = shade(base, (0.94 + 0.1 * ((x * 3 + y) % 3)) * lit)
+            # ±10% three-phase cliff shading read as a checkerboard on flat rock;
+            # keep a hint of striation without the pattern
+            col = shade(base, (0.97 + 0.05 * ((x * 3 + y) % 3)) * lit)
             pts = [(p1[0], p1[1]), (p2[0], p2[1]), (p2[0], q2[1]), (p1[0], q1[1])]
             pygame.draw.polygon(s, col, pts)
             # top lip

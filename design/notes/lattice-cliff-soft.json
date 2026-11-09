@@ -1,0 +1,8 @@
+{
+ "label": "cliff-soft",
+ "cells_sampled": 541,
+ "neighbour_delta": 11.78,
+ "within_cell_delta": 8.48,
+ "lattice_ratio": 1.39,
+ "verdict": "PASS"
+}
