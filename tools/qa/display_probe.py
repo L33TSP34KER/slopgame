@@ -148,6 +148,26 @@ def main() -> int:
     rec("present() paints the logical picture into the window",
         near, f"window {ww2}x{wh2}: centre={px} (want ~(12,34,56)), corner/bar={bar}")
 
+    # ---- Alt+Enter (and F11) must both flip the window mode -------------
+    pygame.display.set_mode((1600, 900), pygame.RESIZABLE)
+    step(2)
+    size_before = pygame.display.get_surface().get_size()
+    real_get_mods = pygame.key.get_mods
+    pygame.key.get_mods = lambda: pygame.KMOD_ALT  # type: ignore[assignment]
+    try:
+        pygame.event.post(pygame.event.Event(
+            pygame.KEYDOWN, {"key": pygame.K_RETURN, "unicode": "\r"}))
+        step(3)
+    finally:
+        pygame.key.get_mods = real_get_mods  # type: ignore[assignment]
+    size_full = pygame.display.get_surface().get_size()
+    rec("Alt+Enter switches display mode", size_full != size_before,
+        f"windowed {size_before} -> {size_full}")
+    # back to windowed for a clean exit
+    pygame.event.post(pygame.event.Event(
+        pygame.KEYDOWN, {"key": pygame.K_F11, "unicode": ""}))
+    step(2)
+
     fails = [r for r in RESULTS if r[1] == "FAIL"]
     lines = ["# display-probe — resolution & input correctness at any window size", "",
              f"**{len(fails)} FAIL / {len(RESULTS)} checks**", "",
