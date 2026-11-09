@@ -1,0 +1,42 @@
+[
+ {
+  "mean_rgb": [
+   82.92251275510206,
+   87.08697385204081,
+   54.38775510204083
+  ],
+  "cov_min": 1.0,
+  "cov_mean": 1.0,
+  "out_max": 0.0,
+  "sd_mean": 6.886123724687073,
+  "sd_min": 6.338240357093239,
+  "dup_pairs": 0,
+  "min_pair_diff": 4.610969387755102,
+  "lum_mean": 82.11408904655612,
+  "path": "assets/flare/raw/tiles/grassland.png",
+  "y": 96,
+  "ncols": 16,
+  "ox": 0,
+  "keep": true
+ },
+ {
+  "mean_rgb": [
+   84.36766581632652,
+   87.14150191326532,
+   63.01171875000001
+  ],
+  "cov_min": 1.0,
+  "cov_mean": 1.0,
+  "out_max": 0.0,
+  "sd_mean": 14.360254380470176,
+  "sd_min": 8.86231430713681,
+  "dup_pairs": 0,
+  "min_pair_diff": 4.075255102040816,
+  "lum_mean": 83.56132963966836,
+  "path": "assets/flare/raw/tiles/grassland.png",
+  "y": 224,
+  "ncols": 16,
+  "ox": 0,
+  "keep": true
+ }
+]

@@ -1,0 +1,461 @@
+{
+ "ground": {
+  "grass": {
+   "max": 0.34,
+   "mean": 0.1,
+   "n": 6580,
+   "gap_px": 0,
+   "min_alpha": 255.0
+  },
+  "grass_dry": {
+   "max": 0.37,
+   "mean": 0.11,
+   "n": 6580,
+   "gap_px": 0,
+   "min_alpha": 255.0
+  },
+  "dirt": {
+   "max": 0.31,
+   "mean": 0.09,
+   "n": 6580,
+   "gap_px": 0,
+   "min_alpha": 255.0
+  },
+  "dirt_road": {
+   "max": 0.39,
+   "mean": 0.11,
+   "n": 6580,
+   "gap_px": 0,
+   "min_alpha": 255.0
+  },
+  "sand": {
+   "max": 0.12,
+   "mean": 0.03,
+   "n": 6580,
+   "gap_px": 0,
+   "min_alpha": 255.0
+  },
+  "ash": {
+   "max": 0.89,
+   "mean": 0.21,
+   "n": 6580,
+   "gap_px": 0,
+   "min_alpha": 255.0
+  },
+  "stone": {
+   "max": 0.78,
+   "mean": 0.21,
+   "n": 6580,
+   "gap_px": 0,
+   "min_alpha": 255.0
+  },
+  "moss": {
+   "max": 0.43,
+   "mean": 0.13,
+   "n": 6580,
+   "gap_px": 0,
+   "min_alpha": 255.0
+  }
+ },
+ "edges": {
+  "grass__dirt": {
+   "max": 0.24,
+   "mean": 0.06,
+   "n": 6580,
+   "gap_px": 0,
+   "min_alpha": 255.0
+  },
+  "grass__sand": {
+   "max": 0.2,
+   "mean": 0.05,
+   "n": 6580,
+   "gap_px": 0,
+   "min_alpha": 255.0
+  },
+  "grass__ash": {
+   "max": 0.41,
+   "mean": 0.12,
+   "n": 6580,
+   "gap_px": 0,
+   "min_alpha": 255.0
+  },
+  "grass__stone": {
+   "max": 0.38,
+   "mean": 0.11,
+   "n": 6580,
+   "gap_px": 0,
+   "min_alpha": 255.0
+  },
+  "dirt__road": {
+   "max": 0.27,
+   "mean": 0.08,
+   "n": 6580,
+   "gap_px": 0,
+   "min_alpha": 255.0
+  },
+  "grass__moss": {
+   "max": 0.37,
+   "mean": 0.11,
+   "n": 6580,
+   "gap_px": 0,
+   "min_alpha": 255.0
+  },
+  "ash__stone": {
+   "max": 0.66,
+   "mean": 0.19,
+   "n": 6580,
+   "gap_px": 0,
+   "min_alpha": 255.0
+  },
+  "dirt__sand": {
+   "max": 0.14,
+   "mean": 0.04,
+   "n": 6580,
+   "gap_px": 0,
+   "min_alpha": 255.0
+  }
+ },
+ "water": {
+  "deep_shallow": {
+   "max": 5.12,
+   "mean": 2.59,
+   "n": 6580,
+   "gap_px": 0,
+   "min_alpha": 255.0
+  },
+  "shore": {
+   "max": 0.07,
+   "mean": 0.02,
+   "n": 6580,
+   "gap_px": 0,
+   "min_alpha": 255.0
+  }
+ },
+ "transition": {
+  "max_col": 5.96,
+  "median_col": 2.9,
+  "ratio": 2.06,
+  "p95_col": 4.64,
+  "interior_step": 3.18,
+  "boundary_step": 0.58,
+  "boundary_p95": 3.38,
+  "seam_max": 5.15,
+  "seam_mean": 0.62,
+  "gap_px": 0,
+  "min_alpha": 255.0,
+  "size": [
+   320,
+   640
+  ]
+ },
+ "_meta": {
+  "ground": {
+   "grass": {
+    "source": "assets/flare/raw/tiles/grassland.png",
+    "y": 96,
+    "src_tile": [
+     64,
+     32
+    ],
+    "tint": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "ref_lum": 82.2,
+    "gain_range": [
+     0.9656,
+     1.0348
+    ],
+    "spatial_gain": 0.03
+   },
+   "grass_dry": {
+    "source": "assets/flare/raw/tiles/grassland.png",
+    "y": 96,
+    "src_tile": [
+     64,
+     32
+    ],
+    "tint": [
+     1.28,
+     1.02,
+     0.86
+    ],
+    "ref_lum": 89.3,
+    "gain_range": [
+     0.965,
+     1.035
+    ],
+    "spatial_gain": 0.03
+   },
+   "dirt": {
+    "source": "vendor/flare-game/tiled/tilesheets/ruins.png",
+    "y": 2208,
+    "src_tile": [
+     192,
+     96
+    ],
+    "tint": [
+     1.78,
+     1.78,
+     1.78
+    ],
+    "ref_lum": 75.8,
+    "gain_range": [
+     0.9652,
+     1.035
+    ],
+    "spatial_gain": 0.03
+   },
+   "dirt_road": {
+    "source": "vendor/flare-game/tiled/tilesheets/cave.png",
+    "y": 288,
+    "src_tile": [
+     192,
+     96
+    ],
+    "tint": [
+     1.51,
+     1.51,
+     1.51
+    ],
+    "ref_lum": 80.5,
+    "gain_range": [
+     0.9662,
+     1.0339
+    ],
+    "spatial_gain": 0.03
+   },
+   "sand": {
+    "source": "vendor/flare-game/tiled/tilesheets/snowplains.png",
+    "y": 288,
+    "src_tile": [
+     192,
+     96
+    ],
+    "tint": [
+     0.531,
+     0.472,
+     0.404
+    ],
+    "ref_lum": 100.2,
+    "gain_range": [
+     0.965,
+     1.0347
+    ],
+    "spatial_gain": 0.03
+   },
+   "ash": {
+    "source": "vendor/flare-game/tiled/tilesheets/snowplains.png",
+    "y": 672,
+    "src_tile": [
+     192,
+     96
+    ],
+    "tint": [
+     0.457,
+     0.419,
+     0.39
+    ],
+    "ref_lum": 76.1,
+    "gain_range": [
+     0.965,
+     1.0349
+    ],
+    "spatial_gain": 0.03
+   },
+   "stone": {
+    "source": "assets/flare/raw/tiles/grassland.png",
+    "y": 224,
+    "src_tile": [
+     64,
+     32
+    ],
+    "tint": [
+     1.0,
+     0.98,
+     1.06
+    ],
+    "ref_lum": 82.2,
+    "gain_range": [
+     0.9651,
+     1.0345
+    ],
+    "spatial_gain": 0.03
+   },
+   "moss": {
+    "source": "vendor/flare-game/tiled/tilesheets/grassland.png",
+    "y": 288,
+    "src_tile": [
+     192,
+     96
+    ],
+    "tint": [
+     0.94,
+     1.31,
+     1.33
+    ],
+    "ref_lum": 86.9,
+    "gain_range": [
+     0.9664,
+     1.0343
+    ],
+    "spatial_gain": 0.03
+   }
+  },
+  "edges": {
+   "grass__dirt": {
+    "a": "grass",
+    "b": "dirt",
+    "rim_lum": 79.0,
+    "lum_a": 82.2,
+    "lum_b": 75.8,
+    "rim_delta": 79.0
+   },
+   "grass__sand": {
+    "a": "grass",
+    "b": "sand",
+    "rim_lum": 91.2,
+    "lum_a": 82.2,
+    "lum_b": 100.2,
+    "rim_delta": 91.2
+   },
+   "grass__ash": {
+    "a": "grass",
+    "b": "ash",
+    "rim_lum": 79.1,
+    "lum_a": 82.2,
+    "lum_b": 76.1,
+    "rim_delta": 79.1
+   },
+   "grass__stone": {
+    "a": "grass",
+    "b": "stone",
+    "rim_lum": 82.2,
+    "lum_a": 82.2,
+    "lum_b": 82.2,
+    "rim_delta": 82.2
+   },
+   "dirt__road": {
+    "a": "dirt",
+    "b": "dirt_road",
+    "rim_lum": 78.1,
+    "lum_a": 75.8,
+    "lum_b": 80.5,
+    "rim_delta": 78.1
+   },
+   "grass__moss": {
+    "a": "grass",
+    "b": "moss",
+    "rim_lum": 84.5,
+    "lum_a": 82.2,
+    "lum_b": 86.9,
+    "rim_delta": 84.5
+   },
+   "ash__stone": {
+    "a": "ash",
+    "b": "stone",
+    "rim_lum": 79.1,
+    "lum_a": 76.1,
+    "lum_b": 82.2,
+    "rim_delta": 79.1
+   },
+   "dirt__sand": {
+    "a": "dirt",
+    "b": "sand",
+    "rim_lum": 88.0,
+    "lum_a": 75.8,
+    "lum_b": 100.2,
+    "rim_delta": 88.0
+   }
+  },
+  "water": {
+   "source": "assets/flare/raw/tiles/grassland_water.png",
+   "y": 160,
+   "depth": [
+    [
+     34.0,
+     48.0,
+     58.0
+    ],
+    [
+     38.1,
+     53.6,
+     62.8
+    ],
+    [
+     42.3,
+     59.2,
+     67.6
+    ],
+    [
+     46.4,
+     64.8,
+     72.4
+    ],
+    [
+     50.5,
+     70.4,
+     77.2
+    ],
+    [
+     54.7,
+     76.0,
+     82.0
+    ],
+    [
+     58.8,
+     81.6,
+     86.8
+    ],
+    [
+     62.9,
+     87.2,
+     91.6
+    ],
+    [
+     67.1,
+     92.8,
+     96.4
+    ],
+    [
+     71.2,
+     98.4,
+     101.2
+    ],
+    [
+     75.3,
+     104.0,
+     106.0
+    ],
+    [
+     79.5,
+     109.6,
+     110.8
+    ],
+    [
+     83.6,
+     115.2,
+     115.6
+    ],
+    [
+     87.7,
+     120.8,
+     120.4
+    ],
+    [
+     91.9,
+     126.4,
+     125.2
+    ],
+    [
+     96.0,
+     132.0,
+     130.0
+    ]
+   ],
+   "step_lum": 5.07,
+   "shore_rim_lum": 78.3
+  }
+ }
+}
