@@ -15,7 +15,20 @@ def _load(name):
 
 
 def floor_sources():
-    """64x32 diamond crops: 16 grass + 16 cobble."""
+    """64x32 diamond crops: grass (+dry variant) and cobble/stone.
+
+    Prefers the seam-blended Emberfall sheet (opaque core, edges blended
+    toward the row mean): the original Flare diamonds carry a hard 1 px alpha
+    edge, and where two tiles abut that edge composites to a translucent line
+    around every cell — the dark lattice players report.
+    """
+    sheet = _load("emberfall_ground.png")
+    if sheet is not None and sheet.get_size() == (1024, 256):
+        def row(r: int):
+            return [sheet.subsurface(pygame.Rect(c * 64, r * 32, 64, 32)).copy()
+                    for c in range(16)]
+        # rows: 0 grass, 1 grass_dry, 6 stone (biome tinting happens in art)
+        return {"grass": row(0) + row(1), "stone": row(6)}
     sheet = _load("grassland.png")
     out = {"grass": [], "stone": []}
     if sheet is None:

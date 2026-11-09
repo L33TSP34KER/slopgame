@@ -14,7 +14,7 @@ LAYERS = {
     "farm": [("human_house_farm", 1.0, 0.0, 0.0, None)],
     "barracks": [("human_barracks", 1.0, 0.0, 0.0, None)],
     "mill": [("human_workshop_lumber", 1.0, 0.0, 0.0, None)],
-    "blacksmith": [("human_house_farm", 0.70, 0.0, 0.04, None)],
+    "blacksmith": [("human_blacksmith_smithy", 1.0, 0.0, 0.0, None)],
     "sanctum": [("human_temple_altar", 1.0, 0.0, 0.0, None)],
     "tower": [("human_guard_tower", 1.0, 0.0, 0.0, None)],
     "altar": [("human_temple_altar", 0.82, 0.0, 0.0, None)],
@@ -138,19 +138,9 @@ class BuildingArt:
             for i in range(n):
                 pygame.draw.circle(s, col, (int(x + (i % 4) * 9 - 12), int(y - (i // 2) * 8)), 1 + (i % 2))
         if bid == "blacksmith":
-            # stone forge chimney beside the house
-            chx = cx + tw * 0.24
-            pygame.draw.rect(s, (76, 72, 66), (int(chx - 7), int(base_y - th * 0.78), 14, int(th * 0.42)))
-            pygame.draw.rect(s, (112, 106, 96), (int(chx - 9), int(base_y - th * 0.80), 18, 7))
-            for i in range(3):
-                pygame.draw.circle(s, (90, 84, 80, 90), (int(chx + i * 7), int(base_y - th * 0.84 - i * 11)), 5 + i * 2)
-            glow(cx + tw * 0.16, base_y - th * 0.16, 30, (130, 60, 24), 80)
-            flame(cx + tw * 0.17, base_y - th * 0.12, 26)
-            # anvil at the front
-            ax = cx - tw * 0.26
-            pygame.draw.rect(s, (36, 34, 32), (int(ax), int(base_y - 12), 20, 8))
-            pygame.draw.rect(s, (52, 50, 46), (int(ax - 3), int(base_y - 16), 26, 5))
-            pygame.draw.polygon(s, (30, 28, 26), [(int(ax + 2), int(base_y - 12)), (int(ax + 10), int(base_y - 12)), (int(ax + 10), int(base_y - 6)), (int(ax + 2), int(base_y - 6))])
+            # v2 smithy sprite carries its own chimney, forge glow and anvil:
+            # the old procedural overlays would duplicate them
+            pass
         elif bid == "altar":
             glow(cx, base_y - th * 0.45, 34, (150, 100, 36), 85)
             flame(cx, base_y - th * 0.30, 38, (255, 190, 90))
@@ -177,11 +167,8 @@ class BuildingArt:
             glow(cx, base_y - th * 0.40, 38, (90, 44, 120), 75)
             motes(cx, base_y - th * 0.50, 8, (190, 150, 240))
         elif bid == "tower":
-            flame(cx + tw * 0.26, base_y - th * 0.68, 16)
-            # battlements around the cap
-            ty = base_y - th * 0.88
-            for i in range(4):
-                pygame.draw.rect(s, (118, 112, 100), (int(cx - tw * 0.20 + i * tw * 0.11), int(ty), max(4, int(tw * 0.07)), 9))
+            # v2 guard tower has machicolation, crenellations and an ember slit
+            pass
         elif bid == "keep":
             glow(cx - tw * 0.30, base_y - th * 0.30, 34, (100, 60, 20), 60)
         elif bid == "farm":
