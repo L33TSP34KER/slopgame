@@ -39,7 +39,7 @@ Useful flags:
 | `1–9` / `Ctrl+1–9` | Recall / assign control group |
 | `Space` / `F1` | Center on Aldric / idle worker |
 | `O` / `Esc` / `F11` | Objectives / pause / fullscreen |
-| WASD / arrows / edges | Camera |
+| Arrow keys / screen edge / middle-drag | Camera |
 
 ## What is in the beta
 

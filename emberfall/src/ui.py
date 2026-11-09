@@ -820,8 +820,9 @@ class UI:
             ("Q W E R", "Hero abilities (Ember Lance, Aegis, Consecrate, Daybreak)"),
             ("1–9 / Ctrl+1–9", "Recall / assign control groups"),
             ("Space", "Center on Marshal Aldric   ·   F1 idle worker"),
-            ("O", "Objectives   ·   Esc pause menu   ·   F11 fullscreen"),
-            ("Wheel / edge", "Camera scroll (WASD also works)"),
+            ("O / Esc", "Objectives / pause menu"),
+            ("Arrows / edge / MMB", "Pan camera  ·  no WASD command conflicts"),
+            ("F11 / Alt+Enter", "Borderless fullscreen"),
         ]
         for i, (k, v) in enumerate(rows):
             y = r.y + 80 + i * 48

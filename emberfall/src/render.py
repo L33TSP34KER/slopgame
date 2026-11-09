@@ -500,19 +500,40 @@ class Renderer:
                    tile_from_screen(cam.x + SCREEN_W / 2 - self.OX, cam.y + SCREEN_H / 2 - self.OY, 2)]
         tx0 = int(min(c[0] for c in corners)) - 4; tx1 = int(max(c[0] for c in corners)) + 4
         ty0 = int(min(c[1] for c in corners)) - 4; ty1 = int(max(c[1] for c in corners)) + 4
+        w, h = m.w, m.h
+        ex = game.explored
         for y in range(max(0, ty0), min(m.h, ty1 + 1)):
             for x in range(max(0, tx0), min(m.w, tx1 + 1)):
                 i = y * m.w + x
-                if game.explored[i]:
+                if ex[i]:
                     continue
-                h = m.height[i]
-                px, py = self.w2s(x, y, h)
+                # Feather the wall: two alpha rings where unexplored meets
+                # explored. A solid 0->255 cut reads as a missing texture (the
+                # straight grey slab players keep reporting), not as fog.
+                a = 255
+                for r, alpha in ((1, 132), (2, 206)):
+                    hit = False
+                    for dy in range(-r, r + 1):
+                        for dx in range(-r, r + 1):
+                            if max(abs(dx), abs(dy)) != r:
+                                continue
+                            nx, ny = x + dx, y + dy
+                            if 0 <= nx < w and 0 <= ny < h and ex[ny * w + nx]:
+                                hit = True
+                                break
+                        if hit:
+                            break
+                    if hit:
+                        a = alpha
+                        break
+                hgt = m.height[i]
+                px, py = self.w2s(x, y, hgt)
                 px -= left; py -= top
                 if px < -80 or px > SCREEN_W + 80 or py < -60 or py > SCREEN_H + 60:
                     continue
                 px, py = int(round(px)), int(round(py))
                 pts = [(px, py - 1), (px + 33, py + 16), (px, py + 33), (px - 33, py + 16)]
-                pygame.draw.polygon(self.fog_surf, (6, 6, 9, 255), pts)
+                pygame.draw.polygon(self.fog_surf, (6, 6, 9, a), pts)
         screen.blit(self.fog_surf, (0, 0))
 
     def _draw_lights(self, screen, game, cam, time):
