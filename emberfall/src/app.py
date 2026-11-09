@@ -760,6 +760,20 @@ class Game:
             if mine:
                 w.cmd_gather(workers, {"type": "gold", "mine": mine})
                 self.auto_done.add("gather")
+        # wood: keep one worker on the nearest tree, re-tasked when the node
+        # runs dry. Gold-only autoplay meant every demo run ended with
+        # "Lumber gathered 0" and no lumber-fed units (archers, towers),
+        # which is half of why the demo lost by minute six.
+        if workers and t > 1.2:
+            wu = workers[-1]
+            node = wu.node
+            idle_for_wood = (node is None) or (node.get("type") != "wood")                 or w.node_depleted(node)
+            cooldown = getattr(self, "auto_wood_t", 0.0)
+            if wu.alive and idle_for_wood and t > cooldown:
+                near = w.nearest_node(wu, kind="wood")
+                if near:
+                    w.cmd_gather([wu], {"type": "wood", "x": near["x"], "y": near["y"]})
+                    self.auto_wood_t = t + 4.0
         if "farm" not in self.auto_done and t > 2.5 and workers:
             sp = self._free_spot("farm", 20, 72)
             if sp:
