@@ -130,18 +130,18 @@ UNITS = {
         dmg=(6, 9), range=1.05, cooldown=1.3, speed=2.6, sight=7,
         food=0, bounty=2, xp=8, enemy=True, summon=True, duration=28,
         desc="A puppet of bone, dragged briefly back to war."),
-    "wolf": _unit(
-        id="wolf", name="Vale Wolf", icon="wolf", rig="wolf",
+    "goblin": _unit(
+        id="goblin", name="Vale Goblin", icon="goblin", rig="goblin",
         hp=260, armor=1, armor_type="light", damage_type="normal",
         dmg=(11, 14), range=1.1, cooldown=1.3, speed=3.2, sight=8,
         food=0, bounty=16, xp=28, radius=0.4, neutral=True,
-        desc="A lean hunter of the high grass. Guards the old mines."),
-    "elder-wolf": _unit(
-        id="elder-wolf", name="Elder Wolf", icon="wolf", rig="wolf", scale=1.35,
+        desc="A lean scavenger of the high grass. Guards the old mines."),
+    "goblin-brute": _unit(
+        id="goblin-brute", name="Goblin Brute", icon="goblin-brute", rig="goblin-brute", scale=1.2,
         hp=700, armor=2, armor_type="medium", damage_type="normal",
         dmg=(22, 28), range=1.3, cooldown=1.6, speed=3.0, sight=9,
         food=0, bounty=90, xp=120, radius=0.55, neutral=True,
-        desc="The pack-mother. Her pelt is worth a small fortune."),
+        desc="The warband leader. His bounty is worth a small fortune."),
     "hollow-king": _unit(
         id="hollow-king", name="The Hollow King", icon="hollow-king", rig="hollow-king",
         hp=5200, armor=6, armor_type="heavy", damage_type="normal",
@@ -292,7 +292,7 @@ UPGRADES = {
 BUILD_MENU = ["farm", "barracks", "mill", "blacksmith", "sanctum", "tower", "altar", "keep"]
 PLAYER_TRAIN = {
     "townhall": ["worker"], "keep": ["worker"],
-    "barracks": ["footman", "archer", "knight", "ballista"],
+    "barracks": ["footman", "archer", "knight"],
     "sanctum": ["priest"],
 }
 ENEMY_TRAIN = {"crypt": ["ghoul", "fiend"], "slaughterhouse": ["abomination"],

@@ -382,11 +382,11 @@ def generate_map(seed=20261109, difficulty="knight"):
         m.add_prop("bone", cx + 0.2, cy + 0.9, variant=0, scale=0.8)
         return camp
 
-    camp(39, 32, [("elder-wolf", 0, 0), ("wolf", 1, 1), ("wolf", -1, 1), ("wolf", 1, -1)],
-         "Mesa Pack")
-    camp(74, 63, [("wolf", 0, 0), ("wolf", 2, 0), ("wolf", 1, -2)], "Thornwood Pack")
-    camp(13, 27, [("wolf", 0, 0), ("wolf", -2, 1)], "Westford Pack")
-    camp(48, 58, [("wolf", 0, 0), ("wolf", -2, 0)], "Crossroads Pack")
+    camp(39, 32, [("goblin-brute", 0, 0), ("goblin", 1, 1), ("goblin", -1, 1), ("goblin", 1, -1)],
+         "Mesa Warren")
+    camp(74, 63, [("goblin", 0, 0), ("goblin", 2, 0), ("goblin", 1, -2)], "Thornwood Warren")
+    camp(13, 27, [("goblin", 0, 0), ("goblin", -2, 1)], "Westford Warren")
+    camp(48, 58, [("goblin", 0, 0), ("goblin", -2, 0)], "Crossroads Warren")
 
     # ---- starts ------------------------------------------------------
     player_buildings = [dict(type="townhall", x=PLAYER_HALL[0], y=PLAYER_HALL[1])]

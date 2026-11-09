@@ -110,6 +110,8 @@ def soft_shadow(w, h, alpha=70):
 
 class Art:
     def __init__(self):
+        from .flare_units import FlareUnits
+        self.flare = FlareUnits()
         self.fonts = {}
         self.icons = {}
         self.tiles = {}
@@ -337,11 +339,6 @@ class Art:
             W, H = 42, 50
         elif kind == "stone":
             W, H = 30, 18
-            dellipse(s, (10, 10, 12, 48), (W / 2 - 12, H - 6, 24, 6))
-            dpoly(s, (118, 112, 102), [(W / 2 - 11, H - 5), (W / 2 - 6, H - 12), (W / 2 + 8, H - 11), (W / 2 + 11, H - 5)])
-            dpoly(s, (142, 136, 124), [(W / 2 - 6, H - 12), (W / 2 + 2, H - 14), (W / 2 + 8, H - 11), (W / 2 - 1, H - 9)])
-            dline(s, (60, 57, 52), (W / 2 - 11, H - 5), (W / 2 - 6, H - 12), 1)
-            dline(s, (60, 57, 52), (W / 2 + 11, H - 5), (W / 2 + 8, H - 11), 1)
         elif kind == "mine":
             W, H = 180, 140
         s = new_sprite(W, H)
@@ -454,7 +451,6 @@ class Art:
             dpoly(s, (255, 190, 82, 240), [(W / 2 - 4, H - 12), (W / 2 + 1, H - 25 * flick), (W / 2 + 4, H - 12)])
             dcircle(s, (255, 226, 140), (W / 2, H - 14), 2.2)
         elif kind == "stone":
-            W, H = 30, 18
             dellipse(s, (10, 10, 12, 48), (W / 2 - 12, H - 6, 24, 6))
             dpoly(s, (118, 112, 102), [(W / 2 - 11, H - 5), (W / 2 - 6, H - 12), (W / 2 + 8, H - 11), (W / 2 + 11, H - 5)])
             dpoly(s, (142, 136, 124), [(W / 2 - 6, H - 12), (W / 2 + 2, H - 14), (W / 2 + 8, H - 11), (W / 2 - 1, H - 9)])
@@ -495,9 +491,15 @@ class Art:
     # ---- units (generated in unit_art.py)
     def unit(self, rig, facing=0, anim="idle", frame=0, team=PLAYER):
         key = (rig, facing % 4, anim, frame, team)
-        if key not in self.units:
-            from .unit_art import make_unit_sprite
-            self.units[key] = make_unit_sprite(self, rig, facing % 4, anim, frame, team)
+        if key in self.units:
+            return self.units[key]
+        if self.flare and self.flare.can(rig):
+            r = self.flare.sprite(rig, facing, anim, frame, team)
+            if r:
+                self.units[key] = r
+                return r
+        from .unit_art import make_unit_sprite
+        self.units[key] = make_unit_sprite(self, rig, facing % 4, anim, frame, team)
         return self.units[key]
 
     def portrait(self, rig, team=PLAYER, size=96):
