@@ -170,18 +170,9 @@ class BuildingArt:
             glow(cx, base_y - th * 0.40, 38, (90, 44, 120), 75)
             motes(cx, base_y - th * 0.50, 8, (190, 150, 240))
         elif bid == "tower":
-            flame(cx + tw * 0.28, base_y - th * 0.70, 20)
-            ty = base_y - th * 0.84
-            for i in range(4):
-                pygame.draw.rect(s, (112, 106, 96), (cx - tw * 0.22 + i * tw * 0.12, ty, tw * 0.07, 8))
+            flame(cx + tw * 0.26, base_y - th * 0.68, 16)
         elif bid == "keep":
             glow(cx - tw * 0.30, base_y - th * 0.30, 34, (100, 60, 20), 60)
-        elif bid == "townhall":
-            # stone steps + a crimson market awning: the hall is not a farm cabin
-            pygame.draw.rect(s, (92, 84, 72), (cx - tw * 0.18, base_y - 8, tw * 0.36, 7))
-            pygame.draw.rect(s, (128, 116, 98), (cx - tw * 0.20, base_y - 11, tw * 0.40, 4))
-            flame(cx - tw * 0.30, base_y - 6, 18)
-            flame(cx + tw * 0.30, base_y - 6, 18)
         elif bid == "farm":
             # planted rows turn a cabin into a working farm
             for row in range(3):

@@ -185,7 +185,7 @@ class FlareUnits:
         w, h = surf.get_size()
         surf = pygame.transform.smoothscale(surf, (max(1, int(w * sc)), max(1, int(h * sc))))
         # Flare's painted units are very dark; lift them enough to read on the vale.
-        surf.fill((88, 76, 60, 0), special_flags=pygame.BLEND_RGB_ADD)
+        surf.fill((34, 29, 24, 0), special_flags=pygame.BLEND_RGB_ADD)
         # top-left warm rim light: light edges separate the unit from dark ground
         try:
             mask = pygame.mask.from_surface(surf)
