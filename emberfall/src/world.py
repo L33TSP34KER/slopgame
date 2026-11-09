@@ -641,6 +641,11 @@ class World:
             if o is u or not o.alive or o.is_building or o.team != u.team:
                 continue
             d = dist(u.x, u.y, o.x, o.y)
+            # Keep 1.35: tested 1.5 to stop sprites visibly touching and it
+            # broke arrival (groups stopped failing to reach their ordered
+            # slots as pushed units lost their paths). Units reaching orders
+            # beats 0.09 tiles of extra gap; the remaining visual overlap is a
+            # sprite-scale question, not a separation constant.
             need = (u.radius + o.radius) * 1.35
             if 0.001 < d < need - 0.06:      # deadband: no micro-pushes at rest
                 px += (u.x - o.x) / d * (need - d)
