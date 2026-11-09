@@ -315,7 +315,7 @@ class UI:
         # alerts
         y = 58
         for a in w._alerts[-3:]:
-            alpha = int(255 * min(1.0, a["t"] / 0.8))
+            alpha = max(110, int(255 * min(1.0, a["t"] / 0.8)))
             txt = self.t(a["text"], 15, PARCH, "serif")
             pad = 12
             rr = pygame.Rect(SCREEN_W // 2 - txt.get_width() // 2 - pad, y, txt.get_width() + pad * 2, txt.get_height() + 6)

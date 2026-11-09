@@ -9,3 +9,4 @@ dist/
 build/
 *.spec
 prototype-web/
+.discord-webhook

@@ -542,8 +542,8 @@ class Game:
             self.fullscreen = not self.fullscreen
             pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.FULLSCREEN if self.fullscreen else 0)
             return
-        if k in range(pygame.K_1, pygame.K_0 + 1):
-            num = (k - pygame.K_1 + 1) % 10
+        if pygame.K_1 <= k <= pygame.K_9:
+            num = k - pygame.K_0
             if mods & pygame.KMOD_CTRL:
                 self.control_groups[num] = list(self.selection)
             else:

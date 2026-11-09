@@ -273,9 +273,8 @@ class Renderer:
         sx0 = clamp(vx, 0, self.MW); sy0 = clamp(vy, 0, self.MH)
         r = pygame.Rect(sx0, sy0, min(SCREEN_W, self.MW - sx0), min(SCREEN_H, self.MH - sy0))
         screen.blit(self.surface, (0, 0), r)
-        # water shimmer + readable fords
+        # water shimmer (fords are read from sand banks + stepping stones)
         self._draw_water(screen, cam, time)
-        self._draw_fords(screen, cam, time)
         # selection ground markers
         self._draw_ground_markers(screen, game, cam, time)
         # gather drawables, culled to the camera's tile neighbourhood
