@@ -56,6 +56,14 @@ headless boot, plus the reports of every probe below.
 14,000-frame autoplay run, zero crashes, economy healthy (Gold 4,340,
 Lumber 3,010 — it was 0 before the autoplay gather fix), clean defeat screen.
 
+## Audio playback verified (the one gate that needed a runtime signal)
+
+Headless with SDL's dummy audio driver: mixer initialised (44100, -16, 2),
+`pygame.mixer.music.get_busy()` is **True in the mission scene** (the battle
+track is streaming), 20 SFX are loaded, and a real command order lights up a
+mixer channel (`get_busy() → True`). So it is not just files on disk — the
+engine plays them.
+
 ## Open — needs a human or deepseek
 
 1. **Pacing call**: squire survives 520 s, knight's hall falls at 5:24 *inside
