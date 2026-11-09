@@ -215,6 +215,39 @@ def check_boot(results: list[tuple[str, str, str]], seconds: float = 25.0) -> No
                     f"{states} state lines"))
 
 
+def check_qa_reports(results: list[tuple[str, str, str]]) -> None:
+    """Aggregate the other probe reports so one command is the whole gate."""
+    reports = {
+        "qa-input-01.md": "controls",
+        "qa-display.md": "display/input",
+        "qa-xwindow.md": "real-X window",
+        "qa-collision.md": "collision",
+        "anim-audit-01.md": "animation",
+        "feature-audit-01.md": "features",
+        "map-audit-01.md": "map structure",
+    }
+    for fname, label in reports.items():
+        path = os.path.join(ROOT, "design", "notes", fname)
+        if not os.path.exists(path):
+            results.append((f"report:{label}", "WARN", f"{fname} not generated yet"))
+            continue
+        try:
+            txt = open(path, encoding="utf-8", errors="replace").read()
+        except OSError as exc:
+            results.append((f"report:{label}", "WARN", str(exc)))
+            continue
+        fails = len(re.findall(r"\|\s*FAIL\s*\|", txt))
+        # animation: only count defect classes that block (frozen frames and
+        # team-colour regressions); the pose-lean lines are documented WARNs
+        if fname.startswith("anim"):
+            fails = len(re.findall(r"^- .*FROZEN", txt, re.M)) + \
+                len(re.findall(r"^- .*(accent coverage|separation low)", txt, re.M))
+        status = "PASS" if fails == 0 else "FAIL"
+        age_h = (time.time() - os.path.getmtime(path)) / 3600
+        results.append((f"report:{label}", status,
+                        f"{fails} failing line(s), last run {age_h:.1f}h ago ({fname})"))
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--boot", action="store_true", help="also probe a headless boot")
@@ -229,6 +262,7 @@ def main() -> int:
     check_buildings(results)
     check_license(results)
     check_docs(results)
+    check_qa_reports(results)
     check_map(results)
     if args.boot:
         check_boot(results)
