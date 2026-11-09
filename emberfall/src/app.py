@@ -66,6 +66,8 @@ class Game:
                                                fullscreen=False, music=0.5, sfx=0.72, autoplay=False)
         pygame.mixer.pre_init(44100, -16, 2, 512)
         os.environ.setdefault("SDL_VIDEO_CENTERED", "1")
+        os.environ.setdefault("SDL_VIDEO_X11_WMCLASS", "Emberfall")
+        os.environ.setdefault("SDL_APP_ID", "Emberfall")
         pygame.init()
         self.fullscreen = bool(getattr(self.args, "fullscreen", False))
         self.window = open_window(self.fullscreen)
@@ -658,7 +660,7 @@ class Game:
             self.ui.cycle_subgroup(); return
         if k == pygame.K_o:
             self.ui.show_objectives = not self.ui.show_objectives; return
-        if k == pygame.K_F11:
+        if k == pygame.K_F11 or (k in (pygame.K_RETURN, pygame.K_KP_ENTER) and (mods & pygame.KMOD_ALT)):
             self.toggle_fullscreen()
             return
         if pygame.K_1 <= k <= pygame.K_9:

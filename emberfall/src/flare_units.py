@@ -46,10 +46,10 @@ ENEMIES = {
 RANGED = {"archer": "shoot", "priest": "shoot", "fiend": "shoot",
           "necromancer": "cast", "revenant": "cast", "hero": "swing"}
 UNIT_SCALE = {
-    "worker": 1.18, "footman": 1.24, "archer": 1.18, "knight": 1.36, "priest": 1.20,
-    "hero": 1.55, "ghoul": 1.18, "fiend": 1.24, "necromancer": 1.18, "abomination": 1.42,
-    "revenant": 1.30, "skeleton": 1.06, "goblin": 1.08, "goblin-brute": 1.30,
-    "hollow-king": 1.60,
+    "worker": 1.30, "footman": 1.36, "archer": 1.30, "knight": 1.50, "priest": 1.32,
+    "hero": 1.70, "ghoul": 1.30, "fiend": 1.36, "necromancer": 1.30, "abomination": 1.56,
+    "revenant": 1.43, "skeleton": 1.17, "goblin": 1.19, "goblin-brute": 1.43,
+    "hollow-king": 1.76,
 }
 TINT = {
     "hero": (1.0, 0.9, 0.62),
@@ -185,7 +185,20 @@ class FlareUnits:
         w, h = surf.get_size()
         surf = pygame.transform.smoothscale(surf, (max(1, int(w * sc)), max(1, int(h * sc))))
         # Flare's painted units are very dark; lift them enough to read on the vale.
-        surf.fill((68, 59, 46, 0), special_flags=pygame.BLEND_RGB_ADD)
+        surf.fill((88, 76, 60, 0), special_flags=pygame.BLEND_RGB_ADD)
+        # top-left warm rim light: light edges separate the unit from dark ground
+        try:
+            mask = pygame.mask.from_surface(surf)
+            rim_col = (238, 205, 150, 96) if team == PLAYER else (166, 148, 224, 88)
+            rim = mask.to_surface(setcolor=rim_col, unsetcolor=(0, 0, 0, 0))
+            out = pygame.Surface((surf.get_width() + 2, surf.get_height() + 2), pygame.SRCALPHA)
+            out.blit(rim, (0, 0))
+            out.blit(surf, (1, 1))
+            surf = out
+            ax += 1 / max(sc, 0.001)
+            ay += 1 / max(sc, 0.001)
+        except Exception:
+            pass
         res = (surf, ax * sc, ay * sc)
         self.cache[key] = res
         return res
