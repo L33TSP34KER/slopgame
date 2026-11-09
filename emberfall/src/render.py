@@ -178,6 +178,28 @@ class Renderer:
         for y0 in range(0, self.MH, step):
             for x0 in range(0, self.MW, step):
                 s.blit(ov, (x0, y0))
+        # blend hard terrain boundaries with soft colour bands
+        edge = pygame.Surface((self.MW, self.MH), pygame.SRCALPHA)
+        for y in range(m.h):
+            for x in range(m.w):
+                h = m.height[y * m.w + x]
+                t = m.terr(x, y)
+                for dx, dy in ((1, 0), (0, 1)):
+                    nx, ny = x + dx, y + dy
+                    if not m.inb(nx, ny):
+                        continue
+                    nt = m.terr(nx, ny)
+                    if nt == t:
+                        continue
+                    a = (x + 1, y) if dx else (x + 1, y + 1)
+                    b = (x + 1, y + 1) if dx else (x, y + 1)
+                    p1 = (sx(*a) + OX, sy(*a, h) + OY)
+                    p2 = (sx(*b) + OX, sy(*b, h) + OY)
+                    col = self.art.terrain_avg.get(nt, TERRAIN_COL[nt])
+                    if nt == MG.WATER:
+                        col = (148, 128, 88)
+                    pygame.draw.line(edge, (*col, 34), p1, p2, 12)
+        s.blit(edge, (0, 0))
         # warm late-afternoon grade
         s.fill((26, 24, 14), special_flags=pygame.BLEND_RGB_ADD)
         # soften the hard per-tile diamonds into a painted field

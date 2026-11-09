@@ -55,8 +55,8 @@ TINT = {
     "hero": (1.0, 0.9, 0.62),
 }
 TEAM_TINT = {
-    PLAYER: (1.0, 0.66, 0.55),     # warm ember cloth
-    ENEMY: (0.72, 0.72, 1.0),      # cold violet cloth
+    PLAYER: (1.0, 0.50, 0.34),     # warm ember cloth
+    ENEMY: (0.64, 0.62, 1.0),      # cold violet cloth
     NEUTRAL: (1.0, 1.0, 1.0),
 }
 TEAM_CLOTH = ("cloth_", "leather_", "mage_", "shield", "hood")
