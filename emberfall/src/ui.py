@@ -114,7 +114,10 @@ class UI:
         self.pulse += dt
 
     def poll_mouse(self):
-        self.mouse = pygame.mouse.get_pos()
+        # window pixel -> logical 1600x900 (the game is letterboxed/scaled)
+        mapped = self.g.map_pos(pygame.mouse.get_pos())
+        if mapped is not None:
+            self.mouse = mapped
 
     def release(self):
         pass

@@ -119,6 +119,11 @@ class Art:
         self.buildings = {}
         self.units = {}
         self.portraits = {}
+        self.portrait_faces = {}
+        for name in ("worker", "footman", "archer", "knight", "priest", "hero", "goblin"):
+            fp = os.path.join(ASSETS, "flare", "portraits", name + ".png")
+            if os.path.exists(fp):
+                self.portrait_faces[name] = pygame.image.load(fp).convert_alpha()
         self.glow = {}
         self._icon_cache = {}
         self._text_cache = {}
@@ -229,6 +234,9 @@ class Art:
         self._icon_cache[ck] = out
         return out
 
+    def unit_frame_count(self, rig, anim):
+        return self.flare.frame_count(rig, anim) if getattr(self, "flare", None) else 4
+
     def _prewarm_units(self):
         """Cache the most common frames so first contact does not hitch."""
         if not getattr(self, "flare", None):
@@ -236,7 +244,7 @@ class Art:
         player = ("worker", "footman", "archer", "knight", "priest", "hero")
         enemies = ("ghoul", "fiend", "necromancer", "abomination", "revenant",
                    "skeleton", "goblin", "goblin-brute", "hollow-king")
-        plan = (("idle", 4), ("walk", 8), ("attack", 4))
+        plan = (("idle", 4), ("walk", 8), ("attack", 4), ("cast", 4), ("death", 6))
         for rig in player + enemies:
             if not self.flare.can(rig):
                 continue
@@ -625,19 +633,31 @@ class Art:
         key = ("u", rig, team, size)
         if key in self.portraits:
             return self.portraits[key]
+        face = self.portrait_faces.get(rig)
+        s = pygame.Surface((size, size), pygame.SRCALPHA)
+        # warm portrait backdrop + faction ring
+        for y in range(size):
+            t = y / size
+            pygame.draw.line(s, (*mix((48, 39, 34), (22, 19, 22), t), 255), (0, y), (size, y))
+        ring = TEAM_COLORS[team]["light"] if team in TEAM_COLORS else (214, 176, 92)
+        pygame.draw.circle(s, (34, 42, 36), (size // 2, size // 2 - 3), int(size * 0.37))
+        pygame.draw.circle(s, ring, (size // 2, size // 2 - 3), int(size * 0.37), 2)
+        if face is not None:
+            w, h = face.get_size()
+            # zoom to a head-and-shoulders crop
+            crop = face.subsurface((int(w * 0.12), int(h * 0.04), int(w * 0.76), int(h * 0.76))).copy()
+            scale = min(size / crop.get_width(), size / crop.get_height()) * 1.03
+            im = pygame.transform.smoothscale(crop, (int(crop.get_width() * scale), int(crop.get_height() * scale)))
+            s.blit(im, ((size - im.get_width()) // 2, int(size * 0.03)))
+            pygame.draw.rect(s, (18, 14, 12), (0, 0, size, size), 3)
+            self.portraits[key] = s
+            return s
         res = self.unit(rig, 0, "idle", 0, team)
         img = res[0] if isinstance(res, tuple) else res
         bb = img.get_bounding_rect(min_alpha=36)
         if bb.w > 4 and bb.h > 4:
             img = img.subsurface(bb).copy()
         w, h = img.get_size()
-        s = pygame.Surface((size, size), pygame.SRCALPHA)
-        # warm portrait backdrop
-        for y in range(size):
-            t = y / size
-            pygame.draw.line(s, (*mix((44, 36, 34), (22, 19, 22), t), 255), (0, y), (size, y))
-        pygame.draw.circle(s, (36, 45, 38), (size // 2, size // 2 - 4), size // 3)
-        pygame.draw.circle(s, (58, 70, 54), (size // 2, size // 2 - 4), size // 3, 2)
         scale = min(size / w, size / h) * 1.02
         im = pygame.transform.smoothscale(img, (max(1, int(w * scale)), max(1, int(h * scale))))
         s.blit(im, ((size - im.get_width()) // 2, size - im.get_height() - 1))

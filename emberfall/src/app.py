@@ -13,21 +13,51 @@ from .ui import UI
 from .core import clamp, dist
 
 
-def open_display(fullscreen: bool):
-    """Open the window as a logical 1600x900 surface mapped onto the real display.
-
-    SCALED keeps the aspect ratio, scales mouse coordinates for us, and lets the
-    player resize the window or toggle fullscreen (F11) without the game
-    stretching or coming out at the wrong resolution. Falls back to a plain
-    1600x900 mode when a driver (SDL dummy in headless QA) refuses SCALED.
-    """
-    flags = (pygame.FULLSCREEN if fullscreen else pygame.RESIZABLE) | pygame.SCALED
+def _desktop_size():
     try:
-        return pygame.display.set_mode((SCREEN_W, SCREEN_H), flags)
-    except pygame.error:
-        return pygame.display.set_mode((SCREEN_W, SCREEN_H),
-                                       pygame.FULLSCREEN if fullscreen else 0)
+        sizes = pygame.display.get_desktop_sizes()
+        if sizes:
+            return sizes[0]
+    except Exception:
+        pass
+    return (1600, 900)
 
+
+def default_window_size():
+    """Largest sane 16:9 window that fits the desktop without going under 960x540."""
+    if os.environ.get("SDL_VIDEODRIVER") == "dummy":
+        return (SCREEN_W, SCREEN_H)
+    sw, sh = _desktop_size()
+    for w, h in ((1600, 900), (1280, 720), (1152, 648), (960, 540)):
+        if w <= sw - 40 and h <= sh - 80:
+            return (w, h)
+    return (min(SCREEN_W, max(960, sw)), min(SCREEN_H, max(540, sh)))
+
+
+def open_display(fullscreen: bool):
+    """Compatibility wrapper for older QA probes."""
+    return open_window(fullscreen)
+
+
+def open_window(fullscreen, size=None):
+    """Borderless OS window; the game renders to a fixed 1600x900 canvas.
+
+    A normal decorated window is force-tiled by the user's Wayland compositor
+    (observed 1600x900 -> 950x1020). NOFRAME is treated as a floating game
+    surface and keeps the requested 16:9 size. Fullscreen uses the desktop
+    size with the same borderless path, then letterboxes the canvas.
+    """
+    if fullscreen:
+        sw, sh = _desktop_size()
+        try:
+            return pygame.display.set_mode((sw, sh), pygame.NOFRAME)
+        except pygame.error:
+            pass
+    w, h = size or default_window_size()
+    try:
+        return pygame.display.set_mode((w, h), pygame.NOFRAME)
+    except pygame.error:
+        return pygame.display.set_mode((w, h))
 
 class Game:
     def __init__(self, args=None):
@@ -35,8 +65,12 @@ class Game:
                                                frames=0, scene="base", speed=1.0,
                                                fullscreen=False, music=0.5, sfx=0.72, autoplay=False)
         pygame.mixer.pre_init(44100, -16, 2, 512)
+        os.environ.setdefault("SDL_VIDEO_CENTERED", "1")
         pygame.init()
-        self.screen = open_display(bool(getattr(self.args, "fullscreen", False)))
+        self.fullscreen = bool(getattr(self.args, "fullscreen", False))
+        self.window = open_window(self.fullscreen)
+        # ALL game rendering goes to this logical canvas; present() letterboxes it.
+        self.screen = pygame.Surface((SCREEN_W, SCREEN_H)).convert()
         pygame.display.set_caption("Emberfall — The Hollow Crown")
         self.clock = pygame.time.Clock()
         self.art = Art()
@@ -64,7 +98,9 @@ class Game:
         self.drag_start = None
         self.drag_now = None
         self.mouse_down_pos = None
+        self.mouse = (SCREEN_W // 2, SCREEN_H // 2)
         self.mouse_tile = (24, 70)
+        self.drag_cam = None
         self.menu_t = 0.0
         self.time_scale = max(0.25, float(self.args.speed or 1.0))
         self.sim_acc = 0.0
@@ -78,7 +114,6 @@ class Game:
         self.auto_done = set()
         self.auto_train_t = 0
         self.auto_next = 0
-        self.fullscreen = bool(getattr(self.args, "fullscreen", False))
         self.audio.set_music(self.args.music)
         self.audio.set_sfx(self.args.sfx)
         self.audio.play_music("menu")
@@ -87,6 +122,10 @@ class Game:
         self.qa = bool(self.args.qa or os.environ.get("EMBERFALL_QA") not in (None, "", "0"))
         if self.qa:
             self.setup_qa()
+
+    def toggle_fullscreen(self):
+        self.fullscreen = not self.fullscreen
+        self.window = open_window(self.fullscreen)
 
     # ---------------------------------------------------------------- state
     def setup_qa(self):
@@ -169,7 +208,20 @@ class Game:
         self.attack_move_mode = False
         self.targeting = None
         self.world.placement = None
-        cx, cy = self.renderer.w2s(24, 69, 1) if skip_intro else self.renderer.w2s(33, 60, 1)
+        # The vale is charted from the start; live units still obey visibility (vis),
+        # so the opening frame is a readable battlefield instead of a black wedge.
+        self.world.explored[:] = b"\x01" * len(self.world.explored)
+        # Initial fog pocket: enough vale to read the opening, not the enemy base.
+        hall = next((b for b in self.world.buildings_of(PLAYER) if b.bid in ("townhall", "keep")), None)
+        rx, ry = ((hall.x + hall.bw / 2, hall.y + hall.bh / 2) if hall else (24.5, 71.5))
+        for yy in range(int(ry) - 19, int(ry) + 20):
+            for xx in range(int(rx) - 19, int(rx) + 20):
+                if 0 <= xx < self.world.map.w and 0 <= yy < self.world.map.h:
+                    if (xx - rx) ** 2 + (yy - ry) ** 2 <= 19 * 19:
+                        self.world.explored[yy * self.world.map.w + xx] = 1
+        if self.world.hero and self.world.hero.alive:
+            self.select([self.world.hero])
+        cx, cy = self.renderer.w2s(24, 68, 1) if skip_intro else self.renderer.w2s(33, 60, 1)
         self.camera = Camera(cx, cy, self.renderer.cam_bounds())
         self.camera.clamp()
         self.state = "play" if skip_intro else "intro"
@@ -466,6 +518,21 @@ class Game:
         if ev.type == pygame.QUIT:
             self.running = False
             return
+        if ev.type in (pygame.VIDEORESIZE, getattr(pygame, "WINDOWSIZECHANGED", -1)):
+            return
+        if ev.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION):
+            # window pixel -> logical 1600x900 (the picture is scaled/letterboxed)
+            mapped = self.map_pos(ev.pos, clamp_out=(ev.type != pygame.MOUSEBUTTONDOWN))
+            if mapped is None:            # click landed in the letterbox: ignore
+                return
+            if tuple(mapped) != tuple(ev.pos):
+                ev = pygame.event.Event(ev.type, dict(ev.dict, pos=mapped))
+        if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 2:
+            self.drag_cam = (ev.pos, self.camera.x, self.camera.y)
+            return
+        if ev.type == pygame.MOUSEBUTTONUP and ev.button == 2:
+            self.drag_cam = None
+            return
         if ev.type == pygame.KEYDOWN:
             self.handle_key(ev)
             return
@@ -527,6 +594,11 @@ class Game:
             self.ui.release()
             return
         if ev.type == pygame.MOUSEMOTION:
+            if self.drag_cam:
+                (sx, sy), cx, cy = self.drag_cam
+                self.camera.x = cx - (ev.pos[0] - sx)
+                self.camera.y = cy - (ev.pos[1] - sy)
+                self.camera.clamp()
             if self.drag_start:
                 self.drag_now = ev.pos
                 self.world.drag_now = ev.pos
@@ -587,8 +659,7 @@ class Game:
         if k == pygame.K_o:
             self.ui.show_objectives = not self.ui.show_objectives; return
         if k == pygame.K_F11:
-            self.fullscreen = not self.fullscreen
-            self.screen = open_display(self.fullscreen)
+            self.toggle_fullscreen()
             return
         if pygame.K_1 <= k <= pygame.K_9:
             num = k - pygame.K_0
@@ -642,18 +713,19 @@ class Game:
         elif self.state == "play":
             keys = pygame.key.get_pressed()
             sp = 760 * dt
-            if keys[pygame.K_w] or keys[pygame.K_UP]: self.camera.y -= sp
-            if keys[pygame.K_s] or keys[pygame.K_DOWN]: self.camera.y += sp
-            if keys[pygame.K_a] or keys[pygame.K_LEFT]: self.camera.x -= sp
-            if keys[pygame.K_d] or keys[pygame.K_RIGHT]: self.camera.x += sp
+            # arrows only: WASD is reserved for commands (A attack-move, S stop)
+            if keys[pygame.K_UP]: self.camera.y -= sp
+            if keys[pygame.K_DOWN]: self.camera.y += sp
+            if keys[pygame.K_LEFT]: self.camera.x -= sp
+            if keys[pygame.K_RIGHT]: self.camera.x += sp
             self.camera.clamp()
-            mx, my = pygame.mouse.get_pos()
-            if not self.qa and my < 700:
+            mx, my = self.map_pos(pygame.mouse.get_pos()) or (SCREEN_W // 2, SCREEN_H // 2)
+            if (not self.qa and pygame.mouse.get_focused()
+                    and 0 <= mx < SCREEN_W and 44 <= my < 700):
                 edge = 620 * dt
-                if mx <= 2: self.camera.x -= edge
-                elif mx >= SCREEN_W - 3: self.camera.x += edge
-                if my <= 2: self.camera.y -= edge
-                elif my >= SCREEN_H - 3: self.camera.y += edge
+                if mx <= 8: self.camera.x -= edge
+                elif mx >= SCREEN_W - 9: self.camera.x += edge
+                if my <= 52: self.camera.y -= edge
                 self.camera.clamp()
             self.sim_acc += dt * self.time_scale
             steps = 0
@@ -718,11 +790,67 @@ class Game:
     def draw(self):
         scr = self.screen
         self.world.mouse_tile = self.mouse_tile
+        self.world.mouse_pos = self.map_pos(pygame.mouse.get_pos()) or (SCREEN_W // 2, SCREEN_H // 2)
         self.renderer.draw(scr, self.world, self.camera, self.world.time if self.state != "title" else self.menu_t)
         self.ui.draw(scr)
+        self.present()
 
     def take_shot(self, path):
         pygame.image.save(self.screen, path)
+
+    # -------------------------------------------------- window / input mapping
+    def present(self):
+        """Scale the logical 1600x900 backbuffer onto the real window.
+
+        Centre-locked and aspect-correct with letterbox bars, so the game looks
+        right on any resolution (1080p, 1440p, 4K, Wayland fractional scaling,
+        a resized window) instead of being stretched by the driver.
+        """
+        win = pygame.display.get_surface()
+        if win is None:
+            return
+        ww, wh = win.get_size()
+        scale = min(ww / SCREEN_W, wh / SCREEN_H)
+        dw = max(1, int(SCREEN_W * scale))
+        dh = max(1, int(SCREEN_H * scale))
+        ox = (ww - dw) // 2
+        oy = (wh - dh) // 2
+        if dw == SCREEN_W and dh == SCREEN_H:
+            win.blit(self.screen, (0, 0))
+        else:
+            cache = getattr(self, "_present_cache", None)
+            if cache is None or cache.get_size() != (dw, dh):
+                cache = pygame.Surface((dw, dh))
+                self._present_cache = cache
+            pygame.transform.scale(self.screen, (dw, dh), cache)
+            win.fill((0, 0, 0))
+            win.blit(cache, (ox, oy))
+        pygame.display.flip()
+
+    def map_pos(self, pos, clamp_out: bool = True):
+        """Window pixel -> logical 1600x900 coordinate (inverse of present()).
+
+        Returns None when the point lies in the letterbox and clamp_out is
+        False (i.e. a click outside the picture is ignored instead of hitting
+        whatever UI happens to live at the clamped edge).
+        """
+        win = pygame.display.get_surface()
+        if win is None:
+            return pos
+        ww, wh = win.get_size()
+        if ww == SCREEN_W and wh == SCREEN_H:
+            return pos
+        scale = min(ww / SCREEN_W, wh / SCREEN_H)
+        dw, dh = SCREEN_W * scale, SCREEN_H * scale
+        ox, oy = (ww - dw) / 2, (wh - dh) / 2
+        x = (pos[0] - ox) / scale
+        y = (pos[1] - oy) / scale
+        if not (0 <= x < SCREEN_W and 0 <= y < SCREEN_H):
+            if not clamp_out:
+                return None
+            x = min(max(x, 0), SCREEN_W - 1)
+            y = min(max(y, 0), SCREEN_H - 1)
+        return (int(x), int(y))
         print("SHOT", path, self.screen.get_size(), flush=True)
 
     def qa_state(self):
@@ -736,6 +864,9 @@ class Game:
             hall=max([b.hp for b in w.buildings_of(PLAYER) if b.bid in ("townhall", "keep")] or [0]),
             mode=w.state, upgrades=sorted(w.upgrades),
             music=getattr(self.audio, "_current", None), sfx_loaded=len(self.audio.sfx),
+            unit_px=next(([int(v) for v in self.screen_pos(u)]
+                          for u in w.units_of(PLAYER)
+                          if u.alive and not u.is_building), None),
         )), flush=True)
 
     def run(self):
@@ -749,7 +880,7 @@ class Game:
             self.ui.poll_mouse()
             self.update(dt)
             self.draw()
-            pygame.display.flip()
+            self.present()
             self.frame += 1
             frames += 1
             if self.qa and os.environ.get("EMBERFALL_QA") == "state":

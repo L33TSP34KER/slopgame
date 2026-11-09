@@ -12,8 +12,7 @@ LAYERS = {
     "townhall": [("human_town_hall", 1.0, 0.0, 0.0, None)],
     "keep": [("human_keep", 1.0, 0.0, 0.0, None)],
     "farm": [("human_house_farm", 1.0, 0.0, 0.0, None)],
-    "barracks": [("human_town_hall", 0.88, 0.0, 0.0, None),
-                 ("human_house_farm", 0.30, -0.30, 0.06, None)],
+    "barracks": [("human_barracks", 1.0, 0.0, 0.0, None)],
     "mill": [("human_workshop_lumber", 1.0, 0.0, 0.0, None),
              ("human_house_farm", 0.34, -0.22, 0.06, None)],
     "blacksmith": [("human_house_farm", 0.64, 0.0, 0.05, None),
@@ -174,6 +173,15 @@ class BuildingArt:
             flame(cx + tw * 0.28, base_y - th * 0.70, 20)
         elif bid == "keep":
             glow(cx - tw * 0.30, base_y - th * 0.30, 34, (100, 60, 20), 60)
+        elif bid == "farm":
+            # planted rows turn a cabin into a working farm
+            for row in range(3):
+                yy = base_y - 4 + row * 7
+                for c in range(6):
+                    xx = cx - tw * 0.42 + c * (tw * 0.17)
+                    pygame.draw.line(s, (74, 98, 44), (xx, yy), (xx + 8, yy), 2)
+                    pygame.draw.circle(s, (188, 162, 74), (int(xx + 4), int(yy - 3)), 2)
+            pygame.draw.ellipse(s, (110, 86, 42), (cx + tw * 0.30, base_y - 10, 22, 10))
         elif bid == "barracks":
             # training yard: weapon rack + dummy, distinct from the town hall
             for i in range(4):

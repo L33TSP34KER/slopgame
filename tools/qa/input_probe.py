@@ -105,7 +105,7 @@ def main() -> int:
 
     # ------------------------------------------------------------------ camera
     x0 = g.camera.x
-    hold_keys((pygame.K_d, pygame.K_RIGHT))
+    hold_keys((pygame.K_RIGHT, pygame.K_RIGHT))
     record("camera: held D / right-arrow pan", g.camera.x > x0 + 5,
            f"camera.x {x0:.0f} -> {g.camera.x:.0f}")
 

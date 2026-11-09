@@ -46,10 +46,10 @@ ENEMIES = {
 RANGED = {"archer": "shoot", "priest": "shoot", "fiend": "shoot",
           "necromancer": "cast", "revenant": "cast", "hero": "swing"}
 UNIT_SCALE = {
-    "worker": 1.0, "footman": 1.05, "archer": 1.0, "knight": 1.15, "priest": 1.02,
-    "hero": 1.32, "ghoul": 1.0, "fiend": 1.05, "necromancer": 1.0, "abomination": 1.2,
-    "revenant": 1.1, "skeleton": 0.9, "goblin": 0.92, "goblin-brute": 1.1,
-    "hollow-king": 1.35,
+    "worker": 1.18, "footman": 1.24, "archer": 1.18, "knight": 1.36, "priest": 1.20,
+    "hero": 1.55, "ghoul": 1.18, "fiend": 1.24, "necromancer": 1.18, "abomination": 1.42,
+    "revenant": 1.30, "skeleton": 1.06, "goblin": 1.08, "goblin-brute": 1.30,
+    "hollow-king": 1.60,
 }
 TINT = {
     "hero": (1.0, 0.9, 0.62),
@@ -119,27 +119,55 @@ class FlareUnits:
 
     def _avatar_bounds(self):
         # static 128x128 canvas, anchor from feet layer
-        return 128, 128, 64, 84
+        return 128, 128, 64, 96
 
     def _enemy_bounds(self, rid):
+        """Canvas + per-rig ground anchor from Flare ox/oy, not crop size."""
         if rid in self.anchors:
             return self.anchors[rid]
         img = self.enemies[rid]
         d = self.edefs[rid]
-        minx = miny = 1e9
-        maxx = maxy = -1e9
+        left = top = 1e9
+        right = bottom = -1e9
         for sec in d.values():
             for (af, dr), (x, y, w, h, ox, oy) in sec["rows"].items():
-                dx = 64 + ox - w / 2
-                dy = 96 - oy - h
-                minx = min(minx, dx); maxx = max(maxx, dx + w)
-                miny = min(miny, dy); maxy = max(maxy, 96 - oy)
+                left = min(left, -ox)
+                right = max(right, w - ox)
+                top = min(top, -oy)
+                bottom = max(bottom, h - oy)
         pad = 10
-        W = int(maxx - minx + pad * 2)
-        H = int(maxy - miny + pad * 2)
-        anchor = (W / 2, maxy - miny + pad)
-        self.anchors[rid] = (W, H, minx - pad, miny - pad, anchor, img)
+        W = int(right - left + pad * 2)
+        H = int(bottom - top + pad * 2)
+        ax = -left + pad
+        ay = -top + pad
+        self.anchors[rid] = (W, H, ax, ay, img)
         return self.anchors[rid]
+
+    def frame_count(self, rig, anim):
+        """Native Flare frame count for this rig/state (run=8, die=6...)."""
+        if not hasattr(self, "_frame_counts"):
+            self._frame_counts = {}
+        key = (rig, anim)
+        hit = self._frame_counts.get(key)
+        if hit is not None:
+            return hit
+        secname = self._section_for(None, anim,
+                                    rig in ("archer", "priest", "fiend", "necromancer", "revenant"))
+        n = 4
+        if rig in AVATARS:
+            for ln in AVATARS[rig]:
+                d = self.ldefs.get(ln)
+                if not d:
+                    continue
+                sec = d.get(secname) or d.get("stance")
+                if sec:
+                    n = max(n, int(sec.get("frames", 4)))
+        elif rig in self.edefs:
+            sec = self.edefs[rig].get(secname) or self.edefs[rig].get("stance")
+            if sec:
+                n = max(1, int(sec.get("frames", 4)))
+        self._frame_counts[key] = n
+        return n
 
     def sprite(self, rig, facing, anim, frame, team=PLAYER):
         key = (rig, facing % 4, anim, frame, team)
@@ -148,7 +176,7 @@ class FlareUnits:
         d = DIRS[facing % 4]
         if rig in AVATARS:
             surf = self._compose_avatar(rig, d, anim, frame)
-            ax, ay = 64, 84
+            ax, ay = 64, 96
         elif rig in self.enemies:
             surf, ax, ay = self._compose_enemy(rig, d, anim, frame)
         else:
@@ -156,15 +184,9 @@ class FlareUnits:
         sc = UNIT_SCALE.get(rig, 0.85)
         w, h = surf.get_size()
         surf = pygame.transform.smoothscale(surf, (max(1, int(w * sc)), max(1, int(h * sc))))
-        # 1px ink silhouette so units read against the dark vale like the UI icons do
-        sil = surf.copy()
-        sil.fill((26, 21, 24, 255), special_flags=pygame.BLEND_RGBA_MULT)
-        out = pygame.Surface((surf.get_width() + 2, surf.get_height() + 2), pygame.SRCALPHA)
-        for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1)):
-            out.blit(sil, (dx + 1, dy + 1))
-        out.blit(surf, (1, 1))
-        surf = out
-        res = (surf, ax * sc + 1, ay * sc + 1)
+        # Flare's painted units are very dark; lift them enough to read on the vale.
+        surf.fill((68, 59, 46, 0), special_flags=pygame.BLEND_RGB_ADD)
+        res = (surf, ax * sc, ay * sc)
         self.cache[key] = res
         return res
 
@@ -200,35 +222,44 @@ class FlareUnits:
                 continue
             n = max(1, sec["frames"])
             idx = int(frame) % n
+            if sec.get("type") == "back_forth" and n > 2:
+                period = 2 * n - 2
+                i = int(frame) % period
+                idx = i if i < n else period - i
             rect = sec["rows"].get((idx, direction))
             if rect is None:
                 rect = sec["rows"].get((0, direction))
             if rect is None:
                 continue
             x, y, w, h, ox, oy = rect
-            dx = 64 + ox - w / 2
-            dy = 96 - oy - h
+            # verified Flare convention: top_left = feet_anchor - (ox, oy)
+            dx = 64 - ox
+            dy = 96 - oy
             if ln in ("plate_cuirass", "plate_helm", "plate_greaves", "plate_boots", "plate_gauntlets") and rig == "hero":
                 part = img.subsurface(pygame.Rect(x, y, w, h)).copy()
                 part = _tint(part, TINT["hero"])
                 s.blit(part, (int(dx), int(dy)))
+            elif ln.startswith(("chain_", "plate_")) and rig != "hero":
+                part = img.subsurface(pygame.Rect(x, y, w, h)).copy()
+                part = _tint(part, (0.78, 0.76, 0.72))
+                s.blit(part, (int(dx), int(dy)))
             else:
                 s.blit(img, (int(dx), int(dy)), pygame.Rect(x, y, w, h))
-        if anim == "death":
-            s = pygame.transform.rotate(s, -20 * (frame % 5))
         return s
 
     def _compose_enemy(self, rid, direction, anim, frame):
-        W, H, minx, miny, anchor, img = self._enemy_bounds(rid)
+        W, H, ax, ay, img = self._enemy_bounds(rid)
         d = self.edefs[rid]
         sec = d.get(self._section_for(None, anim, rid in ("fiend", "necromancer", "revenant"))) or d.get("stance")
         n = max(1, sec["frames"])
         idx = int(frame) % n
+        if sec.get("type") == "back_forth" and n > 2:
+            period = 2 * n - 2
+            i = int(frame) % period
+            idx = i if i < n else period - i
         rect = sec["rows"].get((idx, direction)) or sec["rows"].get((0, direction))
         s = pygame.Surface((W, H), pygame.SRCALPHA)
         if rect:
             x, y, w, h, ox, oy = rect
-            dx = 64 + ox - w / 2 - minx
-            dy = 96 - oy - h - miny
-            s.blit(img, (int(dx), int(dy)), pygame.Rect(x, y, w, h))
-        return s, anchor[0], anchor[1]
+            s.blit(img, (ax - ox, ay - oy), pygame.Rect(x, y, w, h))
+        return s, ax, ay

@@ -52,7 +52,7 @@ class Renderer:
         self.surface = pygame.Surface((self.MW, self.MH), pygame.SRCALPHA)
         self.fog_surf = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
         self.dim_veil = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
-        self.dim_veil.fill((8, 10, 16, 36))
+        self.dim_veil.fill((8, 10, 16, 24))
         self._fog_t = -1.0
         self._fog_cam = (0, 0)
         self.light_surf = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
@@ -262,7 +262,7 @@ class Renderer:
         cx, cy = SCREEN_W / 2, SCREEN_H / 2
         for i in range(22):
             t = i / 22
-            a = int(5 + 28 * t * t)
+            a = int(4 + 17 * t * t)
             pygame.draw.rect(s, (6, 5, 8, a),
                              (int(i * 10), int(i * 7), SCREEN_W - i * 20, SCREEN_H - i * 14), 12)
         return s
@@ -359,24 +359,28 @@ class Renderer:
         screen.blit(img, (int(px - ax), int(py - ay)))
 
     def _draw_unit(self, screen, e, cam, time):
-        # animation frame selection
-        frames = {"idle": 2, "walk": 4, "attack": 4, "cast": 3, "death": 5, "gather": 3, "ride": 4}
-        n = frames.get(e.anim, 2)
-        frame = int(e.anim_t * n * 4) % n
-        if e.anim == "death":
-            frame = min(4, int(e.anim_t * 5))
-        img, ax, ay = self.art.unit(e.rig, e.facing_bucket, e.anim if e.alive else "death", frame, e.team)
+        # native Flare frame counts: stance 4, run 8, die 6
+        state = e.anim if e.alive else "death"
+        n = self.art.unit_frame_count(e.rig, state)
+        rate = {"idle": 6, "walk": 12, "attack": 10, "cast": 10,
+                "death": 8, "gather": 10, "ride": 12}.get(state, 8)
+        frame = int(e.anim_t * rate) % max(1, n)
+        if state in ("death", "attack", "cast"):
+            frame = min(max(0, n - 1), int(e.anim_t * rate))
+        if state == "death":
+            frame = min(max(0, n - 1), int(e.anim_t * 8))
+        img, ax, ay = self.art.unit(e.rig, e.facing_bucket, state, frame, e.team)
         px, py = self.w2s(e.x, e.y, e.height)
         px -= cam.x - SCREEN_W / 2
         py -= cam.y - SCREEN_H / 2
         if not e.alive:
             img = img.copy()
             img.set_alpha(max(0, int(255 * (1 - (e.death_t - 1.5) / 2.5))))
-        sc = getattr(e, "scale", 1.0) or 1.0
-        sh = self.unit_shadow
-        if sc != 1.0:
-            sh = pygame.transform.smoothscale(sh, (max(8, int(sh.get_width() * sc)), max(4, int(sh.get_height() * sc))))
-        screen.blit(sh, (int(px - sh.get_width() / 2), int(py - sh.get_height() / 2)))
+        # Flare sprites carry their own top-left baked shadow; no second ellipse.
+        if getattr(e, "is_hero", False) and e.alive:
+            g = self.art.glow_sprite((255, 186, 96), 44, 105)
+            screen.blit(g, (int(px - g.get_width() / 2), int(py - g.get_height() / 2 - 10)),
+                        special_flags=pygame.BLEND_ADD)
         screen.blit(img, (int(px - ax), int(py - ay)))
         # carried resource
         if getattr(e, "carry", 0) > 0:
@@ -567,7 +571,7 @@ class Renderer:
             pygame.draw.rect(screen, (150, 210, 140, 40), r, 0)
             pygame.draw.rect(screen, (200, 236, 170), r, 1)
         if game.attack_move_mode or game.targeting:
-            mx, my = pygame.mouse.get_pos()
+            mx, my = getattr(game, "mouse_pos", (SCREEN_W // 2, SCREEN_H // 2))
             col = (255, 150, 90) if game.targeting else (240, 200, 110)
             pygame.draw.circle(screen, col, (mx, my), 9, 2)
             pygame.draw.line(screen, col, (mx - 14, my), (mx - 5, my), 2)
