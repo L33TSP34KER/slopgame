@@ -274,7 +274,14 @@ class Art:
                         self.tiles[(terr, v)] = out
                         self.tile_avg[(terr, v)] = (38, 88, 101)
                         continue
-                    kind = BASE_KIND.get(terr, "grass")
+                    # baked biome rows (design/notes/flare-tiles.md): the old
+                    # path tinted grass into every other terrain, throwing away
+                    # the dirt/ash/sand/moss texture the sheets carry
+                    BIOME = {0: "grass", 1: "dirt", 2: "stone", 4: "sand",
+                             5: "ash", 6: "grass", 7: "moss"}
+                    kind = BIOME.get(terr, "grass")
+                    if kind not in src:
+                        kind = "grass"
                     # ONE source diamond per terrain. Picking a different crop
                     # per variant equalises the *mean* colour but not the
                     # pattern phase: adjacent cobble cells put their light
@@ -283,7 +290,7 @@ class Art:
                     # high-contrast floors. A single crop repeats uniformly,
                     # which looks like paving rather than noise.
                     base = src[kind][(terr * 3) % len(src[kind])]
-                    img = tint(base, TINTS.get(terr), LIGHT.get(terr, 1.0))
+                    img = base.copy()   # colours are baked into the sheet
                     # Normalise brightness BOTH ways onto the terrain target
                     # (the old code could only darken, so bright cells and dark
                     # cells sat side by side).

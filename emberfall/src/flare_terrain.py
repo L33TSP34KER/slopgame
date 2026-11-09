@@ -27,8 +27,12 @@ def floor_sources():
         def row(r: int):
             return [sheet.subsurface(pygame.Rect(c * 64, r * 32, 64, 32)).copy()
                     for c in range(16)]
-        # rows: 0 grass, 1 grass_dry, 6 stone (biome tinting happens in art)
-        return {"grass": row(0) + row(1), "stone": row(6)}
+        # rows: 0 grass, 1 grass_dry, 2 dirt, 3 dirt_road, 4 sand, 5 ash,
+        # 6 stone, 7 moss — colours are baked into the sheet (see
+        # design/notes/flare-tiles.md), so art can pick by biome directly.
+        return {"grass": row(0), "grass_dry": row(1), "dirt": row(2),
+                "dirt_road": row(3), "sand": row(4), "ash": row(5),
+                "stone": row(6), "moss": row(7)}
     sheet = _load("grassland.png")
     out = {"grass": [], "stone": []}
     if sheet is None:
