@@ -163,6 +163,12 @@ class World:
             e.dmg_max = int(e.dmg_max * self.diff["dmg"])
         e.anim_speed = 1.0
         e.eff_speed = d["speed"]
+        # deterministic scatter so trains and QA batches never fully stack
+        jx = ((e.uid * 37) % 7 - 3) * 0.11
+        jy = ((e.uid * 53) % 7 - 3) * 0.11
+        if walkable(self.map, int(e.x + jx), int(e.y + jy), self.blocked):
+            e.x += jx
+            e.y += jy
         self.entities.append(e)
         return e
 
@@ -214,14 +220,15 @@ class World:
 
     def enemies_near(self, e, radius, include_buildings=True):
         out = []
-        for o in self.grid.query(e.x, e.y, radius):
-            if not o.alive or o.team == e.team or o.team == NEUTRAL and e.team == NEUTRAL:
+        for o in self.grid.query(e.x, e.y, radius + 3):
+            if not o.alive or o.team == e.team or (o.team == NEUTRAL and e.team == NEUTRAL):
                 continue
-            if o.team == NEUTRAL and e.team != NEUTRAL:
-                pass
             if not include_buildings and o.is_building:
                 continue
-            if dist(e.x, e.y, o.x, o.y) <= radius + (max(o.bw, o.bh) * 0.3 if o.is_building else 0):
+            ox = o.x + (o.bw / 2 if o.is_building else 0)
+            oy = o.y + (o.bh / 2 if o.is_building else 0)
+            reach = radius + (max(o.bw, o.bh) * 0.5 if o.is_building else 0)
+            if dist(e.x, e.y, ox, oy) <= reach:
                 out.append(o)
         return out
 
@@ -230,7 +237,9 @@ class World:
         for o in self.enemies_near(e, radius):
             if team is not None and o.team != team:
                 continue
-            d = dist(e.x, e.y, o.x, o.y) - (0.5 if not o.is_building else 0)
+            ox = o.x + (o.bw / 2 if o.is_building else 0)
+            oy = o.y + (o.bh / 2 if o.is_building else 0)
+            d = dist(e.x, e.y, ox, oy) - (0.5 if not o.is_building else max(o.bw, o.bh) * 0.45)
             if d < bd:
                 best, bd = o, d
         return best
@@ -547,6 +556,7 @@ class World:
         if self.paused or self.mode != "play":
             return
         self.time += dt
+        self.path_budget = 16
         self.night = 0.5 + 0.5 * math.sin(self.time * 0.012 - 1.2)
         self._alert_tick(dt)
         for u in list(self.entities):
@@ -585,13 +595,13 @@ class World:
         self._build_grid()
 
     def _separate(self, u):
-        for o in self.grid.query(u.x, u.y, 1.1):
+        for o in self.grid.query(u.x, u.y, 1.35):
             if o is u or not o.alive or o.is_building or o.team != u.team:
                 continue
             d = dist(u.x, u.y, o.x, o.y)
             need = (u.radius + o.radius) * 0.85
             if 0.001 < d < need:
-                push = (need - d) * 0.9
+                push = (need - d) * 1.05
                 nx = u.x + (u.x - o.x) / d * push
                 ny = u.y + (u.y - o.y) / d * push
                 if self._passable(nx, ny, u):
@@ -634,8 +644,9 @@ class World:
             tgt = self.nearest_enemy(u, u.sight, team=PLAYER if u.team == ENEMY else ENEMY)
             if tgt:
                 self.engage(u, tgt, dt, leash=10)
-            elif not u.path and o.get("x") is not None:
+            elif not u.path and o.get("x") is not None and u.repath_t <= 0:
                 self._set_path(u, (o["x"], o["y"]))
+                u.repath_t = 0.7
                 self.follow_path(u, dt)
                 u.anim = "walk"
             elif self.follow_path(u, dt):
@@ -666,15 +677,20 @@ class World:
             u.anim = "idle"
 
     def _set_path(self, u, goal):
+        if getattr(self, "path_budget", 0) <= 0:
+            return False
+        self.path_budget = getattr(self, "path_budget", 16) - 1
         start = (u.x, u.y)
         path = find_path(self.map, start, goal, extra=self.blocked)
         if path:
             u.path = path
             u.path_i = 0
-            u.repath_t = 0
-        else:
-            u.path = None
-            u.path_fail = True
+            u.repath_t = 0.6
+            return True
+        u.path = None
+        u.path_fail = True
+        u.repath_t = 0.9
+        return False
 
     def follow_path(self, u, dt):
         if not u.path:
@@ -758,7 +774,7 @@ class World:
             return
         tx = tgt.x + (tgt.bw / 2 if tgt.is_building else 0)
         ty = tgt.y + (tgt.bh / 2 if tgt.is_building else 0)
-        d = dist(u.x, u.y, tx, ty) - (max(tgt.bw, tgt.bh) * 0.3 if tgt.is_building else 0)
+        d = dist(u.x, u.y, tx, ty) - (max(tgt.bw, tgt.bh) * 0.52 if tgt.is_building else 0)
         self.face_to(u, tx, ty)
         if d <= u.range + 0.2:
             u.path = None
@@ -769,12 +785,13 @@ class World:
                 self.perform_attack(u, tgt)
         else:
             u.anim = "walk"
-            if not u.path or u.path_i >= len(u.path) or u.repath_t <= 0:
+            u.repath_t -= dt
+            if (not u.path or u.path_i >= len(u.path)) and u.repath_t <= 0:
                 near = nearest_walkable(self.map, int(tx), int(ty), self.blocked, 4)
                 if near:
                     self._set_path(u, near)
-                u.repath_t = 0.5
-            u.repath_t -= dt
+                else:
+                    u.repath_t = 1.0
             self.follow_path(u, dt)
 
     def perform_attack(self, u, tgt):
@@ -854,12 +871,12 @@ class World:
                 u.order = {"type": "gather", "node": node, "phase": "to"}
                 u.path = None
             else:
-                if not u.path or u.path_i >= len(u.path) or u.repath_t <= 0:
+                u.repath_t -= dt
+                if (not u.path or u.path_i >= len(u.path)) and u.repath_t <= 0:
                     near = self.node_adjacent(u, drop.x, drop.y, drop.bw, drop.bh)
                     if near:
                         self._set_path(u, near)
-                    u.repath_t = 0.7
-                u.repath_t -= dt
+                    u.repath_t = 0.9
                 self.follow_path(u, dt)
                 u.anim = "walk"
             return
@@ -891,12 +908,12 @@ class World:
                 u.order = {"type": "gather", "node": node, "phase": "back"}
                 u.path = None
         else:
-            if not u.path or u.path_i >= len(u.path) or u.repath_t <= 0:
+            u.repath_t -= dt
+            if (not u.path or u.path_i >= len(u.path)) and u.repath_t <= 0:
                 near = self.node_adjacent(u, cx, cy, 1, 1)
                 if near:
                     self._set_path(u, near)
-                u.repath_t = 0.8
-            u.repath_t -= dt
+                u.repath_t = 1.0
             self.follow_path(u, dt)
             u.anim = "walk"
 
@@ -940,12 +957,12 @@ class World:
             b.builders = 1
             b.hp = min(b.max_hp, max(b.hp, int(b.max_hp * max(0.1, b.build_progress))))
         else:
-            if not u.path or u.path_i >= len(u.path) or u.repath_t <= 0:
+            u.repath_t -= dt
+            if (not u.path or u.path_i >= len(u.path)) and u.repath_t <= 0:
                 near = self.node_adjacent(u, cx, cy, b.bw, b.bh)
                 if near:
                     self._set_path(u, near)
-                u.repath_t = 0.8
-            u.repath_t -= dt
+                u.repath_t = 1.0
             self.follow_path(u, dt)
             u.anim = "walk"
 

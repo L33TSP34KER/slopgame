@@ -7,7 +7,7 @@ from src.art import Art, PARCH, GOLD
 from src.defs import UNITS, BUILDINGS, PLAYER, ENEMY, NEUTRAL
 
 art = Art()
-units = ["worker","footman","archer","knight","priest","ballista","hero","ghoul","fiend","necromancer","abomination","revenant","skeleton","wolf","elder-wolf","hollow-king"]
+units = ["worker","footman","archer","knight","priest","ballista","hero","ghoul","fiend","necromancer","abomination","revenant","skeleton","goblin","goblin-brute","hollow-king"]
 teams = {u: (ENEMY if UNITS[u].get("enemy") else NEUTRAL if UNITS[u].get("neutral") else PLAYER) for u in units}
 cols, cw, ch = 8, 170, 190
 rows = (len(units) + cols - 1) // cols

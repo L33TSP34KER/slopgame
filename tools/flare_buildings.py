@@ -55,12 +55,13 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import random
 import re
 import sys
 import xml.etree.ElementTree as ET
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFilter
 
 Image.MAX_IMAGE_PIXELS = None
 
@@ -397,6 +398,8 @@ ATLASES = {
     "rottentower": ("tilesheets/grassland_rottentower.png", 1, 1074, 1074),
     "snow_rottentower": ("tilesheets/snowplains_rottentower.png", 1, 1074, 1074),
     "ruins": ("tilesheets/ruins.png", 16, 192, 384),
+    "dungeon": ("tilesheets/dungeon.png", 16, 192, 384),
+    "dungeon_2x2": ("tilesheets/dungeon_2x2.png", 4, 384, 192),
 }
 
 # Every entry is one shipped sprite.
@@ -631,6 +634,43 @@ def content_bbox(img):
     return (int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1)
 
 
+def _part_image(p):
+    """Fetch + optionally crop/flip/scale/recolor one atlas cell."""
+    a = _atlas(p["a"])
+    cid = int(p["id"])
+    col, row = cid % a["cols"], cid // a["cols"]
+    img = a["img"].crop((col * a["tw"], row * a["th"],
+                         col * a["tw"] + a["tw"], row * a["th"] + a["th"]))
+    if p.get("crop"):
+        l, t, r, b = p["crop"]
+        img = img.crop((l, t, r, b))
+    if p.get("flip") == "h":
+        img = img.transpose(Image.FLIP_LEFT_RIGHT)
+    elif p.get("flip") == "v":
+        img = img.transpose(Image.FLIP_TOP_BOTTOM)
+    if p.get("scale") and abs(float(p["scale"]) - 1.0) > 1e-6:
+        s = float(p["scale"])
+        img = img.resize((max(1, int(img.width * s)), max(1, int(img.height * s))),
+                         Image.LANCZOS)
+    arr = np.array(img).astype(np.float32)
+    if p.get("key_black"):
+        # Many Flare wall tiles paint their hidden back face pure black; drop it.
+        near_black = arr[:, :, :3].max(axis=2) <= float(p.get("key_black", 6))
+        arr[:, :, 3] = np.where(near_black, 0.0, arr[:, :, 3])
+    if p.get("tint_mul"):
+        m = p["tint_mul"]
+        arr[:, :, 0] *= m[0]
+        arr[:, :, 1] *= m[1]
+        arr[:, :, 2] *= m[2]
+    if p.get("tint_screen"):
+        m = p["tint_screen"]
+        for i in range(3):
+            arr[:, :, i] = 255.0 - (255.0 - arr[:, :, i]) * (255.0 - m[i] * 255.0) / 255.0
+    if p.get("dim"):
+        arr[:, :, :3] *= float(p["dim"])
+    return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGBA")
+
+
 def compose(spec):
     """Place atlas cells on a virtual isometric grid (Tiled anchor rules)."""
     placed = []
@@ -638,10 +678,7 @@ def compose(spec):
     last = None
     for p in spec["parts"]:
         a = _atlas(p["a"])
-        cid = int(p["id"])
-        col, row = cid % a["cols"], cid // a["cols"]
-        img = a["img"].crop((col * a["tw"], row * a["th"],
-                             col * a["tw"] + a["tw"], row * a["th"] + a["th"]))
+        img = _part_image(p)
         gx, gy = int(p["gx"]), int(p["gy"])
         left = (gx - gy) * MAP_TILE_W // 2 + int(p.get("dx", 0))
         top = (gx + gy) * MAP_TILE_H // 2 + MAP_TILE_H - a["th"] + int(p.get("dy", 0))
@@ -651,7 +688,11 @@ def compose(spec):
             prev_content_top = last["t"] + last["cb"][1]
             top = prev_content_top + int(p.get("overlap", 16)) - cb[3]
         placed.append(dict(img=img, l=left, t=top, cb=cb))
-        descs.append("%s#%d@g(%d,%d)" % (p["a"], cid, gx, gy))
+        note = p.get("desc")
+        if note:
+            descs.append(note)
+        else:
+            descs.append("%s#%d@g(%d,%d)" % (p["a"], int(p["id"]), gx, gy))
         last = placed[-1]
     min_l = min(e["l"] for e in placed)
     min_t = min(e["t"] for e in placed)
@@ -662,6 +703,664 @@ def compose(spec):
         box = (e["l"] - min_l, e["t"] - min_t)
         canvas.alpha_composite(e["img"], box)
     return canvas, " + ".join(descs)
+
+
+# --------------------------------------------------------------------------- #
+# Painterly procedural pieces (art-coherence-04 upgrade pass)
+# ---------------------------------------------------------------------------
+# Everything here paints INTO a compose() canvas using the same 2:1 isometric
+# angle as the atlases, samples its textures from the real Flare tilesheets and
+# keeps the alpha clean, so the results sit next to the source crops without
+# looking vector-ish.
+FACTION = {
+    "human": dict(crimson=(168, 58, 58), crimson_dk=(112, 34, 36), gold=(217, 164, 65),
+                  gold_dk=(150, 108, 40), ember=(240, 156, 70), wood=(96, 70, 44)),
+    "undead": dict(bone=(216, 210, 189), bone_dk=(150, 144, 126),
+                   violet=(112, 84, 148), violet_dk=(58, 42, 78),
+                   sick=(158, 202, 96), sick_dk=(92, 130, 60)),
+}
+
+# kind -> (atlas key, tile id) sampled for surface texture
+_TEX_SRC = {
+    "stone": ("ruins", 152),        # mossy grey masonry
+    "stone_light": ("ruins", 0),    # clean slab floor
+    "stone_dark": ("ruins", 160),   # broken dark masonry
+    "wood": ("structures", 6),      # log wall
+    "wood_dark": ("grassland", 117),  # stacked timber
+    "shingle": ("structures", 7),   # shingled roof
+    "iron": ("ruins", 338),         # iron fence -> dark metal
+    "bone": ("dungeon", 162),       # bone pile
+}
+_TEX_CACHE = {}
+
+
+def _tex_source(kind):
+    if kind in _TEX_CACHE:
+        return _TEX_CACHE[kind]
+    key, gid = _TEX_SRC.get(kind, _TEX_SRC["stone"])
+    a = _atlas(key)
+    col, row = gid % a["cols"], gid // a["cols"]
+    cell = a["img"].crop((col * a["tw"], row * a["th"],
+                          col * a["tw"] + a["tw"], row * a["th"] + a["th"]))
+    bb = content_bbox(cell)
+    inner = cell.crop(bb)
+    arr = np.array(inner).astype(np.float32)
+    op = arr[:, :, 3] > 0
+    if op.sum() < 64:
+        arr[:, :, :3] = 120.0
+        arr[:, :, 3] = 255.0
+    else:
+        # drop the pure-black "hidden back face" paint some wall tiles carry,
+        # then fill every transparent texel with the mean opaque colour so the
+        # crop can be stretched / tiled without holes or black blotches
+        rgb = arr[:, :, :3]
+        good = op & (rgb.max(axis=2) > 14)
+        if good.sum() < 64:
+            good = op
+        mean = rgb[good].mean(axis=0)
+        for i in range(3):
+            ch = rgb[:, :, i]
+            arr[:, :, i] = np.where(good, ch, mean[i])
+        arr[:, :, 3] = 255.0
+    out = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGBA")
+    _TEX_CACHE[kind] = out
+    return out
+
+
+def texture(kind, w, h, seed=0, grain=5.0, mottle=7.0):
+    """Mirror-tiled sample of a real atlas surface, sized (w, h), RGBA opaque."""
+    w, h = max(2, int(w)), max(2, int(h))
+    src = _tex_source(kind)
+    sw, sh = src.size
+    rng = random.Random(seed * 7919 + 13)
+    # largest source window with the target aspect ratio (mirror-tiled below)
+    ar = w / float(h)
+    if sh * ar <= sw:
+        tw, th = max(8, int(round(sh * ar))), sh
+    else:
+        tw, th = sw, max(8, int(round(sw / ar)))
+    tw = min(tw, sw)
+    th = min(th, sh)
+    x0 = rng.randint(0, max(0, sw - tw))
+    y0 = rng.randint(0, max(0, sh - th))
+    tile = src.crop((x0, y0, x0 + tw, y0 + th))
+    big = Image.new("RGBA", (max(w, tw * 2), max(h, th * 2)))
+    for iy in range(0, big.height + th, th):
+        for ix in range(0, big.width + tw, tw):
+            p = tile
+            if (ix // tw) % 2:
+                p = p.transpose(Image.FLIP_LEFT_RIGHT)
+            if (iy // th) % 2:
+                p = p.transpose(Image.FLIP_TOP_BOTTOM)
+            big.paste(p, (ix, iy))
+    out = big.crop((0, 0, w, h)).resize((w, h), Image.LANCZOS)
+    arr = np.array(out).astype(np.float32)
+    if grain > 0:
+        n = np.array(Image.fromarray(
+            rng_noise(w, h, seed + 1)).filter(ImageFilter.GaussianBlur(0.6)))
+        arr[:, :, :3] += (n[:, :, None] - 128.0) / 128.0 * grain
+    if mottle > 0:
+        n = np.array(Image.fromarray(
+            rng_noise(w, h, seed + 2)).filter(ImageFilter.GaussianBlur(max(w, h) / 24.0)))
+        arr[:, :, :3] += (n[:, :, None] - 128.0) / 128.0 * mottle
+    arr[:, :, 3] = 255.0
+    return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGBA")
+
+
+def rng_noise(w, h, seed):
+    rng = np.random.default_rng(seed * 104729 + 7)
+    return rng.integers(0, 256, size=(h, w), dtype=np.uint8)
+
+
+def _poly_mask(size, polys, ss=3):
+    """Antialiased 0..1 mask of one or more polygons (supersampled)."""
+    w, h = size
+    m = Image.new("L", (w * ss, h * ss), 0)
+    d = ImageDraw.Draw(m)
+    for pts in polys:
+        d.polygon([(x * ss, y * ss) for x, y in pts], fill=255)
+    m = m.resize((w, h), Image.LANCZOS)
+    return np.array(m).astype(np.float32) / 255.0
+
+
+def _line_mask(size, pts, width, ss=3):
+    w, h = size
+    m = Image.new("L", (w * ss, h * ss), 0)
+    d = ImageDraw.Draw(m)
+    d.line([(x * ss, y * ss) for x, y in pts], fill=255, width=max(1, int(width * ss)),
+           joint="curve")
+    m = m.resize((w, h), Image.LANCZOS)
+    return np.array(m).astype(np.float32) / 255.0
+
+
+def _blur(arr, r):
+    if r <= 0:
+        return arr
+    im = Image.fromarray(np.clip(arr * 255.0, 0, 255).astype(np.uint8), "L")
+    return np.array(im.filter(ImageFilter.GaussianBlur(r))).astype(np.float32) / 255.0
+
+
+def prism_layer(w, h, kind="stone", seed=0, shade=(0.56, 0.80, 1.02), grad=0.16,
+                battlement=0, over=0, rim=True):
+    """Isometric 2:1 prism.
+
+    Returns (RGBA image, (ax, ay)) where (ax, ay) is the front (bottom) vertex
+    of the prism's BASE diamond, i.e. the sprite anchor convention.
+    battlement > 0 : add a parapet cap of that pixel height with crenel slots.
+    """
+    w, h = max(6, int(w)), max(6, int(h))
+    D = w // 2
+    pad = 4
+    W, H = w + 2 * pad, h + D + 2 * pad
+    ax, ay = pad + w // 2, pad + h + D
+    # top diamond corners
+    tB = (pad + w / 2.0, pad)                       # back
+    tR = (pad + w, pad + D / 2.0)                   # right
+    tF = (pad + w / 2.0, pad + D)                   # front
+    tL = (pad, pad + D / 2.0)                       # left
+    # bottom diamond corners
+    bF = (pad + w / 2.0, pad + h + D)
+    bL = (pad, pad + h + D / 2.0)
+    bR = (pad + w, pad + h + D / 2.0)
+
+    m_left = _poly_mask((W, H), [[tL, tF, bF, bL]])
+    m_right = _poly_mask((W, H), [[tF, tR, bR, bF]])
+    m_top = _poly_mask((W, H), [[tB, tR, tF, tL]])
+
+    yy = np.arange(H, dtype=np.float32)[:, None]
+    tlin = np.clip((yy - pad) / float(max(1, h + D)), 0.0, 1.0)
+    sh = np.ones((H, W), dtype=np.float32)
+    sh = sh * (1.0 - grad * tlin)
+    sh = sh * (1.0 + (shade[2] - 1.0) * m_top)
+    sh = sh * (1.0 + (shade[0] - 1.0) * m_left)
+    sh = sh * (1.0 + (shade[1] - 1.0) * m_right)
+
+    tex = np.array(texture(kind, W, H, seed=seed)).astype(np.float32)
+    rgb = tex[:, :, :3] * sh[:, :, None]
+
+    if rim:
+        e_top = _blur(_line_mask((W, H), [tL, tB, tR], 2), 0.9)
+        e_front = _blur(_line_mask((W, H), [tL, tF, tR], 2), 0.9)
+        e_base = _blur(_line_mask((W, H), [bL, bF, bR], 3), 1.4)
+        edge = _line_mask((W, H), [tF, bF], 2)
+        rgb += (e_top * 26.0 - e_front * 10.0 - e_base * 26.0)[:, :, None]
+        rgb += (edge * 14.0)[:, :, None]
+
+    alpha = np.clip(m_left + m_right + m_top, 0.0, 1.0) * 255.0
+    img = np.dstack([np.clip(rgb, 0, 255), alpha]).astype(np.uint8)
+    out = Image.fromarray(img, "RGBA")
+
+    if battlement:
+        out = _add_parapet(out, w, h, int(battlement), kind, seed + 3, over=over)
+        # _add_parapet keeps the same anchor (it only grows upward/outward)
+    return out, (ax, ay)
+
+
+def _add_parapet(base_img, w, h, mh, kind, seed, over=4):
+    """Cap the prism with a parapet ring cut by crenel slots (battlements)."""
+    W2 = w + 2 * over
+    cap, (cx, cy) = prism_layer(W2, mh, kind=kind, seed=seed + 91,
+                                shade=(0.62, 0.86, 1.05), grad=0.10, rim=True)
+    cap = _cut_crenels(cap, W2, mh)
+    pad = 4
+    D = w // 2
+    D2 = W2 // 2
+    # align the cap's base diamond centre with the prism's top diamond centre
+    dx = (w - W2) / 2.0
+    dy = D / 2.0 - mh - D2 / 2.0
+    out = base_img.copy()
+    paste(out, cap, (cx, cy), cx + dx, cy + dy)
+    return out
+
+
+def _cut_crenels(cap, w2, mh):
+    """Remove vertical slots from the two visible (front) parapet faces."""
+    pad = 4
+    D2 = w2 // 2
+    tL = (pad, pad + D2 / 2.0)
+    tF = (pad + w2 / 2.0, pad + D2)
+    tR = (pad + w2, pad + D2 / 2.0)
+    W, H = cap.size
+    slots = []
+    sw = max(7.0, w2 * 0.035)
+    depth = mh + 6
+    for a, b in ((tL, tF), (tF, tR)):
+        ex, ey = b[0] - a[0], b[1] - a[1]
+        L = (ex * ex + ey * ey) ** 0.5
+        n = max(1, int(L / (sw * 3.0)))
+        for i in range(n):
+            t0 = 0.16 + (i + 0.18) * (0.68 / max(1, n))
+            t1 = t0 + (0.68 / max(1, n)) * 0.42
+            p0 = (a[0] + ex * t0, a[1] + ey * t0)
+            p1 = (a[0] + ex * t1, a[1] + ey * t1)
+            slots.append([p0, p1, (p1[0], p1[1] + depth), (p0[0], p0[1] + depth)])
+    m = _poly_mask((W, H), slots)
+    arr = np.array(cap).astype(np.float32)
+    arr[:, :, 3] *= (1.0 - np.clip(m, 0, 1))
+    # darken the freshly cut stone edges a touch
+    return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGBA")
+
+
+def paste(dst, layer, anchor, x, y):
+    """Paste `layer` so its `anchor` pixel lands on integer (x, y) in dst."""
+    ax, ay = int(round(anchor[0])), int(round(anchor[1]))
+    x, y = int(round(x)), int(round(y))
+    px, py = x - ax, y - ay
+    W, H = dst.size
+    lw, lh = layer.size
+    sx0, sy0 = max(0, -px), max(0, -py)
+    dx0, dy0 = max(0, px), max(0, py)
+    cw = min(lw - sx0, W - dx0)
+    ch = min(lh - sy0, H - dy0)
+    if cw <= 0 or ch <= 0:
+        return dst
+    piece = layer.crop((sx0, sy0, sx0 + cw, sy0 + ch))
+    box = (dx0, dy0, dx0 + cw, dy0 + ch)
+    under = dst.crop(box)
+    dst.alpha_composite(Image.alpha_composite(under, piece), (dx0, dy0))
+    return dst
+
+
+def grow_canvas(img, extra_top=0, extra_bottom=0, extra_left=0, extra_right=0):
+    if not any((extra_top, extra_bottom, extra_left, extra_right)):
+        return img, (extra_left, extra_top)
+    W, H = img.size
+    out = Image.new("RGBA", (W + extra_left + extra_right, H + extra_top + extra_bottom),
+                    (0, 0, 0, 0))
+    out.alpha_composite(img, (extra_left, extra_top))
+    return out, (extra_left, extra_top)
+
+
+def add_glow(img, cx, cy, rx, ry, color, strength=0.7, blur=None, add_alpha=0.55):
+    """Soft screen-blended light blob (also lifts alpha -> halo outside art)."""
+    blur = max(4.0, min(rx, ry) * 0.55) if blur is None else blur
+    W, H = img.size
+    m = Image.new("L", (W, H), 0)
+    ImageDraw.Draw(m).ellipse([cx - rx, cy - ry, cx + rx, cy + ry], fill=255)
+    m = m.filter(ImageFilter.GaussianBlur(blur))
+    a = np.array(m).astype(np.float32) / 255.0 * strength
+    arr = np.array(img).astype(np.float32)
+    col = np.array(color, dtype=np.float32)
+    contrib = col[None, None, :] * a[:, :, None]
+    arr[:, :, :3] = 255.0 - (255.0 - arr[:, :, :3]) * (255.0 - contrib) / 255.0
+    arr[:, :, 3] = np.clip(arr[:, :, 3] + a * 255.0 * add_alpha, 0, 255)
+    return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGBA")
+
+
+def _shade_overlay(img, mask01, mul=1.0, add=0.0, blur=1.0):
+    m = _blur(mask01, blur)[:, :, None]
+    arr = np.array(img).astype(np.float32)
+    arr[:, :, :3] = arr[:, :, :3] * (1.0 + (mul - 1.0) * m) + add * m
+    return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGBA")
+
+
+def draw_banner(img, x, y, height, width=None, seed=0, kind="human", flip=False,
+                pole=True, scale_cloth=1.0):
+    """Banner on a pole; (x, y) = foot of the pole (ground contact point)."""
+    pal = FACTION[kind]
+    rng = random.Random(seed + 5)
+    height = int(height)
+    pole_w = max(3, int(height * 0.035))
+    width = int(width or height * 0.42)
+    need_top = int(y - height - 12)
+    if need_top < 0:
+        img, off = grow_canvas(img, extra_top=need_top * -1 + 8)
+        y += -need_top + 8
+    lay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(lay)
+    # pole
+    if pole:
+        d.rectangle([x - pole_w // 2, y - height, x + pole_w // 2, y],
+                    fill=(66, 48, 32, 255))
+        d.rectangle([x - pole_w // 2, y - height, x - pole_w // 2 + max(1, pole_w // 3), y],
+                    fill=(126, 96, 60, 255))
+        # gold finial
+        r = max(3, pole_w)
+        d.ellipse([x - r, y - height - r * 1.6, x + r, y - height + r * 0.4],
+                  fill=pal["gold"])
+        d.ellipse([x - r * 0.5, y - height - r * 1.4, x, y - height - r * 0.6],
+                  fill=(255, 232, 170, 255))
+    # cloth: hangs from the crossbar near the top
+    top = y - height + int(height * 0.06)
+    cw = int(width * scale_cloth)
+    ch = int(height * 0.52)
+    sgn = -1 if flip else 1
+    x0 = x + sgn * (pole_w // 2 - 1)
+    wave = int(cw * 0.10)
+    pts = [(x0, top),
+           (x0 + sgn * cw, top + int(ch * 0.10)),
+           (x0 + sgn * (cw - wave), top + int(ch * 0.62)),
+           (x0 + sgn * int(cw * 0.86), top + ch),
+           (x0 + sgn * int(cw * 0.30), top + int(ch * 0.90)),
+           (x0, top + int(ch * 0.86))]
+    d.polygon(pts, fill=pal["crimson"] + (255,))
+    # gold trim: bottom hem + outer edge
+    hem = [(x0 + sgn * int(cw * 0.86), top + ch),
+           (x0 + sgn * int(cw * 0.30), top + int(ch * 0.90)),
+           (x0, top + int(ch * 0.86)),
+           (x0, top + int(ch * 0.70)),
+           (x0 + sgn * int(cw * 0.26), top + int(ch * 0.75)),
+           (x0 + sgn * int(cw * 0.80), top + int(ch * 0.83))]
+    d.polygon(hem, fill=pal["gold"] + (255,))
+    d.line([(x0 + sgn * cw, top + int(ch * 0.10)),
+            (x0 + sgn * (cw - wave), top + int(ch * 0.62))],
+           fill=pal["gold"] + (255,), width=max(2, int(ch * 0.05)))
+    # emblem
+    ex = x0 + sgn * int(cw * 0.45)
+    ey = top + int(ch * 0.42)
+    er = max(3, int(cw * 0.16))
+    d.polygon([(ex, ey - er), (ex + sgn * er, ey), (ex, ey + er), (ex - sgn * er, ey)],
+              fill=pal["gold"] + (255,))
+    # fabric shading + grain
+    garr = np.array(lay).astype(np.float32)
+    ga = garr[:, :, 3] / 255.0
+    ys = np.arange(img.height, dtype=np.float32)[:, None]
+    t = np.clip((ys - float(y - height)) / float(max(1, height)), 0.0, 1.0)
+    garr[:, :, :3] *= ((1.0 - 0.30 * t) *
+                       np.ones((1, img.width), dtype=np.float32))[:, :, None]
+    garr[:, :, :3] += (rng_noise(img.width, img.height, seed + 3)[:, :, None].astype(np.float32) - 128.0) * 0.10 * ga[:, :, None]
+    lay = Image.fromarray(np.clip(garr, 0, 255).astype(np.uint8), "RGBA")
+    img.alpha_composite(lay)
+    return img
+
+
+def _tongue(cx, base_y, w, h, lean=0.0, wexp=0.62):
+    """Teardrop flame outline: rounded base, pointed tip."""
+    pts_l, pts_r = [], []
+    n = 14
+    for i in range(n + 1):
+        v = i / float(n)
+        wid = w * max(0.0, (1.0 - v ** wexp))
+        cxx = cx + lean * (v ** 2) * h
+        pts_l.append((cxx - wid / 2.0, base_y - v * h))
+        pts_r.append((cxx + wid / 2.0, base_y - v * h))
+    return pts_l + pts_r[::-1]
+
+
+def draw_flame(img, x, y, size, palette="ember", seed=0, glow=0.7):
+    """Standing flame; (x, y) = base centre. Drawn with soft painterly tongues."""
+    rng = random.Random(seed + 17)
+    if palette == "ember":
+        cols = [(196, 74, 22), (232, 132, 44), (246, 186, 84), (255, 236, 178)]
+        halo = (255, 168, 84)
+    elif palette == "violet":
+        cols = [(74, 44, 124), (112, 78, 176), (156, 122, 214), (226, 214, 252)]
+        halo = (146, 104, 232)
+    else:  # sick green
+        cols = [(64, 108, 38), (116, 176, 66), (176, 220, 110), (238, 252, 206)]
+        halo = (148, 232, 92)
+    size = float(size)
+    lay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(lay)
+    # outer body -> inner core: shrinking, rising, slightly leaning tongues
+    for i, col in enumerate(cols):
+        k = 1.0 - i * 0.20
+        w = size * 0.62 * k
+        h = size * (0.95 - i * 0.14)
+        lean = rng.uniform(-0.10, 0.10)
+        d.polygon(_tongue(x, y, w, h, lean=lean),
+                  fill=col + (255 if i >= 2 else 236,))
+    # side licks
+    for j in range(3):
+        lx = x + rng.choice((-1, 1)) * size * rng.uniform(0.18, 0.34)
+        ly = y - size * rng.uniform(0.02, 0.16)
+        d.polygon(_tongue(lx, ly, size * rng.uniform(0.14, 0.22),
+                          size * rng.uniform(0.3, 0.5), lean=rng.uniform(-0.3, 0.3)),
+                  fill=cols[1] + (215,))
+    # detached sparks
+    for j in range(4):
+        sx = x + rng.uniform(-size * 0.3, size * 0.3)
+        sy = y - size * rng.uniform(0.75, 1.15)
+        r = size * rng.uniform(0.02, 0.045)
+        d.ellipse([sx - r, sy - r, sx + r, sy + r], fill=cols[3] + (200,))
+    lay = lay.filter(ImageFilter.GaussianBlur(max(0.8, size * 0.016)))
+    img.alpha_composite(lay)
+    if glow:
+        img = add_glow(img, x, y - size * 0.42, size * 0.7, size * 0.72,
+                       halo, strength=glow, add_alpha=0.0)
+    return img
+
+
+def draw_arch(img, p0, p1, height, arch_h=None, fill=(14, 10, 16), glow_color=None,
+              glow_strength=0.75, bars=0, sill=None, seed=0):
+    """Arched opening on an isometric FACE.
+
+    p0/p1 = the two ends of the face's bottom edge (screen px); `height` is the
+    wall height in px (upwards). The opening is centred on that edge.
+    """
+    x0, y0 = p0
+    x1, y1 = p1
+    W, H = img.size
+    ex, ey = x1 - x0, y1 - y0          # edge vector
+    span = (ex * ex + ey * ey) ** 0.5
+    if span < 8:
+        return img
+    u0, u1 = 0.26, 0.74                # opening extent along the edge
+    v_top = 0.86
+    ah = (arch_h if arch_h else height * 0.62)
+
+    def P(u, v):
+        # v measured upward from the base edge, in px
+        return (x0 + ex * u, y0 + ey * u - v)
+
+    # opening outline in (u, v) space, supersampled via polygon in screen space
+    arc = []
+    steps = 18
+    for i in range(steps + 1):
+        t = i / float(steps)          # 0..1 across the arch top
+        uu = u0 + (u1 - u0) * t
+        vv = ah + (height * v_top - ah) * (1.0 - (2 * t - 1.0) ** 2) ** 0.5
+        arc.append(P(uu, vv))
+    poly = [P(u0, 0.0)] + arc + [P(u1, 0.0)]
+    m = _poly_mask((W, H), [poly])
+
+    # dark interior with a vertical gradient
+    arr = np.array(img).astype(np.float32)
+    yy = np.arange(H, dtype=np.float32)[:, None]
+    grad = np.clip(0.55 + 0.9 * (yy / max(1, H)), 0.0, 1.4)
+    fillc = np.array(fill, dtype=np.float32)[None, None, :] * grad[:, :, None]
+    mm = np.clip(m, 0, 1)[:, :, None]
+    arr[:, :, :3] = arr[:, :, :3] * (1 - mm) + np.clip(fillc, 0, 255) * mm
+    img = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGBA")
+
+    # stone surround: brighten a band just outside the opening + keystone
+    band = np.clip(_blur(m, 2.5) - m, 0, 1)
+    img = _shade_overlay(img, band * 0.9, mul=1.30, add=10.0, blur=1.2)
+    inner = np.clip(_blur(m, 1.2) - _blur(m, 3.0), 0, 1)
+    img = _shade_overlay(img, inner * 0.8, mul=0.7, add=0.0, blur=1.0)
+
+    if bars:
+        bl = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        bd = ImageDraw.Draw(bl)
+        for i in range(1, bars + 1):
+            uu = u0 + (u1 - u0) * i / (bars + 1.0)
+            a = P(uu, 0)
+            b = P(uu, ah * 1.02)
+            bd.line([a, b], fill=(46, 42, 48, 255), width=max(2, int(span * 0.018)))
+            bd.line([(a[0] - 1, a[1]), (b[0] - 1, b[1])], fill=(96, 90, 98, 190),
+                    width=1)
+        bl = bl.filter(ImageFilter.GaussianBlur(0.6))
+        img.alpha_composite(bl)
+
+    if glow_color:
+        cx = (P(u0, 0)[0] + P(u1, 0)[0]) / 2.0
+        cy = (P(u0, 0)[1] + P(u1, 0)[1]) / 2.0 - ah * 0.55
+        img = add_glow(img, cx, cy, span * (u1 - u0) * 0.75, ah * 0.85,
+                       glow_color, strength=glow_strength, add_alpha=0.30)
+    return img
+
+
+def draw_window(img, p0, p1, height, u=0.5, wfrac=0.14, hfrac=0.18, vfrac=0.5,
+                warm=(250, 190, 110), strength=0.9, seed=0):
+    """Small lit window on an isometric face."""
+    x0, y0 = p0
+    x1, y1 = p1
+    ex, ey = x1 - x0, y1 - y0
+    ww = ((ex * ex + ey * ey) ** 0.5) * wfrac
+
+    def P(du, v):
+        return (x0 + ex * (u + du), y0 + ey * (u + du) - v)
+
+    v0 = height * (vfrac - hfrac / 2.0)
+    v1 = height * (vfrac + hfrac / 2.0)
+    du = ww / 2.0 / max(1.0, ((ex * ex + ey * ey) ** 0.5))
+    poly = [P(-du, v0), P(du, v0), P(du, v1), P(-du, v1)]
+    W, H = img.size
+    m = _poly_mask((W, H), [poly])
+    arr = np.array(img).astype(np.float32)
+    c = np.array(warm, dtype=np.float32)
+    arr[:, :, :3] = arr[:, :, :3] * (1 - m[:, :, None] * 0.85) + \
+        c[None, None, :] * m[:, :, None] * 0.85
+    img = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGBA")
+    cx = sum(p[0] for p in poly) / 4.0
+    cy = sum(p[1] for p in poly) / 4.0
+    return add_glow(img, cx, cy, ww * 2.6, ww * 2.6, warm, strength=strength,
+                    add_alpha=0.18)
+
+
+def bone_rim(img, strength=0.5, kind="undead"):
+    """Warm bone-coloured rim light on the brightest pixels (undead identity)."""
+    col = np.array(FACTION[kind]["bone"], dtype=np.float32)
+    arr = np.array(img).astype(np.float32)
+    lum = arr[:, :, :3].mean(axis=2)
+    a = arr[:, :, 3] / 255.0
+    hi = np.clip((lum - 150.0) / 90.0, 0, 1) * a * strength
+    edge = np.clip(_blur(a, 1.6) - _blur(a, 3.4), 0, 1)
+    hi = np.clip(hi + edge * strength * 0.55, 0, 1)
+    arr[:, :, :3] = 255.0 - (255.0 - arr[:, :, :3]) * (255.0 - col[None, None, :] * hi[:, :, None]) / 255.0
+    return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGBA")
+
+
+def draw_saw_frame(img, x, y, width, height, seed=0, log=True):
+    """Open A-frame saw bench with a blade: (x, y) = front-centre ground point."""
+    rng = random.Random(seed + 23)
+    W, H = img.size
+    lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(lay)
+    wood = (104, 74, 44)
+    wood_hi = (150, 112, 68)
+    wood_dk = (58, 40, 26)
+    hw = width / 2.0
+    leg_t = max(3, int(width * 0.055))
+    top_y = y - height
+    # ground log under the frame
+    if log:
+        d.rounded_rectangle([x - hw * 0.95, y - height * 0.16, x + hw * 0.95,
+                             y - height * 0.02], radius=int(height * 0.06),
+                            fill=(92, 64, 38, 255))
+        d.rounded_rectangle([x - hw * 0.95, y - height * 0.155, x + hw * 0.95,
+                             y - height * 0.115], radius=int(height * 0.03),
+                            fill=(132, 98, 58, 255))
+    # two A-frame legs (front pair + back pair)
+    for dx, col in ((-hw * 0.78, wood_dk), (hw * 0.78, wood)):
+        d.line([(x + dx, y), (x + dx * 0.34, top_y)], fill=col + (255,),
+               width=leg_t)
+    for dx in (-hw * 0.52, hw * 0.52):
+        d.line([(x + dx, y - height * 0.06), (x + dx * 0.3, top_y - height * 0.03)],
+               fill=wood + (255,), width=max(2, leg_t - 1))
+    # top bar
+    d.line([(x - hw * 0.62, top_y), (x + hw * 0.62, top_y - height * 0.05)],
+           fill=wood_hi + (255,), width=leg_t + 1)
+    # blade: long thin quad with teeth
+    by = top_y + height * 0.16
+    blade = [(x - hw * 0.86, by + height * 0.05), (x + hw * 0.9, by - height * 0.02),
+             (x + hw * 0.9, by + height * 0.045), (x - hw * 0.86, by + height * 0.11)]
+    d.polygon(blade, fill=(168, 170, 176, 255))
+    d.line([blade[0], blade[1]], fill=(226, 228, 232, 255), width=2)
+    # teeth
+    n = 12
+    for i in range(n):
+        t0 = i / float(n)
+        t1 = (i + 0.5) / float(n)
+        ax = x - hw * 0.86 + (hw * 1.76) * t0
+        bx = x - hw * 0.86 + (hw * 1.76) * t1
+        ay = (by + height * 0.11) + ((-height * 0.065)) * t0
+        by2 = (by + height * 0.11) + ((-height * 0.065)) * t1
+        d.polygon([(ax, ay), (bx, by2), ((ax + bx) / 2, (ay + by2) / 2 + height * 0.035)],
+                  fill=(206, 208, 214, 255))
+    # handle
+    d.ellipse([x + hw * 0.78, by - height * 0.10, x + hw * 1.02, by + height * 0.02],
+              fill=(70, 48, 30, 255))
+    lay = lay.filter(ImageFilter.GaussianBlur(0.5))
+    img.alpha_composite(lay)
+    return img
+
+
+def draw_bone_spike(img, x, y, height, seed=0, lean=0.0, skull=True):
+    """Bone spike driven into the ground; (x, y) = base point."""
+    rng = random.Random(seed + 31)
+    pal = FACTION["undead"]
+    W, H = img.size
+    lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(lay)
+    h = float(height)
+    w0 = h * 0.10
+    tipx = x + lean * h
+    pts = [(x - w0, y), (x + w0, y),
+           (tipx + w0 * 0.18, y - h * 0.62), (tipx, y - h)]
+    d.polygon(pts, fill=pal["bone"] + (255,))
+    d.polygon([(x + w0 * 0.1, y), (x + w0, y), (tipx + w0 * 0.16, y - h * 0.62),
+               (tipx + w0 * 0.05, y - h * 0.9)],
+              fill=pal["bone_dk"] + (255,))
+    d.line([(x - w0 * 0.6, y - h * 0.05), (tipx, y - h * 0.94)],
+           fill=(244, 240, 226, 255), width=max(1, int(w0 * 0.5)))
+    if skull:
+        r = h * 0.16
+        sx, sy = tipx - lean * h * 0.06, y - h * 0.98
+        d.ellipse([sx - r, sy - r, sx + r, sy + r * 0.9], fill=pal["bone"] + (255,))
+        d.rounded_rectangle([sx - r * 0.55, sy + r * 0.3, sx + r * 0.55, sy + r * 1.0],
+                            radius=int(r * 0.3), fill=pal["bone"] + (255,))
+        for ex in (-r * 0.42, r * 0.42):
+            d.ellipse([sx + ex - r * 0.26, sy - r * 0.2, sx + ex + r * 0.26, sy + r * 0.3],
+                      fill=(36, 30, 34, 255))
+        d.polygon([(sx, sy + r * 0.35), (sx - r * 0.12, sy + r * 0.6),
+                   (sx + r * 0.12, sy + r * 0.6)], fill=(40, 34, 38, 255))
+    lay = lay.filter(ImageFilter.GaussianBlur(0.5))
+    img.alpha_composite(lay)
+    return img
+
+
+def wash(img, color, strength=0.10, mode="screen"):
+    arr = np.array(img).astype(np.float32)
+    col = np.array(color, dtype=np.float32)[None, None, :]
+    a = arr[:, :, 3:4] / 255.0
+    if mode == "screen":
+        blended = 255.0 - (255.0 - arr[:, :, :3]) * (255.0 - col) / 255.0
+    else:
+        blended = arr[:, :, :3] * col / 255.0
+    arr[:, :, :3] = arr[:, :, :3] * (1 - strength * a) + blended * (strength * a)
+    return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGBA")
+
+
+POSTS = {}
+
+
+def post(name):
+    def deco(fn):
+        POSTS[name] = fn
+        return fn
+    return deco
+
+
+def apply_post(img, spec):
+    name = spec.get("post")
+    if not name:
+        return img, ""
+    fn = POSTS.get(name)
+    if fn is None:
+        raise KeyError("no post handler %r" % name)
+    res = fn(img, spec)
+    if isinstance(res, tuple):
+        out, desc = res
+    else:
+        out, desc = res, name
+    return out, desc
+
+
+def anchor_of(img):
+    """(cx, bottom_y) of the content bbox == anchor convention point."""
+    bb = content_bbox(img)
+    return bb[0] + (bb[2] - bb[0]) // 2, bb[3]
 
 
 def build_part(spec):
@@ -691,11 +1390,17 @@ def cmd_extract(args):
     specs = load_buildings(args.catalog)
     out_dir = args.out_dir if os.path.isabs(args.out_dir) else os.path.join(REPO, args.out_dir)
     os.makedirs(out_dir, exist_ok=True)
+    only = set(args.only.split(",")) if getattr(args, "only", None) else None
     rows = []
     for spec in specs:
         if spec.get("skip"):
             continue
+        if only and spec["name"] not in only:
+            continue
         img, src_desc = build_part(spec)
+        img, post_desc = apply_post(img, spec)
+        if post_desc:
+            src_desc = src_desc + " + " + post_desc
         if args.trim:
             img, _bbox = trim_alpha(img)
         img = img.convert("RGBA")
@@ -707,7 +1412,8 @@ def cmd_extract(args):
             w=img.width, h=img.height,
             anchor="bottom-center (%d, %d)" % (img.width // 2, img.height),
             source=src_desc, footprint=spec.get("footprint", ""),
-            note=spec.get("note", "")))
+            note=spec.get("note", ""),
+            draw=draw_width(spec.get("footprint", ""), spec)))
         print("wrote %-34s %4dx%-4d  %s" % (out_name, img.width, img.height, src_desc))
     if args.markdown:
         md = args.markdown if os.path.isabs(args.markdown) else os.path.join(REPO, args.markdown)
@@ -721,6 +1427,22 @@ def cmd_extract(args):
     return 0
 
 
+def draw_width(footprint, spec=None):
+    """Recommended draw width in px at 1x for a 64x32 iso tile grid.
+
+    The ground diamond of a WxH tile footprint is (W+H)*32 px wide; we add 8 px
+    of slop so eaves/props may overhang the diamond slightly.  Spec may override
+    with ``draw_width`` (used for the tall/thin guard tower).
+    """
+    if spec and spec.get("draw_width"):
+        return int(spec["draw_width"])
+    m = re.match(r"^(\d+)x(\d+)$", footprint or "")
+    if not m:
+        return 168
+    w, h = int(m.group(1)), int(m.group(2))
+    return (w + h) * 32 + 8
+
+
 def write_catalog_markdown(path, rows):
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     lines = [
@@ -730,12 +1452,17 @@ def write_catalog_markdown(path, rows):
         "Anchor convention for every sprite below: **bottom-center** of the PNG = front (bottom)",
         "vertex of the building's ground footprint diamond.",
         "",
-        "| name | file | px | anchor (px) | source atlas/TMX + crop | footprint (tiles) | RTS silhouette @48px |",
-        "|---|---|---|---|---|---|---|",
+        "`draw_width_px` = recommended on-screen width at 1x for a 64x32 iso grid (ground",
+        "diamond width `(W+H)*32` plus 8 px of overhang slop); a 2x2 should land in 128-140 px,",
+        "a 3x3 in 192-210 px. Height follows the sprite's own aspect ratio, so tall sprites",
+        "(guard tower, necropolis) draw taller, never wider than their footprint.",
+        "",
+        "| name | file | px | anchor (px) | draw_width_px | source atlas/TMX + crop | footprint (tiles) | RTS silhouette @48px |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     for r in rows:
-        lines.append("| %s | `%s` | %dx%d | (%d, %d) | %s | %s | %s |" % (
-            r["name"], r["file"], r["w"], r["h"], r["w"] // 2, r["h"],
+        lines.append("| %s | `%s` | %dx%d | (%d, %d) | %d | %s | %s | %s |" % (
+            r["name"], r["file"], r["w"], r["h"], r["w"] // 2, r["h"], r["draw"],
             r["source"], r["footprint"], r["note"]))
     lines.append("")
     with open(path, "w") as fh:
@@ -790,6 +1517,121 @@ def cmd_verify(args):
     return 0 if ok else 1
 
 
+def _checker(w, h, cell=10, a=(48, 48, 54), b=(64, 64, 72)):
+    im = Image.new("RGB", (w, h), a)
+    d = ImageDraw.Draw(im)
+    for y in range(0, h, cell):
+        for x in range(0, w, cell):
+            if ((x // cell) + (y // cell)) % 2:
+                d.rectangle([x, y, x + cell - 1, y + cell - 1], fill=b)
+    return im
+
+
+def cmd_montage(args):
+    d = args.dir if os.path.isabs(args.dir) else os.path.join(REPO, args.dir)
+    out = args.out if os.path.isabs(args.out) else os.path.join(REPO, args.out)
+    files = sorted(f for f in os.listdir(d) if f.lower().endswith(".png"))
+    if args.names:
+        want = set(args.names.split(","))
+        files = [f for f in files if f[:-4] in want]
+    cols = args.cols
+    cw, ch = args.cell_w, args.cell_h
+    lab = 30
+    pad = 14
+    font = ImageFont.load_default(size=17)
+    rows = (len(files) + cols - 1) // cols
+    W = cols * (cw + pad) + pad
+    H = rows * (ch + lab + pad) + pad + 34
+    canvas = Image.new("RGB", (W, H), (24, 24, 28))
+    dd = ImageDraw.Draw(canvas)
+    dd.text((pad, 8), "EMBERFALL flare buildings - alpha checker, sorted by name, "
+                      "red tick = bottom-centre anchor", font=font, fill=(180, 180, 190))
+    for i, f in enumerate(files):
+        im = Image.open(os.path.join(d, f)).convert("RGBA")
+        iw, ih = im.size
+        s = min((cw - 20) / float(iw), (ch - 20) / float(ih), 1.0)
+        tw, th = max(1, int(iw * s)), max(1, int(ih * s))
+        im2 = im.resize((tw, th), Image.LANCZOS)
+        r, c = i // cols, i % cols
+        x0 = pad + c * (cw + pad)
+        y0 = pad + 34 + r * (ch + lab + pad)
+        chk = _checker(cw, ch)
+        canvas.paste(chk, (x0, y0))
+        px = x0 + (cw - tw) // 2
+        py = y0 + (ch - th) // 2
+        canvas.paste(im2, (px, py), im2)
+        # anchor marker: bottom-centre of the sprite
+        dd.line([(px + tw // 2, y0 + ch - 6), (px + tw // 2, y0 + ch)], fill=(235, 70, 70),
+                width=2)
+        dd.text((x0 + 4, y0 + ch + 4), "%s  %dx%d" % (f, iw, ih), font=font,
+                fill=(235, 220, 150))
+    os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
+    canvas.save(out)
+    print("montage -> %s (%dx%d, %d sprites)" % (out, W, H, len(files)))
+    return 0
+
+
+def cmd_test48(args):
+    d = args.dir if os.path.isabs(args.dir) else os.path.join(REPO, args.dir)
+    out = args.out if os.path.isabs(args.out) else os.path.join(REPO, args.out)
+    four = ["human_keep", "human_temple_altar", "undead_ziggurat_ruin",
+            "undead_necropolis_ruin"]
+    font = ImageFont.load_default(size=15)
+    zoom = args.zoom
+    pad = 12
+    cellw, cellh = 48 * zoom + pad * 2, 48 * zoom + 70
+    W = pad + len(four) * (cellw + pad) + 60
+    # section 1: the four silhouettes at exactly 48 px wide, plus a zoom
+    H = 30 + cellh + 26
+    # section 2: every sprite at 48 px wide
+    files = sorted(f for f in os.listdir(d) if f.lower().endswith(".png"))
+    rowh = 48 * zoom + 44
+    H2 = 30 + 3 * rowh
+    canvas = Image.new("RGB", (max(W, pad + 10 * (48 + pad) + pad), H + H2), (24, 24, 28))
+    dd = ImageDraw.Draw(canvas)
+    dd.text((pad, 6), "48 px naming test - top: keep / temple / ziggurat / necropolis "
+                      "at exactly 48 px wide (+ %dx zoom); below: every sprite at 48 px"
+            % zoom, font=font, fill=(190, 190, 200))
+    # section 1
+    y = 30
+    for i, name in enumerate(four):
+        p = os.path.join(d, name + ".png")
+        if not os.path.exists(p):
+            continue
+        im = Image.open(p).convert("RGBA")
+        s = 48.0 / im.width
+        small = im.resize((48, max(1, int(im.height * s))), Image.LANCZOS)
+        x = pad + i * (cellw + pad)
+        chk = _checker(48, small.height, cell=6, a=(44, 44, 50), b=(58, 58, 66))
+        canvas.paste(chk, (x + pad, y))
+        canvas.paste(small, (x + pad, y), small)
+        big = small.resize((48 * zoom, small.height * zoom), Image.NEAREST)
+        chk2 = _checker(big.width, big.height, cell=12)
+        canvas.paste(chk2, (x + pad + 48 + 16, y))
+        canvas.paste(big, (x + pad + 48 + 16, y), big)
+        dd.text((x + pad, y + big.height + 6), "%s @48w" % name, font=font,
+                fill=(235, 220, 150))
+    # section 2: every sprite
+    y = 30 + cellh + 30
+    dd.text((pad, y - 20), "all sprites @48 px wide", font=font, fill=(170, 170, 180))
+    for i, f in enumerate(files):
+        im = Image.open(os.path.join(d, f)).convert("RGBA")
+        s = 48.0 / im.width
+        small = im.resize((48, max(1, int(im.height * s))), Image.LANCZOS)
+        c, r = i % 10, i // 10
+        x = pad + c * (48 * zoom + pad)
+        yy = y + r * rowh
+        big = small.resize((48 * zoom, small.height * zoom), Image.NEAREST)
+        chk = _checker(big.width, big.height, cell=12)
+        canvas.paste(chk, (x, yy))
+        canvas.paste(big, (x, yy), big)
+        dd.text((x, yy + big.height + 4), f[:-4][:16], font=font, fill=(200, 200, 210))
+    os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
+    canvas.save(out)
+    print("48px test -> %s (%dx%d)" % (out, canvas.width, canvas.height))
+    return 0
+
+
 def cmd_list(args):
     specs = load_buildings(args.catalog)
     for s in specs:
@@ -817,6 +1659,7 @@ def main(argv=None):
     e.add_argument("--out-dir", required=True)
     e.add_argument("--catalog", default=None, help="JSON catalogue (default: tools/flare_buildings_catalog.json)")
     e.add_argument("--trim", type=int, default=1, help="1 = trim to alpha bbox (default)")
+    e.add_argument("--only", default=None, help="comma separated sprite names to extract")
     e.add_argument("--markdown", default=None, help="also write a markdown catalog table")
     e.add_argument("--json", default=None, help="also write machine readable rows")
     e.set_defaults(fn=cmd_extract)
@@ -826,6 +1669,21 @@ def main(argv=None):
     v.add_argument("--min-count", type=int, default=14)
     v.add_argument("--min-height", type=int, default=64)
     v.set_defaults(fn=cmd_verify)
+
+    m = sub.add_parser("montage", help="alpha-checker contact sheet of all sprites")
+    m.add_argument("--dir", required=True)
+    m.add_argument("--out", required=True)
+    m.add_argument("--cols", type=int, default=4)
+    m.add_argument("--cell-w", type=int, default=470)
+    m.add_argument("--cell-h", type=int, default=430)
+    m.add_argument("--names", default=None, help="comma separated subset")
+    m.set_defaults(fn=cmd_montage)
+
+    t = sub.add_parser("test48", help="48 px naming test strip")
+    t.add_argument("--dir", required=True)
+    t.add_argument("--out", required=True)
+    t.add_argument("--zoom", type=int, default=4)
+    t.set_defaults(fn=cmd_test48)
 
     l = sub.add_parser("list", help="list catalogue entries")
     l.add_argument("--catalog", default=None)

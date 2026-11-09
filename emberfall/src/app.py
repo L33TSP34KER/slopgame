@@ -302,6 +302,8 @@ class Game:
         if b:
             self.placement = None
             self.world.placement = None
+            self.ui.build_menu = False
+            self.build_menu = False
 
     def cast_at(self, mx, my):
         if not self.targeting:
@@ -372,6 +374,14 @@ class Game:
             elif act == "quit":
                 self.running = False
             return
+        if k == "buildmenu":
+            self.ui.build_menu = True
+            self.build_menu = True
+            return
+        if k == "buildback":
+            self.ui.build_menu = False
+            self.build_menu = False
+            return
         if k == "train":
             w.cmd_train(a["building"], a["unit"])
         elif k == "research":
@@ -382,6 +392,7 @@ class Game:
             self.placement = {"bid": a["bid"]}
             w.placement = self.placement
             self.build_menu = False
+            self.ui.build_menu = False
         elif k == "upgrade_keep":
             b = a.get("building")
             if b:
@@ -558,7 +569,8 @@ class Game:
             return
         if k == pygame.K_b:
             if any(u.worker for u in self.selected()):
-                self.build_menu = not self.build_menu
+                self.ui.build_menu = not self.ui.build_menu
+                self.build_menu = self.ui.build_menu
             return
         if k == pygame.K_a:
             self.handle_action({"kind": "attackmove"}); return

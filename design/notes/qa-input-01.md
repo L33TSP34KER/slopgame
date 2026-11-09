@@ -1,22 +1,26 @@
 # qa-input-01 — controls probe (play scene)
 
-**5 FAIL / 16 checks** — synthetic pygame events driven through the engine's own `handle_event`.
+**0 FAIL / 18 checks** — synthetic pygame events driven through the engine's own `handle_event` / `update` paths (headless, no xdotool).
 
 | control | result | detail |
 |---|---|---|
-| camera: held D / right-arrow pan | FAIL | camera.x 1324 -> 1324 |
-| camera: clamp stays in world | PASS | x=1724 |
+| camera: held D / right-arrow pan | PASS | camera.x 1324 -> 1831 |
+| camera: clamp stays in world | PASS | x=2231 |
 | setup: units exist to click | PASS | 16 candidates |
-| select: left-click a unit | FAIL | click (1292,1723) -> 0 selected |
-| select: box select | PASS | box -> 16 selected |
-| select: shift-add | PASS | 16 -> 16 |
-| select: ctrl+1 group then 1 recall | FAIL | group stored=False, recalled=0 |
-| order: right-click move | FAIL | unit moved 0.00 tiles |
-| hotkey: A arms attack-move, Esc cancels | PASS | True -> False |
-| hotkey: S (stop) handled without error | PASS | no exception |
+| coords: unit projects on-screen | PASS | screen=(800,450) |
+| select: left-click a unit | PASS | click (800,450) -> 1 selected |
+| select: box select | PASS | 10 selected |
+| select: shift-add | PASS | 10 -> 10 |
+| select: ctrl+1 store, 1 recall | PASS | stored=True recalled=3 |
+| order: right-click issues move | PASS | order=dict moved=6.85 tiles |
+| order: unit actually walks there | PASS | moved 6.85 tiles of ~8.6 requested (target screen 928,607) |
+| hotkey: A arms attack-move, Esc cancels | PASS | armed=True |
+| hotkey: S stop handled | PASS | no exception |
 | hotkey: SPACE selects hero | PASS | selection=1 |
 | hotkey: F1 idle worker | PASS | selection=1 |
-| hotkey: O toggles objectives | PASS | False -> True |
-| hotkey: Esc pause/unpause | PASS | play -> play |
-| minimap: click repositions camera | PASS | camera moved 2936px |
-| build: B arms placement, Esc cancels | FAIL | placement=False |
+| build: B opens build menu, Esc cancels | PASS | menu=True placement=True after_esc=False |
+| hotkey: O toggles objectives | PASS | False -> False |
+| hotkey: Esc pause/unpause | PASS | paused=True |
+| minimap: click repositions camera | PASS | moved 2941px |
+
+Re-run: `.venv/bin/python tools/qa/input_probe.py`

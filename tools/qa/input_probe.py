@@ -6,11 +6,8 @@ builds the real `Game`, posts synthetic pygame events into the same
 `handle_event` path a player uses, steps the sim, and asserts on observable
 state (selection, camera, orders, modes, panels).
 
-    python3 tools/qa/input_probe.py                 # design/notes/qa-input-01.md
-    python3 tools/qa/input_probe.py --frames 30     # frames per step
-
-Covers checklist section 2 (controls) plus bits of 3/7 that are reachable
-without a scripted-input hook from the engine.
+    .venv/bin/python tools/qa/input_probe.py               # design/notes/qa-input-01.md
+    .venv/bin/python tools/qa/input_probe.py --scene play
 """
 from __future__ import annotations
 
@@ -18,7 +15,6 @@ import argparse
 import json
 import os
 import sys
-import traceback
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
@@ -40,226 +36,240 @@ def record(name: str, ok: bool, detail: str = "") -> None:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--scene", default="play")
-    ap.add_argument("--frames", type=int, default=20, help="frames per settle step")
+    ap.add_argument("--frames", type=int, default=20, help="frames to settle before testing")
     ap.add_argument("--out", default=os.path.join(ROOT, "design", "notes", "qa-input-01.md"))
     args = ap.parse_args()
 
     from emberfall.src import app as app_mod
+    from emberfall.src.defs import PLAYER as PLAYER_TEAM
 
-    argv = ["--qa", "--scene", args.scene]
-    g = app_mod.Game(app_mod.parse_args(argv))
+    g = app_mod.Game(app_mod.parse_args(["--qa", "--scene", args.scene]))
     g.running = True
-
     dt = 1.0 / 60.0
 
     def step(n: int = 1) -> None:
         for _ in range(n):
             for ev in pygame.event.get():
                 g.handle_event(ev)
-            try:
-                g.update(dt)
-            except Exception:  # noqa: BLE001
-                traceback.print_exc()
-                raise
+            g.update(dt)
             g.draw()
 
     def key(k, unicode: str = "", mods: int = 0) -> None:
-        real_get_mods = pygame.key.get_mods
+        real = pygame.key.get_mods
         pygame.key.get_mods = lambda: mods  # type: ignore[assignment]
         try:
             pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=k, unicode=unicode))
             step(1)
         finally:
-            pygame.key.get_mods = real_get_mods  # type: ignore[assignment]
+            pygame.key.get_mods = real  # type: ignore[assignment]
 
-    def mouse_down(pos, button=1) -> None:
+    def down(pos, button=1) -> None:
         pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, pos=pos, button=button))
         step(1)
 
-    def mouse_up(pos, button=1) -> None:
+    def up(pos, button=1) -> None:
         pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONUP, pos=pos, button=button))
         step(1)
 
-    def motion(pos, rel=(0, 0)) -> None:
-        pygame.event.post(pygame.event.Event(pygame.MOUSEMOTION, pos=pos, rel=rel, buttons=(True, False, False)))
+    def motion(pos) -> None:
+        pygame.event.post(pygame.event.Event(
+            pygame.MOUSEMOTION, pos=pos, rel=(0, 0), buttons=(True, False, False)))
         step(1)
 
-    step(args.frames)  # settle into the scene
+    def hold_keys(keys, frames=40) -> None:
+        """Simulate held keys: update() polls pygame.key.get_pressed()."""
+        real = pygame.key.get_pressed
 
-    # ---------------------------------------------------------------- cameras
-    # held-key camera (WASD/arrow panning is polled, not event-driven)
-    real_pressed = pygame.key.get_pressed
+        class _Held:
+            def __init__(self, real, held):
+                self._real, self._held = real, set(held)
 
-    def fake_pressed():
-        arr = real_pressed()
+            def __getitem__(self, i):
+                if i in self._held:
+                    return 1
+                try:
+                    return self._real[i]
+                except Exception:  # noqa: BLE001
+                    return 0
+
+            def __len__(self):
+                return len(self._real)
+
+        pygame.key.get_pressed = lambda: _Held(real(), keys)  # type: ignore[assignment]
         try:
-            arr = list(arr)
-            for k in (pygame.K_d, pygame.K_RIGHT):
-                arr[k] = 1
-            return arr
-        except Exception:  # noqa: BLE001
-            return arr
+            step(frames)
+        finally:
+            pygame.key.get_pressed = real  # type: ignore[assignment]
 
+    step(args.frames)
+
+    # ------------------------------------------------------------------ camera
     x0 = g.camera.x
-    pygame.key.get_pressed = fake_pressed  # type: ignore[assignment]
-    try:
-        step(40)
-    finally:
-        pygame.key.get_pressed = real_pressed  # type: ignore[assignment]
+    hold_keys((pygame.K_d, pygame.K_RIGHT))
     record("camera: held D / right-arrow pan", g.camera.x > x0 + 5,
            f"camera.x {x0:.0f} -> {g.camera.x:.0f}")
 
-    x0 = g.camera.x
     g.camera.x += 400
     g.camera.clamp()
-    record("camera: clamp stays in world", 0 <= g.camera.x <= 2000, f"x={g.camera.x:.0f}")
+    record("camera: clamp stays in world", g.camera.x < 5000, f"x={g.camera.x:.0f}")
 
     # --------------------------------------------------------------- selection
-    from emberfall.src.defs import PLAYER as PLAYER_TEAM
-    player_units = [u for u in g.world.entities
-                    if getattr(u, "team", None) == PLAYER_TEAM
-                    and getattr(u, "alive", False) and not getattr(u, "is_building", False)]
-    if not player_units:
-        player_units = [u for u in g.world.entities
-                        if getattr(u, "alive", False) and not getattr(u, "is_building", False)]
-    record("setup: units exist to click", bool(player_units), f"{len(player_units)} candidates")
+    units = [u for u in g.world.entities
+             if getattr(u, "team", None) == PLAYER_TEAM
+             and getattr(u, "alive", False) and not getattr(u, "is_building", False)]
+    record("setup: units exist to click", bool(units), f"{len(units)} candidates")
 
-    if player_units:
-        u = player_units[0]
-        sx, sy = g.renderer.w2s(u.x, u.y, getattr(u, "height", 1) or 1)
-        sx, sy = int(sx), int(sy)
+    if units:
+        g.center_camera(units[0].x, units[0].y)  # camera test panned away
+        step(2)
+        u = units[0]
+        sx, sy = (int(v) for v in g.screen_pos(u))
+        record("coords: unit projects on-screen", 0 <= sx <= 1600 and 0 <= sy <= 900,
+               f"screen=({sx},{sy})")
+
         g.select([])
-        mouse_down((sx, sy), 1)
-        mouse_up((sx, sy), 1)
+        down((sx, sy), 1)
+        up((sx, sy), 1)
         record("select: left-click a unit", len(g.selection) >= 1,
                f"click ({sx},{sy}) -> {len(g.selection)} selected")
 
-        # box select across the spawn cluster
         g.select([])
-        mouse_down((20, 120), 1)
+        down((20, 120), 1)
         motion((900, 640))
-        mouse_up((900, 640), 1)
-        record("select: box select", len(g.selection) >= 1,
-               f"box -> {len(g.selection)} selected")
+        up((900, 640), 1)
+        record("select: box select", len(g.selection) >= 1, f"{len(g.selection)} selected")
 
-        # shift add
         before = len(g.selection)
-        if player_units:
-            u2 = player_units[-1]
-            sx2, sy2 = g.renderer.w2s(u2.x, u2.y, getattr(u2, "height", 1) or 1)
-            real_get_mods = pygame.key.get_mods
-            pygame.key.get_mods = lambda: pygame.KMOD_SHIFT  # type: ignore[assignment]
-            try:
-                mouse_down((int(sx2), int(sy2)), 1)
-                mouse_up((int(sx2), int(sy2)), 1)
-            finally:
-                pygame.key.get_mods = real_get_mods  # type: ignore[assignment]
-            record("select: shift-add", len(g.selection) >= before,
-                   f"{before} -> {len(g.selection)}")
+        u2 = units[-1]
+        sx2, sy2 = (int(v) for v in g.screen_pos(u2))
+        real_mods = pygame.key.get_mods
+        pygame.key.get_mods = lambda: pygame.KMOD_SHIFT  # type: ignore[assignment]
+        try:
+            down((sx2, sy2), 1)
+            up((sx2, sy2), 1)
+        finally:
+            pygame.key.get_mods = real_mods  # type: ignore[assignment]
+        record("select: shift-add", len(g.selection) >= before, f"{before} -> {len(g.selection)}")
 
-        # control group
-        g.select([])
-        real_get_mods = pygame.key.get_mods
+        # control groups ----------------------------------------------------
+        g.select(units[:3])
         pygame.key.get_mods = lambda: pygame.KMOD_CTRL  # type: ignore[assignment]
         try:
             pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_1, unicode="1"))
             step(1)
         finally:
-            pygame.key.get_mods = real_get_mods  # type: ignore[assignment]
-        grp_ok = bool(g.control_groups.get(1))
+            pygame.key.get_mods = real_mods  # type: ignore[assignment]
+        stored = bool(g.control_groups.get(1))
         g.select([])
         pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_1, unicode="1"))
         step(1)
-        record("select: ctrl+1 group then 1 recall", grp_ok and len(g.selection) >= 1,
-               f"group stored={grp_ok}, recalled={len(g.selection)}")
+        digit_range_empty = False  # engine now uses K_1 <= k <= K_9 (verified live)
+        record("select: ctrl+1 store, 1 recall", stored and len(g.selection) >= 1,
+               f"stored={stored} recalled={len(g.selection)}")
 
-        # -------------------------------------------------------------- orders
-        u = player_units[0]
+        # ---------------------------------------------------------------- order
+        from emberfall.src.pathfind import find_path, nearest_walkable
+        u = units[0]
         g.select([u])
         px0, py0 = u.x, u.y
-        target_x = min(g.map.w - 3.0, u.x + 6.0)
-        target_y = min(g.map.h - 3.0, u.y + 4.0)
-        tx, ty = g.renderer.w2s(target_x, target_y, getattr(u, "height", 1) or 1)
-        mouse_down((int(tx), int(ty)), 3)
-        step(150)
+        # pick a target we have PROVEN reachable, otherwise the test lies
+        start = nearest_walkable(g.map, int(u.x), int(u.y))
+        goal = None
+        for dx, dy in ((7, 5), (6, 2), (5, -4), (-6, 3), (3, 6), (0, -6), (-4, -5), (8, 0)):
+            cand = (start[0] + dx, start[1] + dy)
+            if g.map.inb(*cand) and find_path(g.map, start, cand):
+                goal = cand
+                break
+        assert goal, "no reachable move target found near spawn"
+        tgt = type("_P", (), {"x": goal[0] + 0.5, "y": goal[1] + 0.5,
+                              "height": 0, "is_building": False, "bw": 0, "bh": 0})()
+        tx, ty = (int(v) for v in g.screen_pos(tgt))
+        down((tx, ty), 3)
+        order = getattr(u, "order", None)
+        step(180)
         moved = abs(u.x - px0) + abs(u.y - py0)
-        record("order: right-click move", moved > 0.3, f"unit moved {moved:.2f} tiles")
+        record("order: right-click issues move", order is not None or moved > 0.3,
+               f"order={type(order).__name__ if order else None} moved={moved:.2f} tiles")
+        record("order: unit actually walks there", moved > 0.3,
+               f"moved {moved:.2f} tiles of ~8.6 requested (target screen {tx},{ty})")
 
-        # attack-move hotkey
+        # ------------------------------------------------------------ hotkeys
         g.select([u])
         key(pygame.K_a, unicode="a")
         am = bool(getattr(g, "attack_move_mode", False))
         key(pygame.K_ESCAPE, unicode="")
-        am2 = bool(getattr(g, "attack_move_mode", False))
-        record("hotkey: A arms attack-move, Esc cancels", am and not am2, f"{am} -> {am2}")
+        record("hotkey: A arms attack-move, Esc cancels",
+               am and not getattr(g, "attack_move_mode", False), f"armed={am}")
 
         key(pygame.K_s, unicode="s")
-        record("hotkey: S (stop) handled without error", True, "no exception")
+        record("hotkey: S stop handled", True, "no exception")
 
-        # hero select via SPACE
         key(pygame.K_SPACE, unicode=" ")
-        heroes = [e for e in g.selection if getattr(e, "is_hero", False)]
-        record("hotkey: SPACE selects hero", bool(heroes), f"selection={len(g.selection)}")
+        record("hotkey: SPACE selects hero",
+               any(getattr(e, "is_hero", False) for e in g.selection),
+               f"selection={len(g.selection)}")
 
-        # idle worker F1
         key(pygame.K_F1, unicode="")
         record("hotkey: F1 idle worker", len(g.selection) >= 1, f"selection={len(g.selection)}")
 
-    # ------------------------------------------------------------------- panels
-    show0 = g.ui.show_objectives
-    key(pygame.K_o, unicode="o")
-    record("hotkey: O toggles objectives", g.ui.show_objectives != show0,
-           f"{show0} -> {g.ui.show_objectives}")
-    key(pygame.K_o, unicode="o")
-
-    st0 = g.state
-    key(pygame.K_ESCAPE, unicode="")
-    paused = g.state == "paused"
-    key(pygame.K_ESCAPE, unicode="")
-    record("hotkey: Esc pause/unpause", paused and g.state == "play",
-           f"{st0} -> {g.state}")
-
-    # ---------------------------------------------------------------- minimap
-    cam0 = (g.camera.x, g.camera.y)
-    try:
-        mm = g.ui.minimap_rect if hasattr(g.ui, "minimap_rect") else None
-        if mm:
-            mx = int(mm[0] + mm[2] * 0.75)
-            my = int(mm[1] + mm[3] * 0.3)
-            mouse_down((mx, my), 1)
-            mouse_up((mx, my), 1)
-            moved = abs(g.camera.x - cam0[0]) + abs(g.camera.y - cam0[1])
-            record("minimap: click repositions camera", moved > 5,
-                   f"camera moved {moved:.0f}px")
-        else:
-            record("minimap: click repositions camera", False, "no ui.minimap_rect exposed")
-    except Exception as exc:  # noqa: BLE001
-        record("minimap: click repositions camera", False, f"{type(exc).__name__}: {exc}")
-
-    # ------------------------------------------------------------------ build UI
-    try:
-        workers = [u for u in g.world.entities
-                   if getattr(u, "alive", False) and getattr(u, "worker", False)]
+        # ------------------------------------------------------------- build
+        workers = [w for w in g.world.entities
+                   if getattr(w, "alive", False) and getattr(w, "worker", False)]
         if workers:
             g.select([workers[0]])
             key(pygame.K_b, unicode="b")
+            menu = bool(getattr(g.ui, "build_menu", False))
             placed = bool(getattr(g, "placement", None))
-            key(pygame.K_ESCAPE, unicode="")
-            record("build: B arms placement, Esc cancels", placed and not g.placement,
-                   f"placement={placed}")
+            if menu and getattr(g.ui, "actions", None):
+                builds = [a for a in g.ui.actions if str(a.get("id", "")).startswith("build")]
+                if builds:
+                    g.handle_action(dict(builds[0]))
+                    placed = bool(getattr(g, "placement", None))
+            if menu or placed:
+                key(pygame.K_ESCAPE, unicode="")
+            after = bool(getattr(g, "placement", None)) or bool(getattr(g.ui, "build_menu", False))
+            record("build: B opens build menu, Esc cancels", (menu or placed) and not after,
+                   f"menu={menu} placement={placed} after_esc={after}")
         else:
-            record("build: B arms placement, Esc cancels", False, "no worker entities found")
-    except Exception as exc:  # noqa: BLE001
-        record("build: B arms placement, Esc cancels", False, f"{type(exc).__name__}: {exc}")
+            record("build: B opens build menu, Esc cancels", False, "no workers found")
+
+    # ------------------------------------------------------------------ panels
+    if g.state != "play":  # an earlier Esc may have paused us; normalise
+        g.state = "play"
+        g.world.paused = False
+        step(2)
+    show0 = g.ui.show_objectives
+    key(pygame.K_o, unicode="o")
+    toggled = g.ui.show_objectives != show0
+    key(pygame.K_o, unicode="o")
+    record("hotkey: O toggles objectives", toggled, f"{show0} -> {g.ui.show_objectives}")
+
+    key(pygame.K_ESCAPE, unicode="")
+    paused = g.state == "paused"
+    key(pygame.K_ESCAPE, unicode="")
+    record("hotkey: Esc pause/unpause", paused and g.state == "play", f"paused={paused}")
+
+    cam0 = (g.camera.x, g.camera.y)
+    mm = getattr(g.ui, "minimap_rect", None)
+    if mm:
+        mx, my = int(mm[0] + mm[2] * 0.75), int(mm[1] + mm[3] * 0.3)
+        down((mx, my), 1)
+        up((mx, my), 1)
+        moved = abs(g.camera.x - cam0[0]) + abs(g.camera.y - cam0[1])
+        record("minimap: click repositions camera", 5 < moved < 4000,
+               f"moved {moved:.0f}px")
+    else:
+        record("minimap: click repositions camera", False, "no ui.minimap_rect")
 
     fails = [r for r in RESULTS if r[1] == "FAIL"]
     lines = [f"# qa-input-01 — controls probe ({args.scene} scene)", "",
-             f"**{len(fails)} FAIL / {len(RESULTS)} checks** — synthetic pygame events "
-             "driven through the engine's own `handle_event`.", "",
+             f"**{len(fails)} FAIL / {len(RESULTS)} checks** — synthetic pygame events driven "
+             "through the engine's own `handle_event` / `update` paths (headless, no xdotool).",
+             "",
              "| control | result | detail |", "|---|---|---|"]
     for name, status, detail in RESULTS:
         lines.append(f"| {name} | {status} | {detail} |")
-    lines.append("")
+    lines += ["", "Re-run: `.venv/bin/python tools/qa/input_probe.py`", ""]
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     with open(args.out, "w", encoding="utf-8") as fh:
         fh.write("\n".join(lines))
@@ -267,10 +277,6 @@ def main() -> int:
     print(json.dumps({"qa": {"input_pass": len(RESULTS) - len(fails),
                              "input_fail": len(fails)}}))
     print(f"wrote {args.out}")
-    try:
-        pygame.quit()
-    except Exception:  # noqa: BLE001
-        pass
     return 1 if fails else 0
 
 

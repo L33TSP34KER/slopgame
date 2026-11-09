@@ -33,10 +33,10 @@ LAYERS = {
     "bonetower": [("human_guard_tower", 1.0, 0.0, 0.0, (0.62, 0.54, 0.82))],
     "altarhollow": [("undead_bone_ritual", 1.0, 0.0, 0.0, (0.85, 0.75, 1.0))],
 }
-TARGET_W = {"townhall": 280, "keep": 320, "farm": 165, "barracks": 235, "mill": 215,
-            "blacksmith": 215, "sanctum": 215, "tower": 110, "altar": 135,
-            "necropolis": 420, "ziggurat": 150, "crypt": 215, "slaughterhouse": 225,
-            "temple": 215, "bonetower": 110, "altarhollow": 210}
+TARGET_W = {"townhall": 250, "keep": 285, "farm": 145, "barracks": 205, "mill": 195,
+            "blacksmith": 195, "sanctum": 195, "tower": 95, "altar": 120,
+            "necropolis": 390, "ziggurat": 135, "crypt": 195, "slaughterhouse": 205,
+            "temple": 195, "bonetower": 95, "altarhollow": 190}
 BANNER = {PLAYER: (172, 58, 48), ENEMY: (110, 74, 150), NEUTRAL: (140, 120, 80)}
 
 

@@ -359,7 +359,7 @@ def generate_map(seed=20261109, difficulty="knight"):
                            block=False, sway=rng.uniform(0.6, 1.2))
 
     # campfires at home + enemy gate
-    m.add_prop("fire", 22.5, 69.0, scale=1.0, block=False, glow=True)
+    m.add_prop("fire", 16.5, 72.6, scale=0.85, block=False, glow=True)
     m.add_prop("fire", 58.0, 21.0, scale=1.0, block=False, glow=True)
     m.add_prop("fire", 63.0, 30.0, scale=0.7, block=False, glow=True)
     for fx in fords:
