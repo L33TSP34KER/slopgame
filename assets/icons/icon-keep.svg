@@ -4,10 +4,6 @@
       <stop offset="0" stop-color="#ece7d6"/>
       <stop offset="1" stop-color="#bdb29a"/>
     </linearGradient>
-    <linearGradient id="kp-flag" x1="0" y1="0" x2="1" y2="0.6">
-      <stop offset="0" stop-color="#c85a4a"/>
-      <stop offset="1" stop-color="#8a2c30"/>
-    </linearGradient>
   </defs>
   <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
     <ellipse cx="32" cy="57" rx="28" ry="4" fill="#161018" opacity="0.2" stroke="none"/>
@@ -28,14 +24,16 @@
     <path d="M26 51 V43 Q32 39 38 43 V51 Z" fill="#8f6420"/>
     <path d="M32 41 V51 M26 46 H38" fill="none" stroke-width="1.5" stroke="#d9a441"/>
     <path d="M29 44 V49 M35 44 V49" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+    <path d="M27 15 H37" fill="none" stroke-width="2" stroke="#d9a441"/>
+    <path d="M28 16 H36 V29 L32 26 L28 29 Z" fill="#a83a3a"/>
+    <path d="M28 18 H36" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+    <path d="M32 19 L33.5 22 L32 25 L30.5 22 Z" fill="#d9a441"/>
     <path d="M32 7 V3" fill="none" stroke-width="2" stroke="#161018"/>
-    <path d="M33 4 L46 7 L40 11 L46 15 L33 15 Z" fill="url(#kp-flag)"/>
+    <path d="M33 4 L46 7 L40 11 L46 15 L33 15 Z" fill="#a83a3a"/>
     <path d="M33 7 H42" fill="none" stroke-width="1.5" stroke="#d9a441"/>
-    <path d="M39 27 V35 H45 V27" fill="#a83a3a"/>
-    <circle cx="42" cy="31" r="2" fill="#d9a441"/>
+    <path d="M41 29 V35 A1.5 1.5 0 0 1 44 35 V29 Z" fill="#161018" stroke="none"/>
     <path d="M11 39 H17 V44 H11 Z" fill="#161018" stroke="none"/>
     <path d="M47 39 H53 V44 H47 Z" fill="#161018" stroke="none"/>
-    <path d="M25 24 H30 V29 H25 Z" fill="#ff8a3d"/>
-    <path d="M34 24 H39 V29 H34 Z" fill="#ff8a3d"/>
+
   </g>
 </svg>

@@ -321,19 +321,19 @@ def generate_map(seed=20261109, difficulty="knight"):
             if m.blocked[i] or m.terrain[i] in (WATER, ROCK) or m.road[i]:
                 continue
             r = rng()
-            if r < 0.012:
+            if r < 0.028:
                 m.add_prop("bush", x + rng.uniform(0.1, 0.9), y + rng.uniform(0.1, 0.9),
                            variant=rng.randrange(3), scale=rng.uniform(0.6, 1.0), sway=1.0)
-            elif r < 0.03:
+            elif r < 0.085:
                 m.add_prop("grass", x + rng.uniform(0.1, 0.9), y + rng.uniform(0.1, 0.9),
                            variant=rng.randrange(3), scale=rng.uniform(0.7, 1.2))
-            elif r < 0.034:
+            elif r < 0.105:
                 m.add_prop("flowers", x + rng.uniform(0.1, 0.9), y + rng.uniform(0.1, 0.9),
                            variant=rng.randrange(3), scale=rng.uniform(0.7, 1.1))
-            elif r < 0.038:
+            elif r < 0.115:
                 m.add_prop("rock", x + rng.uniform(0.1, 0.9), y + rng.uniform(0.1, 0.9),
                            variant=rng.randrange(3), scale=rng.uniform(0.45, 0.8))
-            elif r < 0.0405:
+            elif r < 0.12:
                 m.add_prop("bone", x + rng.uniform(0.1, 0.9), y + rng.uniform(0.1, 0.9),
                            variant=rng.randrange(3), scale=rng.uniform(0.6, 0.9))
 

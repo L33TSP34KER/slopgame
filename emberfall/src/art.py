@@ -213,6 +213,52 @@ class Art:
 
     # ---- water/tile generation
     def _gen_tiles(self):
+        from .flare_terrain import floor_sources, water_sources, tint, TINTS, BASE_KIND, LIGHT
+        src = floor_sources()
+        water = water_sources()
+        self.tile_avg = {}
+        TARGET = {0: (66, 84, 53), 1: (108, 86, 58), 2: (92, 88, 80),
+                  4: (150, 136, 100), 5: (70, 64, 74), 6: (84, 40, 42), 7: (54, 72, 46)}
+        self.terrain_avg = dict(TARGET)
+        self.terrain_avg[3] = (38, 88, 101)
+        if src.get("grass"):
+            for terr in range(8):
+                for v in range(10):
+                    if terr == 3:
+                        s = new_sprite(68, 36)
+                        dpoly(s, (38, 88, 101), [(34, 2), (66, 18), (34, 34), (2, 18)])
+                        out = finish(s, 68, 36)
+                        self.tiles[(terr, v)] = out
+                        self.tile_avg[(terr, v)] = (38, 88, 101)
+                        continue
+                    kind = BASE_KIND.get(terr, "grass")
+                    base = src[kind][(v * 7 + terr * 3) % len(src[kind])]
+                    img = tint(base, TINTS.get(terr), LIGHT.get(terr, 1.0))
+                    # normalise variant brightness so the floor reads as a continuous field
+                    try:
+                        c = pygame.transform.average_color(img)
+                        tgt = TARGET.get(terr, (100, 90, 70))
+                        mul = (min(1.0, tgt[0] / max(1, c[0])), min(1.0, tgt[1] / max(1, c[1])),
+                               min(1.0, tgt[2] / max(1, c[2])), 1.0)
+                        if min(mul[:3]) < 0.999:
+                            img.fill((int(mul[0] * 255), int(mul[1] * 255), int(mul[2] * 255), 255),
+                                     special_flags=pygame.BLEND_RGBA_MULT)
+                    except Exception:
+                        pass
+                    # use only the interior texture, then mask with a clean diamond so
+                    # adjacent tiles do not build up dark antialiased rims
+                    crop = img.subsurface(pygame.Rect(16, 10, 32, 12)).copy()
+                    tex = pygame.transform.smoothscale(crop, (64, 32))
+                    mask = pygame.Surface((64, 32), pygame.SRCALPHA)
+                    pygame.draw.polygon(mask, (255, 255, 255, 255), [(32, 0), (63, 15), (32, 31), (1, 15)])
+                    tex.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+                    tex.set_alpha(58)
+                    s = new_sprite(68, 36)
+                    s.blit(tex, (2, 2))
+                    out = finish(s, 68, 36)
+                    self.tiles[(terr, v)] = out
+                    self.tile_avg[(terr, v)] = TARGET.get(terr, (100, 90, 70))
+            return
         for terr in range(8):
             for v in range(10):
                 self.tiles[(terr, v)] = self._make_tile(terr, v)
@@ -311,6 +357,35 @@ class Art:
         return self.props[key]
 
     def _make_prop(self, kind, variant, frame):
+        if kind in ("tree", "pine", "dead") and not getattr(self, "_flare_trees", None):
+            from .flare_terrain import tree_sources
+            self._flare_trees = tree_sources()
+        if kind in ("bush", "grass", "flowers", "rock", "bone", "stone", "stump", "statue", "crate"):
+            if not getattr(self, "_flare_props", None):
+                from .flare_terrain import prop_sources
+                self._flare_props = prop_sources()
+            arr = self._flare_props.get(kind) or []
+            if arr:
+                img, ax, ay = arr[variant % len(arr)]
+                sc = {"bush": 0.78, "grass": 0.72, "flowers": 0.8, "rock": 0.8,
+                      "bone": 0.8, "stone": 0.8, "stump": 0.85, "statue": 0.9, "crate": 0.8}.get(kind, 0.8)
+                w, h = img.get_size()
+                surf = pygame.transform.smoothscale(img, (max(1, int(w * sc)), max(1, int(h * sc))))
+                return surf, ax * sc, ay * sc
+        if kind in ("tree", "pine", "dead") and self._flare_trees:
+            trees = self._flare_trees
+            off = 0 if kind == "pine" else 8 if kind == "tree" else 12
+            img, ax, ay = trees[(off + variant) % len(trees)]
+            sc = (0.72 if kind == "pine" else 0.78 if kind == "tree" else 0.7)
+            w, h = img.get_size()
+            surf = pygame.transform.smoothscale(img, (max(1, int(w * sc)), max(1, int(h * sc))))
+            # soft ground shadow
+            sh = pygame.Surface((int(70 * sc), int(22 * sc)), pygame.SRCALPHA)
+            pygame.draw.ellipse(sh, (10, 12, 10, 90), (0, 0, sh.get_width(), sh.get_height()))
+            out = pygame.Surface((surf.get_width() + 8, surf.get_height() + sh.get_height() // 2), pygame.SRCALPHA)
+            out.blit(sh, (out.get_width() // 2 - sh.get_width() // 2, out.get_height() - sh.get_height()))
+            out.blit(surf, (out.get_width() // 2 - surf.get_width() // 2, 0))
+            return out, out.get_width() / 2, out.get_height() - 2
         W = H = 40
         rng = random.Random(hash(kind) % 9973 + variant * 37 + frame * 7)
         if kind == "pine":
@@ -483,9 +558,18 @@ class Art:
     # ---- buildings (generated in building_art.py, attached later)
     def building(self, bid, team=PLAYER, stage=4):
         key = (bid, team, stage)
-        if key not in self.buildings:
-            from .building_art import make_building
-            self.buildings[key] = make_building(self, bid, team, stage)
+        if key in self.buildings:
+            return self.buildings[key]
+        if getattr(self, "_flare_buildings", None) is None:
+            from .flare_buildings import BuildingArt
+            self._flare_buildings = BuildingArt()
+        if self._flare_buildings.can(bid):
+            r = self._flare_buildings.sprite(bid, team, stage)
+            if r:
+                self.buildings[key] = r
+                return r
+        from .building_art import make_building
+        self.buildings[key] = make_building(self, bid, team, stage)
         return self.buildings[key]
 
     # ---- units (generated in unit_art.py)
@@ -506,7 +590,11 @@ class Art:
         key = ("u", rig, team, size)
         if key in self.portraits:
             return self.portraits[key]
-        img = self.unit(rig, 0, "idle", 0, team)
+        res = self.unit(rig, 0, "idle", 0, team)
+        img = res[0] if isinstance(res, tuple) else res
+        bb = img.get_bounding_rect(min_alpha=8)
+        if bb.w > 4 and bb.h > 4:
+            img = img.subsurface(bb).copy()
         w, h = img.get_size()
         s = pygame.Surface((size, size), pygame.SRCALPHA)
         # warm portrait backdrop
@@ -515,10 +603,31 @@ class Art:
             pygame.draw.line(s, (*mix((44, 36, 34), (22, 19, 22), t), 255), (0, y), (size, y))
         pygame.draw.circle(s, (36, 45, 38), (size // 2, size // 2 - 4), size // 3)
         pygame.draw.circle(s, (58, 70, 54), (size // 2, size // 2 - 4), size // 3, 2)
-        scale = min(size / w, size / h) * 1.16
+        scale = min(size / w, size / h) * 1.02
         im = pygame.transform.smoothscale(img, (max(1, int(w * scale)), max(1, int(h * scale))))
-        s.blit(im, ((size - im.get_width()) // 2, size - im.get_height() + 4))
+        s.blit(im, ((size - im.get_width()) // 2, size - im.get_height() - 1))
         self.portraits[key] = s
+        return s
+
+    def ground_overlay(self):
+        if getattr(self, "_ground_overlay", None) is not None:
+            return self._ground_overlay
+        import random as _r
+        rng = _r.Random(1234)
+        s = pygame.Surface((512, 512), pygame.SRCALPHA)
+        for _ in range(140):
+            x = rng.randrange(512); y = rng.randrange(512)
+            r = rng.randint(18, 90)
+            c = rng.choice(((42, 60, 34), (74, 92, 48), (96, 78, 46), (54, 70, 46)))
+            a = rng.randint(8, 20)
+            e = pygame.Surface((r * 2, r), pygame.SRCALPHA)
+            pygame.draw.ellipse(e, (*c, a), (0, 0, r * 2, r))
+            s.blit(e, (x - r, y - r // 2))
+        for _ in range(2600):
+            x = rng.randrange(512); y = rng.randrange(512)
+            c = rng.choice(((38, 52, 30, 70), (102, 92, 54, 55), (66, 86, 40, 60)))
+            pygame.draw.circle(s, c, (x, y), rng.randint(0, 1) + 1)
+        self._ground_overlay = s
         return s
 
     def glow_sprite(self, color, radius=100, strength=160):

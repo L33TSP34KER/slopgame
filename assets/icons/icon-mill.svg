@@ -4,10 +4,6 @@
       <stop offset="0" stop-color="#918d84"/>
       <stop offset="1" stop-color="#4a4842"/>
     </linearGradient>
-    <linearGradient id="ml-cap" x1="0.1" y1="0" x2="0.7" y2="1">
-      <stop offset="0" stop-color="#c85a4a"/>
-      <stop offset="1" stop-color="#7d2a2e"/>
-    </linearGradient>
   </defs>
   <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
     <ellipse cx="32" cy="58" rx="24" ry="4" fill="#161018" opacity="0.2" stroke="none"/>
@@ -15,46 +11,45 @@
     <path d="M21 54 L26 20 H38 L43 54 Z" fill="url(#ml-slate)"/>
     <path d="M23 54 L24 46 H40 L41 54 Z" fill="#4a4842"/>
     <path d="M25 36 H39 M24 28 H40" fill="none" stroke-width="1.5" stroke="#b5a98f" opacity="0.55"/>
-    <path d="M21 21 Q32 8 43 21 Z" fill="url(#ml-cap)"/>
+    <path d="M21 21 Q32 8 43 21 Z" fill="#a83a3a"/>
     <path d="M32 9 V5" fill="none" stroke-width="2" stroke="#d9a441"/>
     <circle cx="32" cy="5" r="1.8" fill="#d9a441"/>
-    <path d="M27 54 V47 Q32 43 37 47 V54 Z" fill="#8f6420"/>
-    <path d="M27 50 H37" fill="none" stroke-width="1.5" stroke="#d9a441"/>
-    <path d="M29 38 H35 V42 Q32 44 29 42 Z" fill="#ff8a3d"/>
     <g>
       <g transform="rotate(45 32 26)">
         <path d="M32 26 V5" stroke-width="5" fill="none"/>
         <path d="M32 26 V5" stroke="#d9a441" stroke-width="2.5" fill="none"/>
         <rect x="34" y="7" width="7" height="15" rx="1" fill="#d8d2bd"/>
-        <path d="M34 7 L41 22 M41 7 L34 22" fill="none" stroke-width="1.5" stroke="#d9a441"/>
-        <path d="M34 14.5 H41" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+        <path d="M34 7 L41 22" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+        <path d="M34 13 H41" fill="none" stroke-width="1.5" stroke="#d9a441"/>
       </g>
       <g transform="rotate(135 32 26)">
         <path d="M32 26 V5" stroke-width="5" fill="none"/>
         <path d="M32 26 V5" stroke="#d9a441" stroke-width="2.5" fill="none"/>
         <rect x="34" y="7" width="7" height="15" rx="1" fill="#d8d2bd"/>
-        <path d="M34 7 L41 22 M41 7 L34 22" fill="none" stroke-width="1.5" stroke="#d9a441"/>
-        <path d="M34 14.5 H41" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+        <path d="M34 7 L41 22" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+        <path d="M34 13 H41" fill="none" stroke-width="1.5" stroke="#d9a441"/>
       </g>
       <g transform="rotate(225 32 26)">
         <path d="M32 26 V5" stroke-width="5" fill="none"/>
         <path d="M32 26 V5" stroke="#d9a441" stroke-width="2.5" fill="none"/>
         <rect x="34" y="7" width="7" height="15" rx="1" fill="#d8d2bd"/>
-        <path d="M34 7 L41 22 M41 7 L34 22" fill="none" stroke-width="1.5" stroke="#d9a441"/>
-        <path d="M34 14.5 H41" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+        <path d="M34 7 L41 22" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+        <path d="M34 13 H41" fill="none" stroke-width="1.5" stroke="#d9a441"/>
       </g>
       <g transform="rotate(315 32 26)">
         <path d="M32 26 V5" stroke-width="5" fill="none"/>
         <path d="M32 26 V5" stroke="#d9a441" stroke-width="2.5" fill="none"/>
         <rect x="34" y="7" width="7" height="15" rx="1" fill="#d8d2bd"/>
-        <path d="M34 7 L41 22 M41 7 L34 22" fill="none" stroke-width="1.5" stroke="#d9a441"/>
-        <path d="M34 14.5 H41" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+        <path d="M34 7 L41 22" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+        <path d="M34 13 H41" fill="none" stroke-width="1.5" stroke="#d9a441"/>
       </g>
     </g>
     <circle cx="32" cy="26" r="4.5" fill="#d9a441"/>
     <circle cx="32" cy="26" r="1.8" fill="#8f6420"/>
+    <path d="M27 54 V47 Q32 43 37 47 V54 Z" fill="#8f6420"/>
+    <path d="M27 50 H37" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+    <path d="M29 38 H35 V42 Q32 44 29 42 Z" fill="#ff8a3d"/>
     <path d="M45 54 Q42 49 45 46 Q49 47 48 51 L55 50 Q52 54 53 56 L45 54 Z" fill="#d8d2bd"/>
     <path d="M45 49 Q47 51 46 53" fill="none" stroke-width="1.5" stroke="#a89f85"/>
-    <path d="M15 54 Q14 49 17 46 L20 48 Q17 51 18 54 Z" fill="#d8d2bd"/>
   </g>
 </svg>

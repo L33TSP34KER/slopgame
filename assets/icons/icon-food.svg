@@ -7,20 +7,43 @@
   </defs>
   <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
     <ellipse cx="32" cy="57" rx="15" ry="3" fill="#161018" opacity="0.18" stroke="none"/>
-    <path d="M37 46 Q43 32 47 18 L42 17 Q37 31 33 46 Z" fill="url(#fd-grain)"/>
-    <path d="M27 46 Q21 32 17 18 L22 17 Q27 31 31 46 Z" fill="url(#fd-grain)"/>
-    <path d="M30 47 Q30 28 31 13 L34 13 Q35 28 34 47 Z" fill="url(#fd-grain)"/>
-    <path d="M31 13 C27 10 26 5 30 2 C31 6 32 8 32 13 Z" fill="url(#fd-grain)"/>
-    <path d="M17 18 C13 15 12 10 16 7 C18 11 20 13 22 16 Z" fill="url(#fd-grain)"/>
-    <path d="M47 18 C51 15 52 10 48 7 C46 11 44 13 42 16 Z" fill="url(#fd-grain)"/>
-    <path d="M30 10 L27 3 M32 9 L33 1 M20 15 L15 9 M44 15 L49 9" fill="none" stroke-width="1.5" stroke="#f0c66a"/>
-    <path d="M31 12 Q29 9 30 6 M33 12 Q35 9 34 6" fill="none" stroke-width="1.5" stroke="#8f6420"/>
-    <path d="M18 16 Q20 13 21 10 M45 16 Q43 13 42 10" fill="none" stroke-width="1.5" stroke="#8f6420"/>
-    <path d="M23 43 Q32 48 41 43 L40 49 Q32 53 24 49 Z" fill="#a83a3a"/>
-    <path d="M32 48 L27 57 L31 53 L32 57 L33 53 L37 57 Z" fill="#a83a3a"/>
+    <path d="M32 46 Q20 36 14 26" stroke-width="5" fill="none"/>
+    <path d="M32 46 Q20 36 14 26" stroke="#d9a441" stroke-width="2" fill="none"/>
+    <path d="M32 46 Q26 32 21 24" stroke-width="5" fill="none"/>
+    <path d="M32 46 Q26 32 21 24" stroke="#d9a441" stroke-width="2" fill="none"/>
+    <path d="M32 46 V20" stroke-width="5" fill="none"/>
+    <path d="M32 46 V20" stroke="#d9a441" stroke-width="2" fill="none"/>
+    <path d="M32 46 Q38 32 43 24" stroke-width="5" fill="none"/>
+    <path d="M32 46 Q38 32 43 24" stroke="#d9a441" stroke-width="2" fill="none"/>
+    <path d="M32 46 Q44 36 50 26" stroke-width="5" fill="none"/>
+    <path d="M32 46 Q44 36 50 26" stroke="#d9a441" stroke-width="2" fill="none"/>
+    <g transform="rotate(-22 21 24)">
+      <path d="M21 10 C17.5 14 17.5 21 19.5 24 L21 26 L22.5 24 C24.5 21 24.5 14 21 10 Z" fill="url(#fd-grain)"/>
+      <path d="M18.5 14 Q21 16 23.5 14 M18 18 Q21 20 24 18 M18.5 22 Q21 24 23.5 22" fill="none" stroke-width="1.5" stroke="#8f6420"/>
+      <path d="M21 11 L15 6 M21 10 L19 3 M21 9 L24 3 M21 10 L27 6" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+    </g>
+    <g transform="rotate(-6 32 20)">
+      <path d="M32 8 C28.5 12 28.5 19 30.5 22 L32 24 L33.5 22 C35.5 19 35.5 12 32 8 Z" fill="url(#fd-grain)"/>
+      <path d="M29.5 12 Q32 14 34.5 12 M29 16 Q32 18 35 16 M29.5 20 Q32 22 34.5 20" fill="none" stroke-width="1.5" stroke="#8f6420"/>
+      <path d="M32 9 L26 3 M32 8 L32 1 M32 8 L38 3 M32 9 L40 6" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+    </g>
+    <g transform="rotate(22 43 24)">
+      <path d="M43 10 C39.5 14 39.5 21 41.5 24 L43 26 L44.5 24 C46.5 21 46.5 14 43 10 Z" fill="url(#fd-grain)"/>
+      <path d="M40.5 14 Q43 16 45.5 14 M40 18 Q43 20 46 18 M40.5 22 Q43 24 45.5 22" fill="none" stroke-width="1.5" stroke="#8f6420"/>
+      <path d="M43 11 L37 6 M43 10 L41 3 M43 9 L46 3 M43 10 L49 6" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+    </g>
+    <g transform="rotate(-40 14 26)">
+      <path d="M14 18 C12 21 12 25 13.5 27 L14 28 L14.5 27 C16 25 16 21 14 18 Z" fill="url(#fd-grain)"/>
+      <path d="M14 19 L11 15 M14 18 L14 14 M14 19 L17 15" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+    </g>
+    <g transform="rotate(40 50 26)">
+      <path d="M50 18 C48 21 48 25 49.5 27 L50 28 L50.5 27 C52 25 52 21 50 18 Z" fill="url(#fd-grain)"/>
+      <path d="M50 19 L47 15 M50 18 L50 14 M50 19 L53 15" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+    </g>
+    <path d="M24 43 Q32 48 40 43 L40 49 Q32 53 24 49 Z" fill="#a83a3a"/>
+    <path d="M32 48 L26 57 L31 53 L32 57 L33 53 L38 57 Z" fill="#a83a3a"/>
     <path d="M25 46 Q32 43 39 46" fill="none" stroke-width="1.5" stroke="#d9a441"/>
-    <path d="M25 46 C20 43 17 44 15 47 C19 47 21 49 22 52 C24 49 27 49 29 50 Z" fill="#4b6b3f"/>
-    <path d="M39 46 C44 43 47 44 49 47 C45 47 43 49 42 52 C40 49 37 49 35 50 Z" fill="#4b6b3f"/>
-    <path d="M28 30 Q31 26 34 30" fill="none" stroke-width="1.5" stroke="#f0c66a"/>
+    <path d="M25 47 C20 44 17 45 15 48 C19 48 21 50 22 53 C24 50 27 50 29 51 Z" fill="#4b6b3f"/>
+    <path d="M39 47 C44 44 47 45 49 48 C45 48 43 50 42 53 C40 50 37 50 35 51 Z" fill="#4b6b3f"/>
   </g>
 </svg>

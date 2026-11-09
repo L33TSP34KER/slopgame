@@ -1,0 +1,23 @@
+Traceback (most recent call last):
+  File "<frozen runpy>", line 203, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/run/media/wyene/disk/project/game/emberfall/src/app.py", line 658, in <module>
+    main()
+    ~~~~^^
+  File "/run/media/wyene/disk/project/game/emberfall/src/app.py", line 654, in main
+    g.run()
+    ~~~~~^^
+  File "/run/media/wyene/disk/project/game/emberfall/src/app.py", line 620, in run
+    self.draw()
+    ~~~~~~~~~^^
+  File "/run/media/wyene/disk/project/game/emberfall/src/app.py", line 592, in draw
+    self.renderer.draw(scr, self.world, self.camera, self.world.time if self.state != "title" else self.menu_t)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/run/media/wyene/disk/project/game/emberfall/src/render.py", line 293, in draw
+    self._draw_particles(screen, game, cam)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/run/media/wyene/disk/project/game/emberfall/src/render.py", line 412, in _draw_particles
+    px, py = self.w2s(p.x, p.y, p.z)
+                      ^^^
+AttributeError: 'dict' object has no attribute 'x'
+pygame-ce 2.5.8 (SDL 2.32.10, Python 3.14.7)

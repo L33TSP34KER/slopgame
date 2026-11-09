@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Emberfall — UI Icon Sheet</title>
+<style>
+  :root { --bone:#d8d2bd; --gold:#d9a441; --ember:#ff8a3d; --ink:#161018; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; }
+  body {
+    min-height:100vh; padding:22px 28px 24px; color:var(--bone);
+    font-family:'C059','DejaVu Serif','Liberation Serif',Georgia,serif;
+    background:
+      radial-gradient(1100px 620px at 18% -10%, #3b2b20 0%, rgba(59,43,32,0) 62%),
+      radial-gradient(900px 700px at 92% 108%, #2c1e16 0%, rgba(44,30,22,0) 68%),
+      linear-gradient(157deg,#271c15 0%,#1c1310 52%,#15100d 100%);
+    position:relative;
+  }
+  body:after {
+    content:""; position:fixed; inset:0; pointer-events:none; opacity:.05; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E");
+  }
+  header { display:flex; align-items:flex-end; gap:18px; padding-bottom:11px; border-bottom:1px solid #4b3729; }
+  h1 { font-size:26px; letter-spacing:.3em; margin:0; color:var(--gold); font-weight:700; text-transform:uppercase; }
+  header .sub { font-size:11px; letter-spacing:.24em; text-transform:uppercase; color:#9a8b76; padding-bottom:4px; }
+  header .spec { margin-left:auto; text-align:right; font-size:9.5px; letter-spacing:.15em; color:#8a7b67; text-transform:uppercase; line-height:1.65; }
+  header .spec b { color:#c6a96b; font-weight:400; }
+  .grid { display:grid; grid-template-columns:repeat(6,1fr); gap:9px; }
+  .section { grid-column:1/-1; display:flex; align-items:baseline; gap:12px; margin:9px 0 0; }
+  .section span { font-size:10px; letter-spacing:.24em; text-transform:uppercase; color:#c0a066; }
+  .section em { font-size:9px; letter-spacing:.16em; text-transform:uppercase; color:#6f6152; font-style:normal; }
+  .section:after { content:""; height:1px; background:linear-gradient(90deg,#4b3729,rgba(75,55,41,0)); flex:1; margin-left:4px; }
+  .cell {
+    display:flex; flex-direction:column; align-items:center; gap:5px;
+    padding:8px 6px 6px; border-radius:8px; border:1px solid #3e2e23;
+    background:linear-gradient(158deg,#2e221b 0%,#221811 58%,#1d140f 100%);
+    box-shadow:inset 0 1px 0 #4f3a2b, 0 6px 13px rgba(0,0,0,.26);
+  }
+  .icons { display:flex; align-items:flex-end; gap:9px; }
+  .i96 img { width:96px; height:96px; display:block; filter:drop-shadow(0 2px 1px rgba(0,0,0,.55)); }
+  .i48 { align-self:flex-end; padding-bottom:3px; }
+  .i48 img { width:48px; height:48px; display:block; filter:drop-shadow(0 1px 1px rgba(0,0,0,.5)); }
+  .name { font-size:10px; letter-spacing:.13em; text-transform:uppercase; color:#b7a88f; text-align:center; line-height:1.3; }
+  .name b { display:block; font-size:8px; letter-spacing:.16em; color:#756656; font-weight:400; margin-top:1px; }
+  .brand { grid-column:1/-1; display:grid; grid-template-columns:0.9fr 1.35fr; gap:9px; margin-top:9px; }
+  .brand .plate { display:flex; flex-direction:column; gap:7px; align-items:center; padding:10px 12px 8px; border-radius:8px; border:1px solid #3e2e23; background:linear-gradient(158deg,#2e221b,#1d140f); box-shadow:inset 0 1px 0 #4f3a2b, 0 6px 13px rgba(0,0,0,.26); }
+  .brand .label { font-size:10px; letter-spacing:.22em; text-transform:uppercase; color:#c0a066; }
+  .brand .row { display:flex; align-items:flex-end; gap:14px; }
+  .em160 img { width:160px; height:160px; display:block; filter:drop-shadow(0 3px 2px rgba(0,0,0,.55)); }
+  .em-sm { display:flex; flex-direction:column; gap:6px; align-items:center; }
+  .em-sm .e96 img { width:96px; height:96px; display:block; }
+  .em-sm .e48 img { width:48px; height:48px; display:block; }
+  .caption { font-size:8.5px; letter-spacing:.14em; color:#756656; text-transform:uppercase; text-align:center; }
+  .logo-lg img { width:360px; display:block; filter:drop-shadow(0 4px 4px rgba(0,0,0,.5)); }
+  .logo-side { display:flex; flex-direction:column; gap:8px; align-items:flex-start; }
+  .logo-md img { width:168px; display:block; }
+  .logo-sm img { width:112px; display:block; }
+  footer { margin-top:10px; padding-top:8px; border-top:1px solid #3a2a20; display:flex; gap:16px; flex-wrap:wrap; font-size:8.5px; letter-spacing:.15em; text-transform:uppercase; color:#6f6152; }
+  footer b { color:#9a8768; font-weight:400; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Emberfall</h1>
+  <div class="sub">UI icon contact sheet</div>
+  <div class="spec"><b>64 &times; 64</b> master &middot; 2 px ink &middot; 96 px / 48 px<br>Emberhold &middot; warm palette</div>
+</header>
+<main class="grid">
+    <div class="section"><span>Units</span><em>portraits</em></div>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-worker.svg" alt="worker"></span><span class="i48"><img src="../assets/icons/icon-worker.svg" alt=""></span></div>
+        <div class="name">worker<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-footman.svg" alt="footman"></span><span class="i48"><img src="../assets/icons/icon-footman.svg" alt=""></span></div>
+        <div class="name">footman<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-archer.svg" alt="archer"></span><span class="i48"><img src="../assets/icons/icon-archer.svg" alt=""></span></div>
+        <div class="name">archer<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-knight.svg" alt="knight"></span><span class="i48"><img src="../assets/icons/icon-knight.svg" alt=""></span></div>
+        <div class="name">knight<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-priest.svg" alt="priest"></span><span class="i48"><img src="../assets/icons/icon-priest.svg" alt=""></span></div>
+        <div class="name">priest<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-ballista.svg" alt="ballista"></span><span class="i48"><img src="../assets/icons/icon-ballista.svg" alt=""></span></div>
+        <div class="name">ballista<b>96 &middot; 48</b></div>
+      </article>
+    <div class="section"><span>Buildings</span><em>emberhold structures</em></div>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-townhall.svg" alt="townhall"></span><span class="i48"><img src="../assets/icons/icon-townhall.svg" alt=""></span></div>
+        <div class="name">townhall<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-keep.svg" alt="keep"></span><span class="i48"><img src="../assets/icons/icon-keep.svg" alt=""></span></div>
+        <div class="name">keep<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-farm.svg" alt="farm"></span><span class="i48"><img src="../assets/icons/icon-farm.svg" alt=""></span></div>
+        <div class="name">farm<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-barracks.svg" alt="barracks"></span><span class="i48"><img src="../assets/icons/icon-barracks.svg" alt=""></span></div>
+        <div class="name">barracks<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-mill.svg" alt="mill"></span><span class="i48"><img src="../assets/icons/icon-mill.svg" alt=""></span></div>
+        <div class="name">mill<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-blacksmith.svg" alt="blacksmith"></span><span class="i48"><img src="../assets/icons/icon-blacksmith.svg" alt=""></span></div>
+        <div class="name">blacksmith<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-sanctum.svg" alt="sanctum"></span><span class="i48"><img src="../assets/icons/icon-sanctum.svg" alt=""></span></div>
+        <div class="name">sanctum<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-tower.svg" alt="tower"></span><span class="i48"><img src="../assets/icons/icon-tower.svg" alt=""></span></div>
+        <div class="name">tower<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-altar.svg" alt="altar"></span><span class="i48"><img src="../assets/icons/icon-altar.svg" alt=""></span></div>
+        <div class="name">altar<b>96 &middot; 48</b></div>
+      </article>
+    <div class="section"><span>Resources</span><em>economy</em></div>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-gold.svg" alt="gold"></span><span class="i48"><img src="../assets/icons/icon-gold.svg" alt=""></span></div>
+        <div class="name">gold<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-lumber.svg" alt="lumber"></span><span class="i48"><img src="../assets/icons/icon-lumber.svg" alt=""></span></div>
+        <div class="name">lumber<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-food.svg" alt="food"></span><span class="i48"><img src="../assets/icons/icon-food.svg" alt=""></span></div>
+        <div class="name">food<b>96 &middot; 48</b></div>
+      </article>
+    <div class="section"><span>Hero abilities</span><em>marshal aldric</em></div>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-ember-lance.svg" alt="ember-lance"></span><span class="i48"><img src="../assets/icons/icon-ember-lance.svg" alt=""></span></div>
+        <div class="name">ember lance<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-aegis.svg" alt="aegis"></span><span class="i48"><img src="../assets/icons/icon-aegis.svg" alt=""></span></div>
+        <div class="name">aegis<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-consecrate.svg" alt="consecrate"></span><span class="i48"><img src="../assets/icons/icon-consecrate.svg" alt=""></span></div>
+        <div class="name">consecrate<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-daybreak.svg" alt="daybreak"></span><span class="i48"><img src="../assets/icons/icon-daybreak.svg" alt=""></span></div>
+        <div class="name">daybreak<b>96 &middot; 48</b></div>
+      </article>
+    <div class="section"><span>Commands</span><em>command card</em></div>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-attack.svg" alt="attack"></span><span class="i48"><img src="../assets/icons/icon-attack.svg" alt=""></span></div>
+        <div class="name">attack<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-move.svg" alt="move"></span><span class="i48"><img src="../assets/icons/icon-move.svg" alt=""></span></div>
+        <div class="name">move<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-stop.svg" alt="stop"></span><span class="i48"><img src="../assets/icons/icon-stop.svg" alt=""></span></div>
+        <div class="name">stop<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-hold.svg" alt="hold"></span><span class="i48"><img src="../assets/icons/icon-hold.svg" alt=""></span></div>
+        <div class="name">hold<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-attackmove.svg" alt="attackmove"></span><span class="i48"><img src="../assets/icons/icon-attackmove.svg" alt=""></span></div>
+        <div class="name">attackmove<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-gather.svg" alt="gather"></span><span class="i48"><img src="../assets/icons/icon-gather.svg" alt=""></span></div>
+        <div class="name">gather<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-build.svg" alt="build"></span><span class="i48"><img src="../assets/icons/icon-build.svg" alt=""></span></div>
+        <div class="name">build<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-rally.svg" alt="rally"></span><span class="i48"><img src="../assets/icons/icon-rally.svg" alt=""></span></div>
+        <div class="name">rally<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-cancel.svg" alt="cancel"></span><span class="i48"><img src="../assets/icons/icon-cancel.svg" alt=""></span></div>
+        <div class="name">cancel<b>96 &middot; 48</b></div>
+      </article>
+    <div class="section"><span>Upgrades & queue</span><em>blacksmith / production</em></div>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-weapons.svg" alt="weapons"></span><span class="i48"><img src="../assets/icons/icon-weapons.svg" alt=""></span></div>
+        <div class="name">weapons<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-armor.svg" alt="armor"></span><span class="i48"><img src="../assets/icons/icon-armor.svg" alt=""></span></div>
+        <div class="name">armor<b>96 &middot; 48</b></div>
+      </article>
+      <article class="cell">
+        <div class="icons"><span class="i96"><img src="../assets/icons/icon-queue.svg" alt="queue"></span><span class="i48"><img src="../assets/icons/icon-queue.svg" alt=""></span></div>
+        <div class="name">queue<b>96 &middot; 48</b></div>
+      </article>
+    <div class="section"><span>Brand</span><em>emblem &amp; wordmark</em></div>
+    <div class="brand">
+      <div class="plate">
+        <div class="label">Emberhold emblem</div>
+        <div class="row"><span class="em160"><img src="../assets/icons/emblem.svg" alt="Emberhold emblem"></span>
+          <span class="em-sm"><span class="e96"><img src="../assets/icons/emblem.svg" alt=""><br><i class="caption">96</i></span><span class="e48"><img src="../assets/icons/emblem.svg" alt=""><br><i class="caption">48</i></span></span>
+        </div>
+        <div class="caption">charged heater shield &middot; ember sigil</div>
+      </div>
+      <div class="plate">
+        <div class="label">Emberfall &mdash; The Hollow Crown</div>
+        <div class="row"><span class="logo-lg"><img src="../assets/icons/logo.svg" alt="Emberfall wordmark"></span>
+          <span class="logo-side"><span class="logo-md"><img src="../assets/icons/logo.svg" alt=""><br><i class="caption">96 px tall</i></span><span class="logo-sm"><img src="../assets/icons/logo.svg" alt=""><br><i class="caption">48 px tall</i></span></span>
+        </div>
+        <div class="caption">transparent &middot; parchment &amp; brass &middot; readable on near-black</div>
+      </div>
+    </div>
+    <footer><span><b>36 files</b> in assets/icons</span><span>ink <b>#161018</b> / 2 px outline</span><span>embers <b>#ff8a3d</b> &middot; gold <b>#d9a441</b> &middot; crimson <b>#a83a3a</b></span><span>steel · moss · slate · bone · violet</span><span>verified at 96 px and 48 px</span></footer>
+</main>
+</body>
+</html>

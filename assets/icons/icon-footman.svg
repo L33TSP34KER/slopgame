@@ -7,9 +7,11 @@
     </linearGradient>
   </defs>
   <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
-    <path d="M47 33 L56 9 L53 6 L44 30 Z" fill="url(#ft-steel)"/>
-    <path d="M45 33 H55 V37 H45 Z" fill="#d9a441"/>
-    <path d="M48 37 L45 45" stroke-width="4" stroke="#a83a3a"/>
+    <path d="M46 34 L58 7 L54 3 L41 28 Z" fill="url(#ft-steel)"/>
+    <path d="M45 24 L53 9" fill="none" stroke-width="1.5" stroke="#8e97a4"/>
+    <path d="M39 29 L51 25 L53 30 L41 34 Z" fill="#d9a441"/>
+    <path d="M46 34 L43 45" stroke-width="5" stroke="#a83a3a"/>
+    <circle cx="42.5" cy="46" r="2.5" fill="#d9a441"/>
     <path d="M28 29 H36 V38 H28 Z" fill="#d8d2bd"/>
     <path d="M10 56 C11 45 19 37 32 37 C45 37 53 45 54 56 Z" fill="#a83a3a"/>
     <path d="M22 39 Q32 33 42 39 L41 50 Q32 56 23 50 Z" fill="url(#ft-steel)"/>
@@ -18,18 +20,22 @@
     <path d="M47 39 C50 41 51 45 51 49 L42 46 Z" fill="url(#ft-steel)"/>
     <circle cx="23" cy="27" r="2.4" fill="#d8d2bd"/>
     <circle cx="41" cy="27" r="2.4" fill="#d8d2bd"/>
-    <circle cx="32" cy="25" r="8.5" fill="#d8d2bd"/>
+    <circle cx="32" cy="26" r="8.5" fill="#d8d2bd"/>
+    <path d="M26 32 Q32 37 38 32 L38 35 Q32 39 26 35 Z" fill="#c9c1a8" stroke="none"/>
     <path d="M23 24 A9 9 0 0 1 41 24 Z" fill="url(#ft-steel)"/>
-    <path d="M19 24 H45 V27 H19 Z" fill="url(#ft-steel)"/>
-    <path d="M24 27 C24 32 26 35 28 36 L28 30 Z" fill="url(#ft-steel)"/>
-    <path d="M40 27 C40 32 38 35 36 36 L36 30 Z" fill="url(#ft-steel)"/>
-    <path d="M32 24 V37" stroke-width="3" stroke="#cfd6df"/>
-    <circle cx="28.5" cy="29" r="1.2" fill="#161018" stroke="none"/>
-    <circle cx="35.5" cy="29" r="1.2" fill="#161018" stroke="none"/>
-    <path d="M18 52 H46" fill="none" stroke-width="1.5" stroke="#6e2226"/>
+    <path d="M19 25 Q32 30 45 25 L45 28 Q32 33 19 28 Z" fill="url(#ft-steel)"/>
+    <path d="M24 27 L25 34 Q27 36 28.5 35 L28.5 30 Z" fill="url(#ft-steel)"/>
+    <path d="M40 27 L39 34 Q37 36 35.5 35 L35.5 30 Z" fill="url(#ft-steel)"/>
+    <path d="M30.5 27 H33.5 V36 L32 38 L30.5 36 Z" fill="url(#ft-steel)"/>
+    <path d="M20 27 Q32 31 44 27" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+    <circle cx="28" cy="30" r="1.2" fill="#161018" stroke="none"/>
+    <circle cx="36" cy="30" r="1.2" fill="#161018" stroke="none"/>
+    <path d="M26 28 Q28 27 30 28 M34 28 Q36 27 38 28" fill="none" stroke-width="1.5" stroke="#161018"/>
+    <path d="M17 52 H47" fill="none" stroke-width="1.5" stroke="#6e2226"/>
     <path d="M8 36 H24 V46 C24 53 17 57 16 58 C15 57 8 53 8 46 Z" fill="#cfd6df"/>
     <path d="M11 39 H21 V46 C21 50 17 53 16 54 C15 53 11 50 11 46 Z" fill="#a83a3a"/>
     <circle cx="16" cy="45" r="3" fill="#d9a441"/>
     <path d="M14 45 H18" stroke-width="1.5"/>
+    <circle cx="16" cy="38" r="1.4" fill="#d9a441"/>
   </g>
 </svg>

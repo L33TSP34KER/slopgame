@@ -9,17 +9,18 @@
     <path d="M6 7 H58 V31 C58 45 47 54 32 59 C17 54 6 45 6 31 Z" fill="#d9a441"/>
     <path d="M12 13 H52 V31 C52 42 43 49 32 53 C21 49 12 42 12 31 Z" fill="url(#em-field)"/>
     <path d="M16 17 H48 V31 C48 40 41 46 32 49 C23 46 16 40 16 31 Z" fill="none" stroke-width="1.5" stroke="#d9a441"/>
-    <path d="M30 23 C26 28 27 37 32 45 C37 37 38 28 34 23 Z" fill="#d9a441"/>
-    <path d="M31 27 C24 21 18 21 13 25 C19 26 22 28 24 31 C20 31 17 31 14 32 C20 36 27 35 30 31 Z" fill="#d9a441"/>
-    <path d="M33 27 C40 21 46 21 51 25 C45 26 42 28 40 31 C44 31 47 31 50 32 C44 36 37 35 34 31 Z" fill="#d9a441"/>
-    <circle cx="32" cy="22" r="3.4" fill="#d9a441"/>
-    <path d="M30 21 L25 19 L30 24 Z" fill="#d9a441"/>
-    <circle cx="31" cy="21" r="0.9" fill="#161018" stroke="none"/>
-    <path d="M32 18 Q30 14 34 12 Q33 15 34 18 Z" fill="#d9a441"/>
-    <path d="M32 34 Q35 38 32 44 Q29 38 32 34 Z" fill="#ff8a3d"/>
-    <path d="M32 44 L28 51 L32 48 L36 51 Z" fill="#d9a441"/>
-    <path d="M17 22 L20 25 M47 22 L44 25 M22 28 L25 30 M42 28 L39 30" fill="none" stroke-width="1.5" stroke="#8f6420"/>
-    <path d="M15 27 Q18 28 20 30 M49 27 Q46 28 44 30" fill="none" stroke-width="1.5" stroke="#ff8a3d"/>
-    <path d="M32 34 L32 40" fill="none" stroke-width="1.5" stroke="#f0c66a"/>
+    <circle cx="32" cy="33" r="16" fill="none" stroke-width="1.5" stroke="#d9a441" opacity="0.65"/>
+    <path d="M32 9 C36 15 39 20 38 25 C37 29 34 31 34 34 C36 33 38 35 38 39 C38 45 35 49 32 51 C29 49 26 45 26 39 C26 35 28 33 30 34 C30 31 27 29 26 25 C25 20 28 15 32 9 Z" fill="#d9a441"/>
+    <path d="M30 25 C27 28 26 32 27 36 C28 40 30 43 32 45 C31 40 32 37 34 34 C33 31 31 29 30 25 Z" fill="#ff8a3d"/>
+    <path d="M32 28 C34 32 34 37 32 41 C30 37 30 32 32 28 Z" fill="#f0c66a"/>
+    <path d="M24 35 C18 35 14 39 12 44 C17 42 21 43 24 46 C22 42 22 38 24 35 Z" fill="#d9a441"/>
+    <path d="M40 35 C46 35 50 39 52 44 C47 42 43 43 40 46 C42 42 42 38 40 35 Z" fill="#d9a441"/>
+    <path d="M23 38 C19 38 16 40 14 42" fill="none" stroke-width="1.5" stroke="#8f6420"/>
+    <path d="M41 38 C45 38 48 40 50 42" fill="none" stroke-width="1.5" stroke="#8f6420"/>
+    <path d="M32 14 C32 18 31 21 30 23" fill="none" stroke-width="1.5" stroke="#f0c66a"/>
+    <path d="M32 5 L35.5 9.5 L32 14 L28.5 9.5 Z" fill="#a83a3a"/>
+    <path d="M32 7 L33.5 9.5 L32 12 L30.5 9.5 Z" fill="#c85a4a" stroke="none"/>
+    <path d="M32 45 C31 47 30 49 28 51 M32 45 C33 47 34 49 36 51" fill="none" stroke-width="1.5" stroke="#ff8a3d"/>
+    <path d="M27 42 C26 45 24 47 22 49 M37 42 C38 45 40 47 42 49" fill="none" stroke-width="1.5" stroke="#ff8a3d"/>
   </g>
 </svg>

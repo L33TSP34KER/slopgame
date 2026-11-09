@@ -17,7 +17,7 @@ SECT = dict(idle="stance", walk="run", attack="swing", cast="cast",
             death="die", gather="swing", ride="run")
 
 # draw order: far layers first
-BASE = ["default_legs", "default_feet", "default_chest", "default_hands", "head_short"]
+BASE = ["default_feet", "default_legs", "default_chest", "default_hands", "head_short"]
 AVATARS = {
     "worker": BASE + ["cloth_pants", "cloth_shirt", "cloth_sandals", "smith_hammer"],
     "footman": BASE + ["chain_greaves", "chain_cuirass", "chain_boots", "chain_gloves",
@@ -46,10 +46,10 @@ ENEMIES = {
 RANGED = {"archer": "shoot", "priest": "shoot", "fiend": "shoot",
           "necromancer": "cast", "revenant": "cast", "hero": "swing"}
 UNIT_SCALE = {
-    "worker": 0.82, "footman": 0.88, "archer": 0.84, "knight": 0.95, "priest": 0.86,
-    "hero": 0.98, "ghoul": 0.85, "fiend": 0.9, "necromancer": 0.86, "abomination": 1.0,
-    "revenant": 0.95, "skeleton": 0.72, "goblin": 0.8, "goblin-brute": 0.95,
-    "hollow-king": 1.15,
+    "worker": 1.0, "footman": 1.05, "archer": 1.0, "knight": 1.15, "priest": 1.02,
+    "hero": 1.2, "ghoul": 1.0, "fiend": 1.05, "necromancer": 1.0, "abomination": 1.2,
+    "revenant": 1.1, "skeleton": 0.9, "goblin": 0.92, "goblin-brute": 1.1,
+    "hollow-king": 1.35,
 }
 TINT = {
     "hero": (1.0, 0.9, 0.62),
@@ -79,7 +79,7 @@ def parse_def(path):
                 v = [int(x) for x in line[6:].split(",")]
             except ValueError:
                 continue
-            if len(v) == 8:
+            if len(v) >= 8:
                 secs[cur]["rows"][(v[0], v[1])] = (v[2], v[3], v[4], v[5], v[6], v[7])
     return secs
 

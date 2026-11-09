@@ -4,16 +4,12 @@
       <stop offset="0" stop-color="#c85a4a"/>
       <stop offset="1" stop-color="#7d2a2e"/>
     </linearGradient>
-    <linearGradient id="br-wall" x1="0" y1="0" x2="0.6" y2="1">
-      <stop offset="0" stop-color="#ece7d6"/>
-      <stop offset="1" stop-color="#c2b89e"/>
-    </linearGradient>
   </defs>
   <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
     <ellipse cx="32" cy="57" rx="27" ry="4" fill="#161018" opacity="0.2" stroke="none"/>
     <rect x="5" y="50" width="54" height="6" rx="2" fill="#6d6a63"/>
     <path d="M8 51 H56" fill="none" stroke-width="1.5" stroke="#918d84"/>
-    <path d="M9 33 H55 V50 H9 Z" fill="url(#br-wall)"/>
+    <path d="M9 33 H55 V50 H9 Z" fill="#d8d2bd"/>
     <rect x="9" y="33" width="3" height="17" fill="#8f6420"/>
     <rect x="52" y="33" width="3" height="17" fill="#8f6420"/>
     <rect x="22" y="33" width="3" height="17" fill="#8f6420"/>
@@ -23,11 +19,7 @@
     <path d="M13 44 L18 49 M51 44 L46 49" fill="none" stroke-width="1.5" stroke="#8f6420"/>
     <path d="M4 34 L32 11 L60 34 Z" fill="url(#br-roof)"/>
     <path d="M10 31 L32 19 L54 31 M15 28 L32 20 L49 28" fill="none" stroke-width="1.5" stroke="#6e2226"/>
-    <path d="M32 11 L32 4" fill="none" stroke-width="2" stroke="#161018"/>
-    <path d="M23 20 L41 6 L43 8 L25 22 Z" fill="#cfd6df"/>
-    <path d="M41 20 L23 6 L21 8 L39 22 Z" fill="#cfd6df"/>
-    <path d="M21 8 L18 4 L23 6 Z M43 8 L46 4 L41 6 Z" fill="#d9a441"/>
-    <path d="M20 21 L17 24 L23 23 Z M44 21 L47 24 L41 23 Z" fill="#d9a441"/>
+    <path d="M8 26 Q20 22 32 22 Q44 22 56 26" fill="none" stroke-width="1.5" stroke="#6e2226"/>
     <path d="M25 45 V37 Q32 32 39 37 V45 Z" fill="#8f6420"/>
     <path d="M32 34 V50" fill="none"/>
     <path d="M26 40 H38 M26 45 H38" fill="none" stroke-width="1.5" stroke="#d9a441"/>
@@ -37,5 +29,14 @@
     <path d="M24 50 V37 L26 50 M30 50 V36 L32 50 M36 50 V36 L38 50 M42 50 V37 L44 50" fill="none" stroke-width="2" stroke="#8f6420"/>
     <path d="M23 37 L25 33 L27 37 M35 36 L37 32 L39 36 M41 37 L43 33 L45 37" fill="#cfd6df"/>
     <path d="M18 50 H46 V53 H18 Z" fill="#d8d2bd"/>
+    <path d="M13 33 H22" fill="none" stroke-width="2" stroke="#d9a441"/>
+    <path d="M14 34 H21 V46 L17.5 42 L14 46 Z" fill="#a83a3a"/>
+    <path d="M14 36 H21" fill="none" stroke-width="1.5" stroke="#d9a441"/>
+    <path d="M17.5 38 L19 40.5 L17.5 43 L16 40.5 Z" fill="#d9a441"/>
+    <path d="M43 52 L45.5 34 M47 52 L50 32 M51 52 L53.5 30" stroke-width="4" fill="none"/>
+    <path d="M43 52 L45.5 34 M47 52 L50 32 M51 52 L53.5 30" stroke="#d9a441" stroke-width="1.8" fill="none"/>
+    <path d="M45.5 35 L43.5 30 L46 26 L47.5 31 Z" fill="#cfd6df"/>
+    <path d="M50 33 L48 28 L50.5 24 L52 29 Z" fill="#cfd6df"/>
+    <path d="M53.5 31 L51.5 26 L54 22 L55.5 27 Z" fill="#cfd6df"/>
   </g>
 </svg>

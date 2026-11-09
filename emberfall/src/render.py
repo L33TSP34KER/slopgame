@@ -4,6 +4,7 @@ import math, random
 import pygame
 from .core import clamp, lerp, smoothstep, sx, sy, tile_from_screen, Rng
 from .defs import *
+from .defs import PROJECTILES
 from .art import TERRAIN_COL, shade, mix, hexc, SS, radial_glow, soft_shadow
 from . import mapgen as MG
 
@@ -50,8 +51,13 @@ class Renderer:
         self.art = game.art
         self.surface = pygame.Surface((self.MW, self.MH), pygame.SRCALPHA)
         self.fog_surf = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+        self.dim_veil = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+        self.dim_veil.fill((8, 10, 16, 36))
+        self._fog_t = -1.0
+        self._fog_cam = (0, 0)
         self.light_surf = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
         self.bake_done = False
+        self._tile_big = {}
         self._bake()
         self.minimap_base = self._bake_minimap()
         self.water_tiles = []
@@ -69,7 +75,7 @@ class Renderer:
                 ph=rng.uniform(0, 6.28), warm=rng.random() < 0.7))
         self.vignette = self._make_vignette()
         self.dusk = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
-        self.dusk.fill((20, 24, 44, 24))
+        self.dusk.fill((26, 20, 16, 10))
 
     # ---------------------------------------------------------------- coordinates
     def w2s(self, x, y, h=0):
@@ -93,17 +99,36 @@ class Renderer:
         s = self.surface
         s.fill((25, 22, 24, 255))
         OX, OY = self.OX, self.OY
-        # ground tiles, painter's order
+        # pass 1: opaque ground base (kills alpha seams without covering texture)
         for d in range(m.w + m.h - 1):
             for x in range(max(0, d - m.h + 1), min(m.w - 1, d) + 1):
                 y = d - x
                 h = m.height[y * m.w + x]
                 terr = m.terr(x, y)
                 v = (x * 7 + y * 13 + h * 3) % 10
-                img = self.art.tiles[(terr, v)]
-                px = sx(x, y) + OX - 34
-                py = sy(x, y, h) + OY - 2
-                s.blit(img, (int(px), int(py)))
+                cxp = sx(x, y) + OX
+                cyp = sy(x, y, h) + OY
+                base = getattr(self.art, "terrain_avg", {}).get(terr, TERRAIN_COL[terr])
+                base = shade(base, 1.0)
+                pygame.draw.polygon(s, base, [(int(cxp), int(cyp - 18)), (int(cxp + 34), int(cyp + 16)),
+                                              (int(cxp), int(cyp + 34)), (int(cxp - 34), int(cyp + 16))])
+        # pass 2: painterly textures
+        for d in range(m.w + m.h - 1):
+            for x in range(max(0, d - m.h + 1), min(m.w - 1, d) + 1):
+                y = d - x
+                h = m.height[y * m.w + x]
+                terr = m.terr(x, y)
+                if terr == MG.WATER:
+                    continue
+                v = (x * 7 + y * 13 + h * 3) % 10
+                key = (terr, v)
+                big = self._tile_big.get(key)
+                if big is None:
+                    big = pygame.transform.smoothscale(self.art.tiles[key], (70, 38))
+                    self._tile_big[key] = big
+                px = sx(x, y) + OX - 35
+                py = sy(x, y, h) + OY - 3
+                s.blit(big, (int(px), int(py)))
         # forest floor shadows under the tree line
         for (x, y) in m.wood:
             hgt = m.height_at(x, y)
@@ -145,6 +170,14 @@ class Renderer:
                     pygame.draw.line(s, (198, 214, 204, 105), p1, p2, 2)
                     pygame.draw.line(s, (150, 190, 186, 60),
                                      (p1[0], p1[1] + 3), (p2[0], p2[1] + 3), 2)
+        # macro paint pass to break the tile lattice into a continuous field
+        ov = self.art.ground_overlay()
+        step = 512
+        for y0 in range(0, self.MH, step):
+            for x0 in range(0, self.MW, step):
+                s.blit(ov, (x0, y0))
+        # warm late-afternoon grade
+        s.fill((26, 24, 14), special_flags=pygame.BLEND_RGB_ADD)
         self.bake_done = True
 
     def _draw_cliffs(self, s, x, y):
@@ -245,14 +278,18 @@ class Renderer:
         self._draw_fords(screen, cam, time)
         # selection ground markers
         self._draw_ground_markers(screen, game, cam, time)
-        # gather drawables
+        # gather drawables, culled to the camera's tile neighbourhood
         draws = []
         m = self.map
-        # tile range visible (with margin)
-        left, top = self.screen_to_world_bounds(cam)
+        corners = [tile_from_screen(cam.x - SCREEN_W / 2 - self.OX, cam.y - SCREEN_H / 2 - self.OY, 0),
+                   tile_from_screen(cam.x + SCREEN_W / 2 - self.OX, cam.y - SCREEN_H / 2 - self.OY, 0),
+                   tile_from_screen(cam.x - SCREEN_W / 2 - self.OX, cam.y + SCREEN_H / 2 - self.OY, 2),
+                   tile_from_screen(cam.x + SCREEN_W / 2 - self.OX, cam.y + SCREEN_H / 2 - self.OY, 2)]
+        tx0 = min(c[0] for c in corners) - 5; tx1 = max(c[0] for c in corners) + 5
+        ty0 = min(c[1] for c in corners) - 5; ty1 = max(c[1] for c in corners) + 5
         for p in m.props:
-            if p["x"] < left - 3 or p["x"] > left + (SCREEN_W / TILE) * 2 + 6:
-                pass
+            if p.get("gone") or p["x"] < tx0 or p["x"] > tx1 or p["y"] < ty0 or p["y"] > ty1:
+                continue
             draws.append((p["x"] + p["y"], 1, p))
         for e in game.entities:
             if not e.alive and e.death_t > 2.5:
@@ -273,7 +310,7 @@ class Renderer:
         self._draw_particles(screen, game, cam)
         self._draw_health_bars(screen, game, cam)
         # fog
-        self._draw_fog(screen, game, cam)
+        self._draw_fog(screen, game, cam, time)
         # lighting
         self._draw_lights(screen, game, cam, time)
         # placement ghost
@@ -304,18 +341,20 @@ class Renderer:
 
     def _draw_prop(self, screen, p, cam, time):
         kind = p["kind"]
+        if p.get("gone"):
+            return
         frame = 0
         if kind in ("tree", "pine", "dead"):
             frame = int(time * (0.55 + 0.12 * p.get("sway", 1.0)) + p.get("phase", 0)) % 3
         elif kind == "fire":
             frame = int(time * 9 + p.get("phase", 0)) % 3
-        img, ax, ay = self.art.prop(kind, p.get("variant", 0), frame, p.get("scale", 1.0))
         h = self.map.height_at(int(p["x"]), int(p["y"]))
         px, py = self.w2s(p["x"], p["y"], h)
         px -= cam.x - SCREEN_W / 2
         py -= cam.y - SCREEN_H / 2
-        if px < -140 or px > SCREEN_W + 140 or py < -160 or py > SCREEN_H + 160:
+        if px < -170 or px > SCREEN_W + 170 or py < -220 or py > SCREEN_H + 170:
             return
+        img, ax, ay = self.art.prop(kind, p.get("variant", 0), frame, p.get("scale", 1.0))
         screen.blit(img, (int(px - ax), int(py - ay)))
 
     def _draw_unit(self, screen, e, cam, time):
@@ -378,27 +417,27 @@ class Renderer:
 
     def _draw_projectiles(self, screen, game, cam):
         for p in game.projectiles:
-            px, py = self.w2s(p.x, p.y, p.z if hasattr(p, "z") else 1)
+            px, py = self.w2s(p["x"], p["y"], p.get("z", 1))
             px -= cam.x - SCREEN_W / 2
             py -= cam.y - SCREEN_H / 2
-            px -= p.height_px if hasattr(p, "height_px") else 0
-            pygame.draw.circle(screen, (255, 236, 180), (int(px), int(py)), 2)
-            pygame.draw.line(screen, (255, 210, 120), (int(px), int(py)), (int(px - p.vx * 2), int(py - p.vy * 2)), 1)
+            col = PROJECTILES.get(p.get("type"), PROJECTILES["arrow"])["color"]
+            pygame.draw.circle(screen, col, (int(px), int(py)), 2)
+            pygame.draw.line(screen, col, (int(px), int(py)), (int(px - 3), int(py - 3)), 1)
 
     def _draw_particles(self, screen, game, cam):
         for p in game.particles:
-            px, py = self.w2s(p.x, p.y, p.z)
+            px, py = self.w2s(p["x"], p["y"], p["z"])
             px -= cam.x - SCREEN_W / 2
             py -= cam.y - SCREEN_H / 2
-            a = max(0, int(255 * p.life / p.max_life))
-            r = max(1, int(p.r))
-            if p.glow:
-                s = self.art.glow_sprite(p.color, int(max(6, p.r * 3)), 120)
+            a = max(0, int(255 * p["life"] / p["max_life"]))
+            r = max(1, int(p["r"]))
+            if p.get("glow"):
+                s = self.art.glow_sprite(p["color"], int(max(6, p["r"] * 3)), 120)
                 s.set_alpha(a)
                 screen.blit(s, (int(px - s.get_width() / 2), int(py - s.get_height() / 2)))
             else:
                 surf = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
-                pygame.draw.circle(surf, (*p.color, a), (r, r), r)
+                pygame.draw.circle(surf, (*p["color"], a), (r, r), r)
                 screen.blit(surf, (int(px - r), int(py - r)))
 
     def _draw_health_bars(self, screen, game, cam):
@@ -421,8 +460,16 @@ class Renderer:
             if e.is_hero:
                 pygame.draw.rect(screen, (86, 130, 214), (int(px - w / 2), y + 5, int(w * clamp(e.mana / e.max_mana, 0, 1)), 2))
 
-    def _draw_fog(self, screen, game, cam):
+    def _draw_fog(self, screen, game, cam, time0=0):
         m = self.map
+        # one uniform dimming veil (no per-tile alpha seams), then opaque unexplored
+        screen.blit(self.dim_veil, (0, 0))
+        moved = abs(cam.x - self._fog_cam[0]) + abs(cam.y - self._fog_cam[1]) > 2
+        if not moved and abs(time0 - self._fog_t) < 0.18:
+            screen.blit(self.fog_surf, (0, 0))
+            return
+        self._fog_cam = (cam.x, cam.y)
+        self._fog_t = time0
         self.fog_surf.fill((0, 0, 0, 0))
         left = cam.x - SCREEN_W / 2
         top = cam.y - SCREEN_H / 2
@@ -436,18 +483,16 @@ class Renderer:
         for y in range(max(0, ty0), min(m.h, ty1 + 1)):
             for x in range(max(0, tx0), min(m.w, tx1 + 1)):
                 i = y * m.w + x
-                vis = game.vis[i]
-                exp = game.explored[i]
-                if vis and exp:
+                if game.explored[i]:
                     continue
                 h = m.height[i]
                 px, py = self.w2s(x, y, h)
                 px -= left; py -= top
                 if px < -80 or px > SCREEN_W + 80 or py < -60 or py > SCREEN_H + 60:
                     continue
-                alpha = 120 if exp else 238
-                pts = [(px, py), (px + 32, py + 16), (px, py + 32), (px - 32, py + 16)]
-                pygame.draw.polygon(self.fog_surf, (8, 7, 12, alpha), pts)
+                px, py = int(round(px)), int(round(py))
+                pts = [(px, py - 1), (px + 33, py + 16), (px, py + 33), (px - 33, py + 16)]
+                pygame.draw.polygon(self.fog_surf, (6, 6, 9, 255), pts)
         screen.blit(self.fog_surf, (0, 0))
 
     def _draw_lights(self, screen, game, cam, time):
@@ -457,16 +502,16 @@ class Renderer:
         lights = []
         for p in self.map.props:
             if p["kind"] == "fire":
-                lights.append((p["x"], p["y"], 120, (255, 148, 70), 1.0))
+                lights.append((p["x"], p["y"], 34, (255, 148, 70), 0.4))
         for e in game.entities:
             if not e.alive:
                 continue
             if e.is_building:
                 if e.bid in ("townhall", "keep", "necropolis", "sanctum", "temple", "altar", "altarhollow"):
-                    lights.append((e.x + e.bw / 2, e.y + e.bh / 2, 170 if e.bid in ("townhall", "keep", "necropolis") else 110,
-                                   (255, 170, 90) if e.team == PLAYER else (150, 120, 230), 0.8))
+                    lights.append((e.x + e.bw / 2, e.y + e.bh / 2, 34 if e.bid in ("townhall", "keep", "necropolis") else 26,
+                                   (255, 170, 90) if e.team == PLAYER else (150, 120, 230), 0.16))
             elif e.is_hero:
-                lights.append((e.x, e.y, 120, (255, 190, 120), 0.6))
+                lights.append((e.x, e.y, 36, (255, 190, 120), 0.3))
         for (x, y, rad, col, strength) in lights:
             h = self.map.height_at(int(x), int(y))
             px, py = self.w2s(x, y, h)

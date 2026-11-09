@@ -4,10 +4,6 @@
       <stop offset="0" stop-color="#ff8a3d" stop-opacity="0.45"/>
       <stop offset="1" stop-color="#ff8a3d" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="al-stone" x1="0" y1="0" x2="0.6" y2="1">
-      <stop offset="0" stop-color="#ece7d6"/>
-      <stop offset="1" stop-color="#a89f85"/>
-    </linearGradient>
   </defs>
   <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
     <ellipse cx="32" cy="58" rx="26" ry="4" fill="#161018" opacity="0.2" stroke="none"/>
@@ -17,9 +13,9 @@
     <path d="M13 49 H51 V54 H13 Z" fill="#8b877d"/>
     <path d="M18 44 H46 V49 H18 Z" fill="#a89f85"/>
     <path d="M20 44 H44" fill="none" stroke-width="1.5" stroke="#ece7d6"/>
-    <path d="M24 40 H40 V44 H24 Z" fill="url(#al-stone)"/>
-    <path d="M10 36 H17 V51 H10 Z" fill="url(#al-stone)"/>
-    <path d="M47 36 H54 V51 H47 Z" fill="url(#al-stone)"/>
+    <path d="M24 40 H40 V44 H24 Z" fill="#d8d2bd"/>
+    <path d="M10 36 H17 V51 H10 Z" fill="#d8d2bd"/>
+    <path d="M47 36 H54 V51 H47 Z" fill="#d8d2bd"/>
     <path d="M9 30 H18 V36 H9 Z" fill="#d9a441"/>
     <path d="M46 30 H55 V36 H46 Z" fill="#d9a441"/>
     <path d="M14 31 H20 V28 A3 3 0 0 1 14 28 Z" fill="#ff8a3d"/>

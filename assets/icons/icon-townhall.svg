@@ -4,16 +4,12 @@
       <stop offset="0" stop-color="#c85a4a"/>
       <stop offset="1" stop-color="#7d2a2e"/>
     </linearGradient>
-    <linearGradient id="th-wall" x1="0" y1="0" x2="0.6" y2="1">
-      <stop offset="0" stop-color="#ece7d6"/>
-      <stop offset="1" stop-color="#c2b89e"/>
-    </linearGradient>
   </defs>
   <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
     <ellipse cx="32" cy="57" rx="26" ry="4" fill="#161018" opacity="0.2" stroke="none"/>
     <rect x="6" y="50" width="52" height="6" rx="2" fill="#6d6a63"/>
     <path d="M9 51 H55" fill="none" stroke-width="1.5" stroke="#918d84"/>
-    <path d="M10 33 H54 V51 H10 Z" fill="url(#th-wall)"/>
+    <path d="M10 33 H54 V51 H10 Z" fill="#d8d2bd"/>
     <rect x="10" y="33" width="3" height="18" fill="#8f6420"/>
     <rect x="51" y="33" width="3" height="18" fill="#8f6420"/>
     <rect x="10" y="41" width="44" height="3" fill="#8f6420"/>
@@ -22,9 +18,12 @@
     <path d="M4 35 L32 13 L60 35 Z" fill="url(#th-roof)"/>
     <path d="M10 32 L32 21 L54 32" fill="none" stroke-width="1.5" stroke="#6e2226"/>
     <path d="M15 29 L32 20 L49 29" fill="none" stroke-width="1.5" stroke="#6e2226"/>
-    <circle cx="32" cy="24" r="5.5" fill="#d9a441"/>
-    <circle cx="32" cy="24" r="3.8" fill="#d8d2bd"/>
-    <path d="M32 24 V21 M32 24 L34.5 25.5" fill="none" stroke-width="1.5"/>
+    <path d="M9 33 Q32 27 55 33" fill="none" stroke-width="1.5" stroke="#5e2024" opacity="0.6"/>
+    <path d="M13 30 Q32 25 51 30" fill="none" stroke-width="1.5" stroke="#5e2024" opacity="0.45"/>
+    <circle cx="32" cy="24" r="7" fill="#d9a441"/>
+    <circle cx="32" cy="24" r="5.2" fill="#ece7d6" stroke="none"/>
+    <path d="M32 24 V20 M32 24 L35 26" fill="none" stroke-width="2"/>
+    <circle cx="32" cy="24" r="1.2" fill="#a83a3a"/>
     <path d="M32 13 L30 7 L34 7 Z" fill="#d9a441"/>
     <path d="M32 7 V4" fill="none" stroke-width="1.5" stroke="#d9a441"/>
     <path d="M24 51 V41 Q32 35 40 41 V51 Z" fill="#8f6420"/>

@@ -1,9 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Arcane Sanctum">
   <defs>
-    <linearGradient id="sc-stone" x1="0" y1="0" x2="0.7" y2="1">
-      <stop offset="0" stop-color="#ece7d6"/>
-      <stop offset="1" stop-color="#bdb29a"/>
-    </linearGradient>
     <linearGradient id="sc-dome" x1="0" y1="0" x2="0.7" y2="1">
       <stop offset="0" stop-color="#7a5f94"/>
       <stop offset="1" stop-color="#3a2b4c"/>
@@ -13,9 +9,9 @@
     <ellipse cx="32" cy="58" rx="24" ry="4" fill="#161018" opacity="0.2" stroke="none"/>
     <rect x="16" y="49" width="32" height="7" rx="2" fill="#6d6a63"/>
     <path d="M19 50 H45" fill="none" stroke-width="1.5" stroke="#918d84"/>
-    <path d="M22 22 H42 V49 H22 Z" fill="url(#sc-stone)"/>
-    <path d="M14 34 L20 30 V49 H14 Z" fill="url(#sc-stone)"/>
-    <path d="M50 34 L44 30 V49 H50 Z" fill="url(#sc-stone)"/>
+    <path d="M22 22 H42 V49 H22 Z" fill="#d8d2bd"/>
+    <path d="M14 34 L20 30 V49 H14 Z" fill="#d8d2bd"/>
+    <path d="M50 34 L44 30 V49 H50 Z" fill="#d8d2bd"/>
     <path d="M13 32 L17 27 L21 32 Z" fill="#a83a3a"/>
     <path d="M43 32 L47 27 L51 32 Z" fill="#a83a3a"/>
     <path d="M22 49 H42 V52 H22 Z" fill="#6d6a63"/>
