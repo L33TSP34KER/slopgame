@@ -40,6 +40,10 @@ class Camera:
 
 
 class Renderer:
+    # Class-level defaults for the stock 84x84 map — kept so any external
+    # reader of Renderer.OX/MW still sees the historical numbers. Instances
+    # shadow these with values derived from their ACTUAL map (campaign
+    # scenarios can be bigger than 84x84, up to the council's 128 cap).
     OX = 140 + MAP_H * (TILE // 2)
     OY = 200
     MW = (MAP_W + MAP_H) * (TILE // 2) + 280
@@ -49,6 +53,12 @@ class Renderer:
         self.game = game
         self.map = game.map
         self.art = game.art
+        # layout + baked surface derive from the map, not the module constants
+        # (identical numbers to the class attributes when the map is 84x84)
+        self.OX = 140 + self.map.h * (TILE // 2)
+        self.OY = 200
+        self.MW = (self.map.w + self.map.h) * (TILE // 2) + 280
+        self.MH = (self.map.w + self.map.h) * (TILE // 2) + 420
         self.surface = pygame.Surface((self.MW, self.MH), pygame.SRCALPHA)
         self.fog_surf = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
         self.dim_veil = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)

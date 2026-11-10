@@ -81,16 +81,286 @@ def _dist_to_rect(x, y, r):
     return math.hypot(dx, dy)
 
 
-def generate_map(seed=20261109, difficulty="knight"):
-    m = GameMap()
+def _mirror_pt(v, size):
+    """Mirror a continuous coordinate across a `size`-tile axis.
+
+    The tile the point stands in becomes its mirrored tile (t -> size-1-t)
+    and the in-tile fraction flips (f -> 1-f); a point exactly on a tile
+    corner (f == 0) stays an integer so int(v) is still the mirrored tile.
+    """
+    t = math.floor(v)
+    f = v - t
+    return float(size - 1 - t) + (1.0 - f if f else 0.0)
+
+
+def _flood(m, start):
+    """8-dir can_step flood from start — the same rules pocket sealing uses."""
+    from collections import deque
+    from .pathfind import can_step
+    W, H = m.w, m.h
+    seen = bytearray(W * H)
+    if not (0 <= start[0] < W and 0 <= start[1] < H):
+        return seen
+    seen[start[1] * W + start[0]] = 1
+    q = deque([start])
+    while q:
+        x, y = q.popleft()
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1),
+                       (1, 1), (1, -1), (-1, 1), (-1, -1)):
+            nx, ny = x + dx, y + dy
+            if not m.inb(nx, ny):
+                continue
+            ni = ny * W + nx
+            if seen[ni]:
+                continue
+            if can_step(m, x, y, nx, ny):
+                seen[ni] = 1
+                q.append((nx, ny))
+    return seen
+
+
+def _open_key_routes(m, spawn, route_targets):
+    """Carve a way out of any key-point pocket on a scaled layout.
+
+    The fixed 84x84 Ashen Vale layout keeps every mine, camp, start and route
+    target connected on its own; a bigger map re-rolls the forest noise and
+    can grow a closed tree ring around (for example) the south-east mine
+    clearing — pocket-sealing would then delete the mine's whole clearing.
+    Before validation floods, walk each key point's pocket across removable
+    blocks (trees/rocks on passable ground, never mine cells or water) until
+    it touches the reachable component, then clear that path. No-op when
+    everything is already connected, which is the case on the default map.
+    Returns the number of pockets that needed carving.
+    """
+    from collections import deque
+    from .pathfind import walkable, nearest_walkable
+    W, H = m.w, m.h
+    mine_cells = set()
+    for mm in m.mines:
+        mine_cells |= {(mm["x"] + ox, mm["y"] + oy)
+                       for oy in (-1, 0) for ox in (-1, 0)}
+    points = [spawn]
+    points += [t for t, _ in route_targets]
+    points += [(mm["x"], mm["y"]) for mm in m.mines]
+    points += [(c["x"], c["y"]) for c in m.camps]
+    for side in m.starts.values():
+        points += [(b["x"], b["y"]) for b in side["buildings"]]
+
+    seen = _flood(m, spawn)
+    carved = 0
+    for pt in points:
+        anchor = nearest_walkable(m, pt[0], pt[1], None, 6)
+        if anchor is None or seen[anchor[1] * W + anchor[0]]:
+            continue
+        # 4-dir walk from the pocket; allowed to enter removable blocked tiles
+        # to break out of the ring, never stepping where height forbids it
+        parent = {anchor: None}
+        q = deque([anchor])
+        hit = None
+        while q and hit is None:
+            x, y = q.popleft()
+            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                nx, ny = x + dx, y + dy
+                if not (2 <= nx < W - 2 and 2 <= ny < H - 2):
+                    continue
+                if (nx, ny) in parent:
+                    continue
+                ni = ny * W + nx
+                hi, hj = m.height[y * W + x], m.height[ni]
+                if hi != hj and not (m.ramp[y * W + x] or m.ramp[ni]):
+                    continue
+                if seen[ni]:
+                    parent[(nx, ny)] = (x, y)
+                    hit = (nx, ny)
+                    break
+                removable = (m.blocked[ni] and m.terrain[ni] != WATER
+                             and (nx, ny) not in mine_cells)
+                if not walkable(m, nx, ny) and not removable:
+                    continue
+                parent[(nx, ny)] = (x, y)
+                q.append((nx, ny))
+        if hit is None:
+            continue
+        # clear the carved path (same tree teardown the camps use)
+        cur = hit
+        while cur is not None:
+            cx, cy = cur
+            ni = cy * W + cx
+            if m.blocked[ni]:
+                m.blocked[ni] = 0
+                if (cx, cy) in m.wood:
+                    for pr in m.tree_props.get((cx, cy), []):
+                        pr["gone"] = True
+                    m.wood.pop((cx, cy), None)
+                    m.tree_props.pop((cx, cy), None)
+            cur = parent[cur]
+        carved += 1
+        seen = _flood(m, spawn)
+    return carved
+
+
+def _flip_map(m, variant, spawn, route_targets):
+    """Mirror the finished, validated layout (variant: flipx/flipy/flipxy).
+
+    Mirroring is a tile bijection, so adjacency and the pocket sealing done
+    by the caller carry over by construction; a cheap connectivity sanity
+    check runs on the mirrored result anyway. Returns the list of problems
+    that check found (empty when everything is as it should be).
+    """
+    if variant == "flipx":
+        fx, fy = True, False
+    elif variant == "flipy":
+        fx, fy = False, True
+    elif variant == "flipxy":
+        fx, fy = True, True
+    else:
+        raise ValueError(f"unknown map variant {variant!r}")
+    from .defs import BUILDINGS
+    from collections import deque
+    from .pathfind import can_step, walkable, nearest_walkable
+    W, H = m.w, m.h
+
+    # ---- tile arrays (row-major i = y * W + x) -------------------------
+    for name in ("terrain", "height", "blocked", "ramp", "ford", "road", "clear"):
+        arr = getattr(m, name)
+        if fx:
+            for y in range(H):
+                s = y * W
+                arr[s:s + W] = arr[s:s + W][::-1]
+        if fy:
+            rows = bytearray(W * H)
+            for y in range(H):
+                rows[(H - 1 - y) * W:(H - y) * W] = arr[y * W:(y + 1) * W]
+            arr[:] = rows
+    # static-walk cache built by the validation above is now stale
+    m._base_walk = None
+
+    # ---- coordinate-bearing structures --------------------------------
+    for p in m.props:
+        if fx:
+            p["x"] = _mirror_pt(p["x"], W)
+        if fy:
+            p["y"] = _mirror_pt(p["y"], H)
+
+    def mir_key(key):
+        x, y = key
+        return ((W - 1 - x) if fx else x, (H - 1 - y) if fy else y)
+
+    m.wood = {mir_key(k): v for k, v in m.wood.items()}
+    m.tree_props = {mir_key(k): v for k, v in m.tree_props.items()}
+    for mine in m.mines:
+        # a mine occupies tiles (x-1..x, y-1..y), so its mirrored origin is
+        # size - coord: 12 -> 72 maps cells {11,12} onto {71,72} exactly
+        if fx:
+            mine["x"] = W - mine["x"]
+        if fy:
+            mine["y"] = H - mine["y"]
+    for camp in m.camps:
+        cx, cy = camp["x"], camp["y"]
+        ncx = (W - 1 - cx) if fx else cx
+        ncy = (H - 1 - cy) if fy else cy
+        for u in camp["units"]:
+            ox, oy = u["x"] - cx, u["y"] - cy   # offsets mirror by negation
+            if fx:
+                u["x"] = ncx - ox
+            if fy:
+                u["y"] = ncy - oy
+        camp["x"], camp["y"] = ncx, ncy
+    for side in m.starts.values():
+        for b in side["buildings"]:
+            bw, bh = BUILDINGS[b["type"]]["size"]
+            # footprint x..x+bw-1 mirrors to size-x-bw .. size-1-x, so the
+            # mirrored hall lands exactly on its mirrored cleared footprint
+            if fx:
+                b["x"] = W - b["x"] - bw
+            if fy:
+                b["y"] = H - b["y"] - bh
+        side["units"] = [(ut,
+                          _mirror_pt(ux, W) if fx else ux,
+                          _mirror_pt(uy, H) if fy else uy)
+                         for (ut, ux, uy) in side["units"]]
+        camx, camy = side["camera"]
+        side["camera"] = ((W - 1 - camx) if fx else camx,
+                          (H - 1 - camy) if fy else camy)
+
+    # ---- cheap connectivity sanity check on the mirrored result --------
+    problems = []
+    sx0, sy0 = spawn
+    start = ((W - 1 - sx0) if fx else sx0, (H - 1 - sy0) if fy else sy0)
+    seen = bytearray(W * H)
+    seen[start[1] * W + start[0]] = 1
+    q = deque([start])
+    while q:
+        x, y = q.popleft()
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)):
+            nx2, ny2 = x + dx, y + dy
+            if not m.inb(nx2, ny2):
+                continue
+            ni = ny2 * W + nx2
+            if seen[ni]:
+                continue
+            if can_step(m, x, y, nx2, ny2):
+                seen[ni] = 1
+                q.append((nx2, ny2))
+    for (tx, ty), label in route_targets:
+        gx = (W - 1 - tx) if fx else tx
+        gy = (H - 1 - ty) if fy else ty
+        # raw targets may sit on a mine cell like they do on the stock map;
+        # resolve to the walkable tile find_path would home in on (radius 6)
+        hit = nearest_walkable(m, gx, gy, None, 6)
+        if hit is None or not seen[hit[1] * W + hit[0]]:
+            problems.append(f"post-{variant}: no path to mirrored {label}")
+    for tag, side in m.starts.items():
+        for (ut, ux, uy) in side["units"]:
+            if not walkable(m, int(ux), int(uy)):
+                problems.append(f"post-{variant}: start unit {ut} ({tag}) not walkable")
+        for b in side["buildings"]:
+            bw, bh = BUILDINGS[b["type"]]["size"]
+            if not all(walkable(m, xx, yy)
+                       for yy in range(b["y"], b["y"] + bh)
+                       for xx in range(b["x"], b["x"] + bw)):
+                problems.append(f"post-{variant}: {tag} {b['type']} footprint not walkable")
+    return problems
+
+
+def generate_map(seed=20261109, difficulty="knight", w=None, h=None, variant=None,
+                 name=None):
+    w = MAP_W if w is None else int(w)
+    h = MAP_H if h is None else int(h)
+    m = GameMap(w=w, h=h)
+    if name is not None:
+        m.name = name
     rng = Rng(seed)
     W, H = m.w, m.h
 
+    # Every layout anchor below is authored on the 84x84 Ashen Vale grid and
+    # mapped through X()/Y() so other sizes keep the same proportions:
+    #   xscaled = round(x * w / 84), yscaled = round(y * h / 84).
+    # At the default size kx == ky == 1.0 EXACTLY (84/84.0 in IEEE-754), so
+    # round(x * 1.0) == x for every int literal and x * 1.0 == x for every
+    # float: the default output is byte-identical to the fixed 84x84 layout.
+    kx = W / 84.0
+    ky = H / 84.0
+    nx = 84.0 / W          # inverse factors: tile -> base space (noise inputs)
+    ny = 84.0 / H
+
+    def X(x):
+        return round(x * kx)
+
+    def Y(y):
+        return round(y * ky)
+
+    def river_y(x):
+        # base curve is authored for 84 wide/high: normalize x, scale y
+        return _river_y(x * nx) * ky
+
+    hall_x, hall_y = X(PLAYER_HALL[0]), Y(PLAYER_HALL[1])
+
     # ---- river with two fords ----------------------------------------
-    fords = (23.0, 61.0)
+    fords = tuple(fx * kx for fx in (23.0, 61.0))
     for x in range(W):
-        cy = _river_y(x)
-        width = 3.1 + 1.2 * fbm(x * 0.12, 3.3, seed)
+        cy = river_y(x)
+        width = 3.1 + 1.2 * fbm((x * nx) * 0.12, 3.3, seed)
         for y in range(H):
             d = abs(y - cy)
             near_ford = any(abs(x - fx) <= 2.6 for fx in fords)
@@ -116,53 +386,59 @@ def generate_map(seed=20261109, difficulty="knight"):
                     m.height[i] = 2
                     m.terrain[i] = ROCK
     # enemy plateau (north-east)
-    for y in range(6, 26):
-        for x in range(56, 79):
+    pl_x0, pl_x1, pl_y0, pl_y1 = X(56), X(79), Y(6), Y(26)
+    for y in range(pl_y0, pl_y1):
+        for x in range(pl_x0, pl_x1):
             i = m.i(x, y)
             if m.terrain[i] != WATER:
                 m.height[i] = 2
                 if m.terrain[i] == GRASS:
-                    m.terrain[i] = ASH if x > 56 and y < 24 else MOSS
+                    m.terrain[i] = ASH if x > pl_x0 and y < Y(24) else MOSS
     # central mesa
-    for y in range(MESA[1], MESA[3] + 1):
-        for x in range(MESA[0], MESA[2] + 1):
+    ms_x0, ms_y0, ms_x1, ms_y1 = X(MESA[0]), Y(MESA[1]), X(MESA[2]), Y(MESA[3])
+    for y in range(ms_y0, ms_y1 + 1):
+        for x in range(ms_x0, ms_x1 + 1):
             i = m.i(x, y)
             if m.terrain[i] != WATER:
                 m.height[i] = 2
-                m.terrain[i] = ROCK if (x in (MESA[0], MESA[2]) or y in (MESA[1], MESA[3])) else GRASS
+                m.terrain[i] = ROCK if (x in (ms_x0, ms_x1) or y in (ms_y0, ms_y1)) else GRASS
     # south-east ridge for silhouette
-    for y in range(66, 78):
-        for x in range(60, 79):
-            if (x - 60) + (77 - y) < 8:
+    rg_x0, rg_x1, rg_y0, rg_y1 = X(60), X(79), Y(66), Y(78)
+    for y in range(rg_y0, rg_y1):
+        for x in range(rg_x0, rg_x1):
+            if (x - rg_x0) + (Y(77) - y) < X(8):
                 i = m.i(x, y)
                 if m.terrain[i] != WATER:
                     m.height[i] = 2
                     m.terrain[i] = ROCK
 
     # ramps: enemy plateau approach
-    ex, ey = ENEMY_RAMP
-    for y in range(ey, ey + 4):
-        for x in range(ex, ex + 5):
+    ex, ey = X(ENEMY_RAMP[0]), Y(ENEMY_RAMP[1])
+    for y in range(ey, ey + 4):          # 4 rows deep: thickness stays in tiles
+        for x in range(ex, ex + 5):      # 5 wide: thickness stays in tiles
             i = m.i(x, y)
             m.height[i] = 1
             m.terrain[i] = DIRT
             m.ramp[i] = 1
             m.clear[i] = 1
-    m.ramp[m.i(ex, 25)] = 1
-    m.ramp[m.i(ex + 2, 25)] = 1
-    m.ramp[m.i(ex + 4, 25)] = 1
+    # lip row sits on the plateau's last row (y25 == ey-1 on the default map)
+    m.ramp[m.i(ex, ey - 1)] = 1
+    m.ramp[m.i(ex + 2, ey - 1)] = 1
+    m.ramp[m.i(ex + 4, ey - 1)] = 1
     # eastern goat path: a narrow, unbuildable flank onto the plateau
-    for y in range(24, 30):
-        for x in range(73, 76):
+    gp_x0, gp_x1, gp_y0, gp_y1 = X(73), X(76), Y(24), Y(30)
+    for y in range(gp_y0, gp_y1):
+        for x in range(gp_x0, gp_x1):
             i = m.i(x, y)
             m.height[i] = 1
             m.terrain[i] = DIRT
             m.ramp[i] = 1
             m.clear[i] = 1
-    for x in range(73, 76):
-        m.ramp[m.i(x, 24)] = 1
-    # mesa ramp (south side)
-    mx, my = MESA_RAMP
+    for x in range(gp_x0, gp_x1):
+        m.ramp[m.i(x, gp_y0)] = 1
+    # mesa ramp (south side): starts right below the mesa's scaled south edge
+    # so lip and plateau stay adjacent at every size (my == 36 at 84x84)
+    mx, my = X(MESA_RAMP[0]), ms_y1 + 1
     for y in range(my, my + 2):
         for x in range(mx, mx + 3):
             i = m.i(x, y)
@@ -171,15 +447,15 @@ def generate_map(seed=20261109, difficulty="knight"):
             m.ramp[i] = 1
             m.clear[i] = 1
     for x in range(mx, mx + 3):
-        m.ramp[m.i(x, MESA[3])] = 1
+        m.ramp[m.i(x, ms_y1)] = 1
 
     # ---- terrain texture patches -------------------------------------
-    for y in range(W):
+    for y in range(H):
         for x in range(W):
             i = m.i(x, y)
             if m.terrain[i] in (WATER, SAND, ROCK) or m.height[i] >= 2:
                 continue
-            n = fbm(x * 0.09, y * 0.09, seed + 5, 4)
+            n = fbm((x * nx) * 0.09, (y * ny) * 0.09, seed + 5, 4)
             if n > 0.62:
                 m.terrain[i] = DIRT
             elif n < 0.36:
@@ -189,9 +465,12 @@ def generate_map(seed=20261109, difficulty="knight"):
 
     # ---- roads (dirt tracks that read the routes) --------------------
     routes = [
-        [(24, 76), (23, 66), (23, 54), (23, 47), (26, 42), (30, 38),
-         (30, 30), (36, 26), (46, 26), (56, 28), (61, 30), (64, 28), (64, 24), (62, 21)],
-        [(28, 72), (40, 66), (52, 60), (60, 52), (61, 44), (61, 38), (64, 32), (64, 28)],
+        [(X(24), Y(76)), (X(23), Y(66)), (X(23), Y(54)), (X(23), Y(47)),
+         (X(26), Y(42)), (X(30), Y(38)), (X(30), Y(30)), (X(36), Y(26)),
+         (X(46), Y(26)), (X(56), Y(28)), (X(61), Y(30)), (X(64), Y(28)),
+         (X(64), Y(24)), (X(62), Y(21))],
+        [(X(28), Y(72)), (X(40), Y(66)), (X(52), Y(60)), (X(60), Y(52)),
+         (X(61), Y(44)), (X(61), Y(38)), (X(64), Y(32)), (X(64), Y(28))],
     ]
     for route in routes:
         for k in range(len(route) - 1):
@@ -212,7 +491,7 @@ def generate_map(seed=20261109, difficulty="knight"):
                             m.clear[m.i(tx, ty)] = 1
                             if m.terrain[m.i(tx, ty)] in (GRASS, MOSS, DIRT):
                                 m.terrain[m.i(tx, ty)] = DIRT
-                            if m.height[m.i(tx, ty)] == 2 and (tx, ty) not in ((64, 24),):
+                            if m.height[m.i(tx, ty)] == 2 and (tx, ty) not in ((X(64), Y(24)),):
                                 pass
 
     # ---- mines -------------------------------------------------------
@@ -232,12 +511,12 @@ def generate_map(seed=20261109, difficulty="knight"):
         m.add_prop("mine", x - 0.5, y - 0.5, gold=gold, owner=owner)
         return mine
 
-    add_mine(12, 62, 12000, PLAYER)      # home mine
-    add_mine(74, 8, 20000, ENEMY)       # enemy reserve
-    add_mine(13, 30, 10000, NEUTRAL)    # west ford
-    add_mine(37, 32, 11000, NEUTRAL)    # mesa
-    add_mine(70, 58, 10000, NEUTRAL)    # south-east
-    add_mine(44, 54, 10000, NEUTRAL)    # south-central expansion
+    add_mine(X(12), Y(62), 12000, PLAYER)      # home mine
+    add_mine(X(74), Y(8), 20000, ENEMY)        # enemy reserve
+    add_mine(X(13), Y(30), 10000, NEUTRAL)     # west ford
+    add_mine(X(37), Y(32), 11000, NEUTRAL)     # mesa
+    add_mine(X(70), Y(58), 10000, NEUTRAL)     # south-east
+    add_mine(X(44), Y(54), 10000, NEUTRAL)     # south-central expansion
 
     # ---- clearings ---------------------------------------------------
     def clear_area(cx, cy, r):
@@ -248,28 +527,29 @@ def generate_map(seed=20261109, difficulty="knight"):
                 if (x - cx) ** 2 + (y - cy) ** 2 <= r * r:
                     m.clear[m.i(x, y)] = 1
 
-    clear_area(20, 68, 11)
-    clear_area(23, 74, 6)
-    clear_area(61, 18, 15)
-    clear_area(64, 30, 5)
-    clear_area(74, 28, 4)
-    clear_area(74, 8, 3)
-    clear_area(44, 54, 4)
+    clear_area(X(20), Y(68), 11)
+    clear_area(X(23), Y(74), 6)
+    clear_area(X(61), Y(18), 15)
+    clear_area(X(64), Y(30), 5)
+    clear_area(X(74), Y(28), 4)
+    clear_area(X(74), Y(8), 3)
+    clear_area(X(44), Y(54), 4)
     for mine in m.mines:
         clear_area(mine["x"], mine["y"], 4)
 
     # player hall footprint
-    for y in range(PLAYER_HALL[1] - 1, PLAYER_HALL[1] + 5):
-        for x in range(PLAYER_HALL[0] - 1, PLAYER_HALL[0] + 5):
+    for y in range(hall_y - 1, hall_y + 5):
+        for x in range(hall_x - 1, hall_x + 5):
             if m.inb(x, y):
                 m.clear[m.i(x, y)] = 1
                 m.set_terr(x, y, DIRT if m.terr(x, y) != WATER else WATER)
 
     # ---- forests -----------------------------------------------------
     zones = [
-        (3, 46, 20, 80, 0.62), (6, 72, 48, 81, 0.5), (4, 6, 28, 30, 0.55),
-        (66, 38, 80, 74, 0.58), (30, 5, 54, 22, 0.42), (22, 50, 34, 64, 0.18),
-        (46, 48, 58, 62, 0.16), (10, 34, 20, 46, 0.2),
+        (X(3), Y(46), X(20), Y(80), 0.62), (X(6), Y(72), X(48), Y(81), 0.5),
+        (X(4), Y(6), X(28), Y(30), 0.55), (X(66), Y(38), X(80), Y(74), 0.58),
+        (X(30), Y(5), X(54), Y(22), 0.42), (X(22), Y(50), X(34), Y(64), 0.18),
+        (X(46), Y(48), X(58), Y(62), 0.16), (X(10), Y(34), X(20), Y(46), 0.2),
     ]
     for (x0, y0, x1, y1, density) in zones:
         for y in range(y0, min(y1, H - 1) + 1):
@@ -279,8 +559,8 @@ def generate_map(seed=20261109, difficulty="knight"):
                     continue
                 if m.height[i] > 1:
                     continue
-                if rng() < density * (0.55 + 0.9 * fbm(x * 0.2, y * 0.2, seed + 11)):
-                    kind = "pine" if (y < 40 or x < 30) and rng() < 0.62 else "tree"
+                if rng() < density * (0.55 + 0.9 * fbm((x * nx) * 0.2, (y * ny) * 0.2, seed + 11)):
+                    kind = "pine" if (y < Y(40) or x < X(30)) and rng() < 0.62 else "tree"
                     if rng() < 0.12:
                         kind = "dead"
                     scale = rng.uniform(0.82, 1.18)
@@ -300,8 +580,8 @@ def generate_map(seed=20261109, difficulty="knight"):
                                    variant=rng.randrange(3), scale=rng.uniform(0.8, 1.2), block=False)
 
     # ---- enemy base ground dress ------------------------------------
-    for y in range(9, 25):
-        for x in range(56, 75):
+    for y in range(Y(9), Y(25)):
+        for x in range(X(56), X(75)):
             i = m.i(x, y)
             if m.blocked[i] or m.terrain[i] == WATER:
                 continue
@@ -338,7 +618,8 @@ def generate_map(seed=20261109, difficulty="knight"):
                            variant=rng.randrange(3), scale=rng.uniform(0.6, 0.9))
 
     # ruins: two old watch-stones + a broken arch
-    for (x, y, kind, sc) in [(31, 45, "ruin", 1.0), (65, 48, "ruin", 0.9), (47, 37, "arch", 1.0)]:
+    for (x, y, kind, sc) in [(X(31), Y(45), "ruin", 1.0), (X(65), Y(48), "ruin", 0.9),
+                             (X(47), Y(37), "arch", 1.0)]:
         if m.inb(x, y):
             m.clear[m.i(x, y)] = 1
             m.add_prop(kind, x + 0.5, y + 0.5, scale=sc, block=True)
@@ -359,16 +640,16 @@ def generate_map(seed=20261109, difficulty="knight"):
                            block=False, sway=rng.uniform(0.6, 1.2))
 
     # campfires at home + enemy gate
-    m.add_prop("fire", 16.5, 72.6, scale=0.85, block=False, glow=True)
-    m.add_prop("fire", 58.0, 21.0, scale=1.0, block=False, glow=True)
-    m.add_prop("fire", 63.0, 30.0, scale=0.7, block=False, glow=True)
+    m.add_prop("fire", 16.5 * kx, 72.6 * ky, scale=0.85, block=False, glow=True)
+    m.add_prop("fire", 58.0 * kx, 21.0 * ky, scale=1.0, block=False, glow=True)
+    m.add_prop("fire", 63.0 * kx, 30.0 * ky, scale=0.7, block=False, glow=True)
     for fx in fords:
         for k in range(-2, 3):
-            yy = _river_y(fx) + k * 1.2
+            yy = river_y(fx) + k * 1.2
             m.add_prop("stone", fx + 0.5 + (k % 2) * 0.3, yy,
                        variant=(k + 3) % 3, scale=0.8, block=False)
     # goat-path marker
-    m.add_prop("fire", 74.0, 29.0, scale=0.55, block=False, glow=True)
+    m.add_prop("fire", 74.0 * kx, 29.0 * ky, scale=0.55, block=False, glow=True)
 
     # ---- camps / creeps ---------------------------------------------
     def camp(cx, cy, units, name):
@@ -396,35 +677,41 @@ def generate_map(seed=20261109, difficulty="knight"):
         m.add_prop("bone", cx + 0.2, cy + 0.9, variant=0, scale=0.8)
         return camp
 
-    camp(39, 32, [("goblin-brute", 0, 0), ("goblin", 1, 1), ("goblin", -1, 1), ("goblin", 1, -1)],
+    camp(X(39), Y(32), [("goblin-brute", 0, 0), ("goblin", 1, 1), ("goblin", -1, 1), ("goblin", 1, -1)],
          "Mesa Warren")
-    camp(74, 63, [("goblin", 0, 0), ("goblin", 2, 0), ("goblin", 1, -2)], "Thornwood Warren")
-    camp(13, 27, [("goblin", 0, 0), ("goblin", -2, 1)], "Westford Warren")
-    camp(48, 58, [("goblin", 0, 0), ("goblin", -2, 0)], "Crossroads Warren")
+    camp(X(74), Y(63), [("goblin", 0, 0), ("goblin", 2, 0), ("goblin", 1, -2)], "Thornwood Warren")
+    camp(X(13), Y(27), [("goblin", 0, 0), ("goblin", -2, 1)], "Westford Warren")
+    camp(X(48), Y(58), [("goblin", 0, 0), ("goblin", -2, 0)], "Crossroads Warren")
 
     # ---- starts ------------------------------------------------------
-    player_buildings = [dict(type="townhall", x=PLAYER_HALL[0], y=PLAYER_HALL[1])]
+    player_buildings = [dict(type="townhall", x=hall_x, y=hall_y),
+                        dict(type="farm", x=X(13), y=Y(70))]
     player_units = [
-        ("hero", 24.5, 71.5), ("worker", 22.0, 72.5), ("worker", 23.5, 73.0),
-        ("worker", 25.5, 73.0), ("worker", 26.5, 72.0),
-        ("footman", 21.0, 70.0), ("footman", 27.0, 70.5),
+        ("hero", 24.5 * kx, 71.5 * ky), ("worker", 22.0 * kx, 72.5 * ky),
+        ("worker", 23.5 * kx, 73.0 * ky),
+        ("worker", 25.5 * kx, 73.0 * ky), ("worker", 26.5 * kx, 72.0 * ky),
+        ("worker", 20.5 * kx, 73.5 * ky), ("worker", 28.0 * kx, 72.5 * ky),
+        ("footman", 21.0 * kx, 70.0 * ky), ("footman", 27.0 * kx, 70.5 * ky),
+        ("archer", 29.0 * kx, 69.0 * ky),
     ]
     enemy_buildings = [
-        dict(type="necropolis", x=58, y=12),
-        dict(type="ziggurat", x=54, y=8), dict(type="ziggurat", x=64, y=8),
-        dict(type="crypt", x=54, y=18), dict(type="slaughterhouse", x=65, y=18),
-        dict(type="temple", x=68, y=10), dict(type="altarhollow", x=60, y=20),
-        dict(type="bonetower", x=54, y=23), dict(type="bonetower", x=67, y=23),
+        dict(type="necropolis", x=X(58), y=Y(12)),
+        dict(type="ziggurat", x=X(54), y=Y(8)), dict(type="ziggurat", x=X(64), y=Y(8)),
+        dict(type="crypt", x=X(54), y=Y(18)), dict(type="slaughterhouse", x=X(65), y=Y(18)),
+        dict(type="temple", x=X(68), y=Y(10)), dict(type="altarhollow", x=X(60), y=Y(20)),
+        dict(type="bonetower", x=X(54), y=Y(23)), dict(type="bonetower", x=X(67), y=Y(23)),
     ]
     enemy_units = [
-        ("hollow-king", 61.5, 19.0),
-        ("ghoul", 57.5, 21.5), ("ghoul", 64.5, 21.5), ("ghoul", 58.5, 17.0),
-        ("ghoul", 66.0, 16.0), ("fiend", 57.0, 19.5), ("fiend", 66.5, 12.5),
-        ("necromancer", 63.0, 19.0), ("abomination", 62.0, 23.0),
+        ("hollow-king", 61.5 * kx, 19.0 * ky),
+        ("ghoul", 57.5 * kx, 21.5 * ky), ("ghoul", 64.5 * kx, 21.5 * ky),
+        ("fiend", 66.5 * kx, 12.5 * ky), ("necromancer", 63.0 * kx, 19.0 * ky),
+        ("abomination", 62.0 * kx, 23.0 * ky),
     ]
     m.starts = {
-        PLAYER: dict(buildings=player_buildings, units=player_units, camera=(24, 69)),
-        ENEMY: dict(buildings=enemy_buildings, units=enemy_units, camera=(61, 18)),
+        PLAYER: dict(buildings=player_buildings, units=player_units,
+                     camera=(X(24), Y(69))),
+        ENEMY: dict(buildings=enemy_buildings, units=enemy_units,
+                    camera=(X(61), Y(18))),
     }
 
     # clear the exact footprints of start buildings above
@@ -475,23 +762,25 @@ def generate_map(seed=20261109, difficulty="knight"):
     # ---- validate routes --------------------------------------------
     from .pathfind import find_path
     problems = []
-    route = find_path(m, (24, 72), (61, 24))
-    if not route:
-        problems.append("no path player spawn -> enemy ramp")
-    route2 = find_path(m, (24, 72), (39, 35))
-    if not route2:
-        problems.append("no path player spawn -> mesa camp")
-    route3 = find_path(m, (24, 72), (13, 34))
-    if not route3:
-        problems.append("no path player spawn -> west mine")
-    route4 = find_path(m, (24, 72), (70, 57))
-    if not route4:
-        problems.append("no path player spawn -> southeast mine")
+    spawn = (X(24), Y(72))
+    route_targets = [((X(61), Y(24)), "enemy ramp"),
+                     ((X(39), Y(35)), "mesa camp"),
+                     ((X(13), Y(34)), "west mine"),
+                     ((X(70), Y(57)), "southeast mine")]
+    # scaled layouts can wall a key point behind a tree ring; break it open
+    # before validation so sealing only ever removes border silhouette
+    _open_key_routes(m, spawn, route_targets)
+    # bigger grids need a bigger A* budget than the 84x84 tuning (the default
+    # budget still succeeds on the stock map, so its result cannot change)
+    budget = max(6000, 4 * m.w * m.h)
+    for target, label in route_targets:
+        if not find_path(m, spawn, target, max_nodes=budget):
+            problems.append(f"no path player spawn -> {label}")
     # Seal unreachable walkable pockets so the map has no dead rooms and the
     # audit can prove connectivity. Pockets are visually dressed with rocks.
     from collections import deque
     from .pathfind import can_step, walkable
-    start = (24, 72)
+    start = spawn
     seen = bytearray(m.w * m.h)
     q = deque([start])
     seen[start[1] * m.w + start[0]] = 1
@@ -517,6 +806,11 @@ def generate_map(seed=20261109, difficulty="knight"):
             sealed += 1
     if sealed:
         problems.append(f"sealed {sealed} unreachable pocket tiles")
+    # ---- optional mirror variant (after validation) -------------------
+    # Mirroring is a tile bijection, so adjacency — and therefore the sealing
+    # above — carries over by construction; re-check it cheaply anyway.
+    if variant is not None:
+        problems.extend(_flip_map(m, variant, spawn, route_targets))
     m.problems = problems
     m.seed = seed
     return m
