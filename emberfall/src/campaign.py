@@ -153,10 +153,20 @@ BOSS_IDS = tuple(s["boss"] for s in SCENARIOS if s["boss"])
 # progression save
 # --------------------------------------------------------------------------
 _DEFAULT = {"unlocked": 1, "best": {}}
+_active = {"path": None}
 
 
 def _save_candidates():
+    """Candidate save paths, highest priority first.
+
+    EMBERFALL_SAVE_PATH overrides everything (QA/probe isolation so tests
+    never touch a real player's progress), then the per-user home location,
+    then the game directory as a fallback.
+    """
     out = []
+    ov = os.environ.get("EMBERFALL_SAVE_PATH")
+    if ov:
+        out.append(ov)
     try:
         out.append(os.path.join(os.path.expanduser("~"), ".emberfall", "campaign.json"))
     except Exception:
@@ -165,31 +175,64 @@ def _save_candidates():
     return out
 
 
-def load_progress():
-    """Best-effort read; any failure means fresh progress, never a crash."""
+def _writable(p):
+    d = os.path.dirname(p) or "."
+    try:
+        os.makedirs(d, exist_ok=True)
+        return os.access(d, os.W_OK)
+    except Exception:
+        return False
+
+
+def _active_path():
+    """ONE path used for both read and write — never read one file and write
+    another.
+
+    The old implementation read the FIRST candidate that existed but wrote the
+    FIRST candidate it could open. In a sandbox where ~/.emberfall exists but
+    is read-only, reads saw the player's real progress while writes landed in
+    the game directory — split-brain state that made every progression
+    assertion (and every save) unreliable.
+    """
+    if _active["path"]:
+        return _active["path"]
     for p in _save_candidates():
-        try:
-            with open(p, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            if isinstance(data, dict):
-                data.setdefault("unlocked", 1)
-                data.setdefault("best", {})
-                return data
-        except Exception:
-            continue
-    return dict(_DEFAULT)
+        if _writable(p):
+            _active["path"] = p
+            return p
+    _active["path"] = _save_candidates()[-1]
+    return _active["path"]
+
+
+def load_progress():
+    """Best-effort read of the ACTIVE save only; any failure means fresh
+    progress, never a crash. Also sanitises the data: best times must be
+    positive (a 0.0 recorded by the old duplicate-victory path would
+    otherwise beat every future run forever)."""
+    try:
+        with open(_active_path(), "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            data.setdefault("unlocked", 1)
+            best = data.setdefault("best", {})
+            data["best"] = {k: float(v) for k, v in best.items()
+                            if isinstance(v, (int, float)) and float(v) > 0}
+            data["unlocked"] = max(1, int(data["unlocked"]))
+            return data
+    except Exception:
+        pass
+    return json.loads(json.dumps(_DEFAULT))
 
 
 def save_progress(prog):
-    for p in _save_candidates():
-        try:
-            os.makedirs(os.path.dirname(p), exist_ok=True)
-            with open(p, "w", encoding="utf-8") as f:
-                json.dump(prog, f, indent=1)
-            return True
-        except Exception:
-            continue
-    return False
+    p = _active_path()
+    try:
+        os.makedirs(os.path.dirname(p) or ".", exist_ok=True)
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(prog, f, indent=1)
+        return True
+    except Exception:
+        return False
 
 
 def unlocked_count():
@@ -214,11 +257,19 @@ def unlock(index0):
 
 
 def record_best(index0, seconds):
+    try:
+        seconds = float(seconds)
+    except Exception:
+        return False
+    if seconds <= 0:
+        # a zero/negative time is a bug artifact, not a record — without this
+        # guard one bad read of world.time beats every legitimate run forever
+        return False
     prog = load_progress()
     best = prog.setdefault("best", {})
     key = str(index0)
-    if key not in best or float(seconds) < float(best[key]):
-        best[key] = float(seconds)
+    if key not in best or seconds < float(best[key]):
+        best[key] = seconds
         save_progress(prog)
         return True
     return False

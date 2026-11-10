@@ -28,6 +28,14 @@ import time
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+# isolate the probe from any real player save: one fresh file per run, so
+# progression assertions are deterministic and ~/.emberfall is never touched
+_PROBE_SAVE = "/tmp/emberfall-probe-save.json"
+try:
+    os.remove(_PROBE_SAVE)
+except OSError:
+    pass
+os.environ["EMBERFALL_SAVE_PATH"] = _PROBE_SAVE
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, ROOT)
@@ -141,9 +149,10 @@ def progression():
     print("== progression save ==")
     before = campaign.load_progress()
     # isolate: a stale best (even 0.0 from an earlier scripted victory) must
-    # not mask the assertions below — clear it, test, then restore the file
+    # not mask the assertions below — reset, test, then restore the file
     trial = json.loads(json.dumps(before))
     trial.setdefault("best", {}).pop("0", None)
+    trial["unlocked"] = 1
     campaign.save_progress(trial)
     campaign.unlock(0)
     check(campaign.is_unlocked(1), "m2 not unlocked after m1")
