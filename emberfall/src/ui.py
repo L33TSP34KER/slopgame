@@ -1,6 +1,6 @@
 """Emberfall UI: HUD, command card, minimap, tooltips, title, briefing, menus."""
 from __future__ import annotations
-import math, os
+import math, os, random
 import pygame
 from .defs import *
 from .core import clamp, fmt_time, fmt
@@ -23,6 +23,25 @@ VIOLET = (158, 118, 208)
 MUTED = (138, 126, 108)
 BASE_KEYS = ["Q", "W", "E", "R", "A", "S", "D", "F", "Z", "X", "C", "V"]
 
+# ------------------------------------------------------------- chrome palette
+# Procedural texture maths: everything the HUD chrome needs is built from
+# these two helpers so bevels read top-light/bottom-dark like real brass.
+INK_S = (48, 36, 24)          # body ink for parchment sheets
+INK_S_D = (96, 78, 56)        # secondary ink on parchment
+OCHRE = (128, 84, 26)         # deep gold that stays legible on parchment
+LABEL = (172, 158, 132)       # HUD small-caps label tone (MUTED is too dim)
+
+
+def mix(a, b, t):
+    return (int(a[0] + (b[0] - a[0]) * t),
+            int(a[1] + (b[1] - a[1]) * t),
+            int(a[2] + (b[2] - a[2]) * t))
+
+
+def lift(c, amt):
+    """Toward white (amt>0) or black (amt<0) — the bevel ramp."""
+    return mix(c, (255, 255, 255), amt) if amt >= 0 else mix(c, (0, 0, 0), -amt)
+
 
 class UI:
     def __init__(self, game):
@@ -39,6 +58,9 @@ class UI:
         self.pulse = 0.0
         self.logo = None
         self._grad = None
+        self._tex = {}          # procedural chrome cache: key -> Surface
+        self._heads = {}        # letterspaced header cache: key -> Surface
+        self.mouse_down = False
         self.tooltip_cache = None
         self.minimap_rect = pygame.Rect(1372, 716, 204, 200)
         self.minimap = None
@@ -51,21 +73,418 @@ class UI:
     def t(self, text, size, color=PARCH, face="serif", shadow=True):
         return self.art.text(text, size, color, face, shadow)
 
-    def panel(self, rect, fill=WALNUT, border=BRASS, alpha=245, radius=6):
-        s = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
-        pygame.draw.rect(s, (*fill, alpha), (0, 0, rect.w, rect.h), border_radius=radius)
-        pygame.draw.rect(s, (*border, 255), (0, 0, rect.w, rect.h), 1, border_radius=radius)
-        pygame.draw.rect(s, (0, 0, 0, 70), (2, 2, rect.w - 4, rect.h - 4), 1, border_radius=radius)
-        self.g.screen.blit(s, rect.topleft)
+    def head(self, text, size, color=GOLD, face="display", track=None, upper=True):
+        """Letterspaced header text (Cinzel caps / Source Sans labels).
+
+        Composed once per unique string and cached — no font work per frame.
+        """
+        s = str(text).upper() if upper else str(text)
+        if track is None:
+            track = max(1, round(size * 0.12)) if face.startswith("display") \
+                else max(0, round(size * 0.07))
+        key = ("head", s, int(size), tuple(color), face, track)
+        hit = self._heads.get(key)
+        if hit is not None:
+            return hit
+        f = self.art.font(int(size), face)
+        chars = list(s)
+        widths = [f.size(c)[0] for c in chars]
+        total = max(1, sum(widths) + track * max(0, len(chars) - 1))
+        out = pygame.Surface((total + 2, f.get_height() + 2), pygame.SRCALPHA)
+        x = 0
+        for c, cw in zip(chars, widths):
+            if c != " ":
+                out.blit(f.render(c, True, (0, 0, 0)), (x + 1, 1))
+                out.blit(f.render(c, True, color), (x, 0))
+            x += cw + track
+        if len(self._heads) > 512:
+            self._heads.clear()
+        self._heads[key] = out
+        return out
+
+    # ------------------------------------------------------- procedural chrome
+    def _cached(self, key, build, cap=288):
+        s = self._tex.get(key)
+        if s is None:
+            s = build()
+            while len(self._tex) >= cap:
+                self._tex.pop(next(iter(self._tex)))
+            self._tex[key] = s
         return s
 
+    @staticmethod
+    def _cut(s, radius):
+        """Round the corners of an opaque-built RGBA chrome surface."""
+        w, h = s.get_size()
+        radius = int(min(radius, min(w, h) // 2))
+        if radius <= 0:
+            return s
+        m = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.draw.rect(m, (255, 255, 255, 255), (0, 0, w, h), border_radius=radius)
+        s.blit(m, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        return s
+
+    def _wood(self, w, h, base, radius=6, seed=0, grain=1.0, shade=True):
+        """Walnut plate: layered sine grain + top-light/bottom-dark shading."""
+        w, h = max(2, int(w)), max(2, int(h))
+        key = ("wood", w, h, tuple(base), int(radius), int(seed), round(grain, 2), shade)
+
+        def build():
+            s = pygame.Surface((w, h), pygame.SRCALPHA)
+            s.fill((*base, 255))
+            rnd = random.Random(int(seed) * 7919 + w * 31 + h)
+            lay = pygame.Surface((w, h), pygame.SRCALPHA)
+            n = max(4, int(h / 7 * grain))
+            for _ in range(n):
+                y0 = rnd.uniform(-4, h + 4)
+                amp = rnd.uniform(0.5, 2.6)
+                freq = rnd.uniform(0.008, 0.032)
+                ph = rnd.uniform(0, 6.283)
+                pts = [(int(x), int(y0 + amp * math.sin(x * freq + ph)))
+                       for x in range(0, w + 1, 12)]
+                if len(pts) > 1:
+                    if rnd.random() < 0.72:
+                        col = (0, 0, 0, rnd.randint(12, 30))
+                    else:
+                        col = (255, 238, 205, rnd.randint(8, 18))
+                    pygame.draw.lines(lay, col, False, pts, rnd.choice((1, 1, 1, 2)))
+            s.blit(lay, (0, 0))
+            if shade:
+                g = pygame.Surface((w, h), pygame.SRCALPHA)
+                for y in range(h):
+                    t = y / max(1, h - 1)
+                    if t < 0.42:
+                        k = (0.42 - t) / 0.42
+                        col = (255, 246, 224, int(26 * k * k))
+                    else:
+                        k = (t - 0.42) / 0.58
+                        col = (0, 0, 0, int(54 * k * k))
+                    pygame.draw.line(g, col, (0, y), (w - 1, y))
+                s.blit(g, (0, 0))
+            return s
+
+        return self._cached(key, build)
+
+    @staticmethod
+    def _brass_edge(s, border, radius, weight=2):
+        """Brushed brass frame: 2px rail, light along top/left, dark bottom/right."""
+        w, h = s.get_size()
+        if w < 8 or h < 8:
+            return
+        pygame.draw.rect(s, (*border, 255), (0, 0, w - 1, h - 1), weight,
+                         border_radius=radius)
+        hi, lo = lift(border, 0.45), lift(border, -0.55)
+        t, b = weight - 1, h - weight
+        r = int(min(radius, min(w, h) // 2))
+        pygame.draw.line(s, (*hi, 255), (r, t), (w - 1 - r, t))
+        pygame.draw.line(s, (*hi, 255), (t, r), (t, h - 1 - r))
+        pygame.draw.line(s, (*lo, 255), (r, b), (w - 1 - r, b))
+        pygame.draw.line(s, (*lo, 255), (w - 1 - weight, r), (w - 1 - weight, h - 1 - r))
+
+    @staticmethod
+    def _rivets(s, border, inset=8, rad=3):
+        w, h = s.get_size()
+        for cx, cy in ((inset, inset), (w - 1 - inset, inset),
+                       (inset, h - 1 - inset), (w - 1 - inset, h - 1 - inset)):
+            pygame.draw.circle(s, (*lift(border, -0.4), 255), (cx, cy), rad)
+            pygame.draw.circle(s, (*lift(border, 0.5), 255), (cx - 1, cy - 1), 1)
+
+    @staticmethod
+    def _flourish(s, border, inset=6, arm=16):
+        w, h = s.get_size()
+        col = (*lift(border, 0.35), 255)
+        if w < inset * 2 + arm or h < inset * 2 + arm:
+            return
+        # top-left
+        pygame.draw.line(s, col, (inset, inset), (inset + arm, inset))
+        pygame.draw.line(s, col, (inset, inset), (inset, inset + arm))
+        # top-right
+        pygame.draw.line(s, col, (w - 1 - inset, inset), (w - 1 - inset - arm, inset))
+        pygame.draw.line(s, col, (w - 1 - inset, inset), (w - 1 - inset, inset + arm))
+        # bottom-left
+        pygame.draw.line(s, col, (inset, h - 1 - inset), (inset + arm, h - 1 - inset))
+        pygame.draw.line(s, col, (inset, h - 1 - inset), (inset, h - 1 - inset - arm))
+        # bottom-right
+        pygame.draw.line(s, col, (w - 1 - inset, h - 1 - inset), (w - 1 - inset - arm, h - 1 - inset))
+        pygame.draw.line(s, col, (w - 1 - inset, h - 1 - inset), (w - 1 - inset, h - 1 - inset - arm))
+
+    @staticmethod
+    def _inner_shadow(s, radius, depth=2, alpha=80):
+        w, h = s.get_size()
+        if w < depth * 3 or h < depth * 3:
+            return
+        sh = pygame.Surface((w, h), pygame.SRCALPHA)
+        r = int(min(radius, min(w, h) // 2))
+        pygame.draw.rect(sh, (0, 0, 0, alpha), (depth - 1, depth - 1,
+                                                w - 1 - 2 * (depth - 1),
+                                                h - 1 - 2 * (depth - 1)),
+                         depth, border_radius=max(0, r - depth))
+        pygame.draw.line(sh, (0, 0, 0, min(255, alpha + 40)),
+                         (r, depth), (w - 1 - r, depth))
+        s.blit(sh, (0, 0))
+
+    def _build_panel(self, w, h, fill, border, radius):
+        s = self._wood(w, h, fill, radius=radius, seed=w * 7 + h)
+        self._inner_shadow(s, radius, 2, 84)
+        self._brass_edge(s, border, radius)
+        m = min(w, h)
+        if m >= 150:
+            self._flourish(s, border)
+            self._rivets(s, border, inset=9, rad=3)
+        elif m >= 56:
+            self._rivets(s, border, inset=8, rad=3)
+        return self._cut(s, radius)
+
+    def panel(self, rect, fill=WALNUT, border=BRASS, alpha=245, radius=6):
+        """Crafted walnut panel — cached by size, every screen inherits this."""
+        r = pygame.Rect(rect)
+        w, h = max(2, r.w), max(2, r.h)
+        s = self._cached(("panel", w, h, tuple(fill), tuple(border), int(radius)),
+                         lambda: self._build_panel(w, h, fill, border, radius))
+        s.set_alpha(int(alpha))
+        self.g.screen.blit(s, r.topleft)
+        s.set_alpha(255)
+        return s
+
+    # ------------------------------------------------------------ parchment
+    def _build_sheet(self, w, h, base, radius):
+        s = pygame.Surface((w, h), pygame.SRCALPHA)
+        s.fill((*base, 255))
+        rnd = random.Random(w * 17 + h * 3 + sum(base))
+        lay = pygame.Surface((w, h), pygame.SRCALPHA)
+        for _ in range(max(8, (w * h) // 9000)):
+            cx, cy = rnd.uniform(0, w), rnd.uniform(0, h)
+            rx, ry = rnd.uniform(16, 64), rnd.uniform(10, 42)
+            col = (154, 124, 78, rnd.randint(6, 13)) if rnd.random() < 0.75 \
+                else (255, 250, 236, rnd.randint(10, 22))
+            pygame.draw.ellipse(lay, col, (cx - rx, cy - ry, rx * 2, ry * 2))
+        for _ in range(max(12, h // 6)):
+            y0 = rnd.uniform(0, h)
+            pygame.draw.line(lay, (176, 152, 112, rnd.randint(7, 15)),
+                             (0, int(y0)), (w, int(y0)))
+        s.blit(lay, (0, 0))
+        # burnt edge vignette
+        vig = pygame.Surface((w, h), pygame.SRCALPHA)
+        depth = 7
+        rr = int(min(radius, min(w, h) // 2))
+        for k in range(depth):
+            a = int(52 * (1 - k / depth) ** 1.6)
+            pygame.draw.rect(vig, (122, 94, 58, a), (k, k, w - 1 - 2 * k, h - 1 - 2 * k),
+                             1, border_radius=max(0, rr - k))
+        s.blit(vig, (0, 0))
+        # paper sheen from the top-left
+        sh = pygame.Surface((w, h), pygame.SRCALPHA)
+        for y in range(min(h, 40)):
+            k = 1 - y / 40
+            pygame.draw.line(sh, (255, 255, 246, int(30 * k * k)), (0, y), (w - 1, y))
+        s.blit(sh, (0, 0))
+        pygame.draw.rect(s, (168, 144, 106, 255), (0, 0, w - 1, h - 1), 1,
+                         border_radius=rr)
+        return self._cut(s, rr)
+
+    def sheet(self, rect, radius=6, tone=None):
+        """Parchment inset behind text-heavy blocks — cached, ink-friendly."""
+        r = pygame.Rect(rect)
+        w, h = max(4, r.w), max(4, r.h)
+        base = tuple(tone) if tone else PARCH
+        s = self._cached(("sheet", w, h, int(radius), base),
+                         lambda: self._build_sheet(w, h, base, radius))
+        self.g.screen.blit(s, r.topleft)
+        return s
+
+    # ----------------------------------------------------- raised / recessed
+    def _plate(self, w, h, base, rim, radius=5, state="norm", seed=0, glow=True):
+        """Raised bevelled plate (buttons, rows, tiles) with hover/pressed/off."""
+        w, h = max(4, int(w)), max(4, int(h))
+        key = ("plate", w, h, tuple(base), tuple(rim), int(radius), state, int(seed))
+
+        def build():
+            s = self._wood(w, h, base, radius=radius, seed=seed or (w + h))
+            r = int(min(radius, min(w, h) // 2))
+            if state == "hover" and glow:
+                gl = pygame.Surface((w, h), pygame.SRCALPHA)
+                for y in range(min(h, 30)):
+                    a = int(40 * (1 - y / 30) ** 1.4)
+                    pygame.draw.line(gl, (255, 240, 205, a), (0, y), (w - 1, y))
+                for y in range(max(0, h - 14), h):
+                    a = int(26 * (y - (h - 15)) / 14)
+                    pygame.draw.line(gl, (255, 236, 196, a), (0, y), (w - 1, y))
+                pygame.draw.rect(gl, (*GOLD_L, 110), (1, 1, w - 3, h - 3), 1,
+                                 border_radius=max(0, r - 1))
+                s.blit(gl, (0, 0))
+            elif state == "down":
+                ov = pygame.Surface((w, h), pygame.SRCALPHA)
+                ov.fill((0, 0, 0, 74))
+                s.blit(ov, (0, 0))
+                self._inner_shadow(s, radius, 3, 120)
+            elif state == "off":
+                self._inner_shadow(s, radius, 2, 60)
+            self._brass_edge(s, rim, radius)
+            if state != "down":
+                # highlight along the top-left of the rail
+                hi = lift(rim, 0.5)
+                pygame.draw.line(s, (*hi, 255), (r, 1), (w - 1 - r, 1))
+                pygame.draw.line(s, (*hi, 255), (1, r), (1, h - 1 - r))
+            return self._cut(s, r)
+
+        return self._cached(key, build)
+
+    def _socket(self, w, h, base, rim, radius=5, state="norm", seed=0):
+        """Recessed socket (command slots, item slots, keys) — hover glow."""
+        w, h = max(4, int(w)), max(4, int(h))
+        key = ("socket", w, h, tuple(base), tuple(rim), int(radius), state, int(seed))
+
+        def build():
+            s = self._wood(w, h, base, radius=radius, seed=seed or (w * 3 + h),
+                           shade=False)
+            r = int(min(radius, min(w, h) // 2))
+            sh = pygame.Surface((w, h), pygame.SRCALPHA)
+            # deep shadow along top/left, catch-light along bottom/right
+            pygame.draw.rect(sh, (0, 0, 0, 130), (1, 1, w - 3, h - 3), 3,
+                             border_radius=max(0, r - 1))
+            pygame.draw.line(sh, (255, 242, 214, 46), (r, h - 2), (w - 1 - r, h - 2))
+            pygame.draw.line(sh, (255, 242, 214, 46), (w - 2, r), (w - 2, h - 1 - r))
+            s.blit(sh, (0, 0))
+            if state == "hover":
+                gl = pygame.Surface((w, h), pygame.SRCALPHA)
+                gl.fill((*lift(base, 0.16), 120))
+                pygame.draw.rect(gl, (*GOLD_L, 130), (1, 1, w - 3, h - 3), 1,
+                                 border_radius=max(0, r - 1))
+                s.blit(gl, (0, 0))
+            elif state == "down":
+                ov = pygame.Surface((w, h), pygame.SRCALPHA)
+                ov.fill((*lift(base, 0.22), 90))
+                s.blit(ov, (0, 0))
+            self._brass_edge(s, rim, radius, weight=1)
+            return self._cut(s, r)
+
+        return self._cached(key, build)
+
+    def _arch_plate(self, rect):
+        """Arched brass plate for the portrait niche — cached."""
+        r = pygame.Rect(rect)
+        w, h = max(8, r.w), max(8, r.h)
+        key = ("arch", w, h)
+
+        def build():
+            s = pygame.Surface((w, h), pygame.SRCALPHA)
+            rad = int(max(24, min(46, min(w, h) // 4)))
+            bot = 5
+            base = mix(BRASS, (34, 25, 12), 0.18)
+            pygame.draw.rect(s, (*base, 255), (0, 0, w - 1, h - 1), 0,
+                             border_top_left_radius=rad, border_top_right_radius=rad,
+                             border_bottom_left_radius=bot, border_bottom_right_radius=bot)
+            lay = pygame.Surface((w, h), pygame.SRCALPHA)
+            for y in range(h):
+                t = y / max(1, h - 1)
+                col = (255, 244, 214, int(30 * (1 - t) ** 1.3)) if t < 0.5 \
+                    else (0, 0, 0, int(64 * ((t - 0.5) * 2) ** 1.5))
+                if y < rad:
+                    x0 = rad - int(max(0, rad ** 2 - (rad - y) ** 2) ** 0.5)
+                else:
+                    x0 = 0
+                pygame.draw.line(lay, col, (x0, y), (w - 1 - x0, y))
+            s.blit(lay, (0, 0))
+            # bevel: dark outer rail, light inner catch
+            pygame.draw.rect(s, (*lift(BRASS, -0.55), 255), (0, 0, w - 1, h - 1), 2,
+                             border_top_left_radius=rad, border_top_right_radius=rad,
+                             border_bottom_left_radius=bot, border_bottom_right_radius=bot)
+            pygame.draw.rect(s, (*lift(BRASS, 0.45), 255), (2, 2, w - 5, h - 5), 1,
+                             border_top_left_radius=max(1, rad - 2),
+                             border_top_right_radius=max(1, rad - 2),
+                             border_bottom_left_radius=max(1, bot - 2),
+                             border_bottom_right_radius=max(1, bot - 2))
+            # crown ornament: gold lozenge between pin lines
+            cx, cy = w // 2, max(12, rad - 22)
+            d = 6
+            pygame.draw.polygon(s, (*lift(BRASS, 0.2), 255),
+                                [(cx, cy - d), (cx + d, cy), (cx, cy + d), (cx - d, cy)])
+            pygame.draw.polygon(s, (*GOLD_L, 255),
+                                [(cx, cy - d + 2), (cx + d - 2, cy),
+                                 (cx, cy + d - 2), (cx - d + 2, cy)])
+            pygame.draw.line(s, (*lift(BRASS, 0.35), 255), (cx - 48, cy), (cx - 12, cy))
+            pygame.draw.line(s, (*lift(BRASS, 0.35), 255), (cx + 12, cy), (cx + 48, cy))
+            # rivets on the legs
+            for rx in (10, w - 11):
+                pygame.draw.circle(s, (*lift(BRASS, -0.4), 255), (rx, h - 14), 3)
+                pygame.draw.circle(s, (*lift(BRASS, 0.5), 255), (rx - 1, h - 15), 1)
+            return s
+
+        return self._cached(key, build)
+
+    def _mount(self):
+        """Minimap corner mount — cached brass bracket."""
+
+        def build():
+            n = 16
+            s = pygame.Surface((n, n), pygame.SRCALPHA)
+            pygame.draw.rect(s, (*mix(BRASS, (30, 22, 10), 0.2), 255), (0, 0, n - 1, n - 1),
+                             border_radius=3)
+            pygame.draw.line(s, (*lift(BRASS, 0.5), 255), (3, 1), (n - 4, 1))
+            pygame.draw.line(s, (*lift(BRASS, 0.5), 255), (1, 3), (1, n - 4))
+            pygame.draw.line(s, (*lift(BRASS, -0.55), 255), (3, n - 2), (n - 4, n - 2))
+            pygame.draw.line(s, (*lift(BRASS, -0.55), 255), (n - 2, 3), (n - 2, n - 4))
+            pygame.draw.rect(s, (*lift(BRASS, 0.35), 255), (0, 0, n - 1, n - 1), 1,
+                             border_radius=3)
+            pygame.draw.circle(s, (*lift(BRASS, 0.5), 255), (n // 2, n // 2), 3)
+            pygame.draw.circle(s, (*lift(BRASS, -0.45), 255), (n // 2, n // 2), 3, 1)
+            return s
+
+        return self._cached(("mount",), build)
+
+    def _gloss(self, w, h, col):
+        """Top-half gloss overlay for bars — cached by size/colour."""
+        w, h = max(1, int(w)), max(1, int(h))
+        key = ("gloss", w, h, tuple(col))
+
+        def build():
+            s = pygame.Surface((w, h), pygame.SRCALPHA)
+            for y in range(h):
+                t = y / max(1, h - 1)
+                if t < 0.5:
+                    c = (255, 255, 255, int(96 * (1 - t * 2)))
+                else:
+                    c = (0, 0, 0, int(56 * ((t - 0.5) * 2)))
+                pygame.draw.line(s, c, (0, y), (w - 1, y))
+            return self._cut(s, min(3, h // 2))
+
+        return self._cached(key, build)
+
     def line(self, x0, y0, x1, y1, col=BRASS, w=1):
-        pygame.draw.line(self.g.screen, col, (x0, y0), (x1, y1), w)
+        """Beveled divider: light rail with its shadow underneath."""
+        s = self.g.screen
+        pygame.draw.line(s, lift(col, -0.55), (x0 + (0 if y0 == y1 else 1),
+                                               y0 + (1 if y0 != y1 else 0)),
+                         (x1 + (0 if y0 == y1 else 1), y1 + (1 if y0 != y1 else 0)), w)
+        pygame.draw.line(s, lift(col, 0.3), (x0, y0), (x1, y1), w)
+
+    def vrail(self, x, y0, y1):
+        """Vertical brass separator rail between HUD console sections."""
+        s = self.g.screen
+        pygame.draw.line(s, mix(BRASS, (0, 0, 0), 0.5), (x, y0), (x, y1))
+        pygame.draw.line(s, lift(BRASS, 0.42), (x + 1, y0), (x + 1, y1))
+        pygame.draw.line(s, mix(BRASS, (0, 0, 0), 0.6), (x + 2, y0), (x + 2, y1))
+        for yy in (y0 + 3, y1 - 3):
+            pygame.draw.circle(s, (*lift(BRASS, -0.35), 255), (x + 1, yy), 3)
+            pygame.draw.circle(s, (*lift(BRASS, 0.5), 255), (x, yy - 1), 1)
 
     def bar(self, rect, frac, col, back=(18, 14, 13)):
-        pygame.draw.rect(self.g.screen, back, rect, border_radius=3)
-        pygame.draw.rect(self.g.screen, col, (rect.x, rect.y, max(1, int(rect.w * clamp(frac, 0, 1))), rect.h), border_radius=3)
-        pygame.draw.rect(self.g.screen, (8, 6, 6), rect, 1, border_radius=3)
+        """Brass-capped bar: recessed trough, glossy fill, leading-edge light."""
+        r = pygame.Rect(rect)
+        scr = self.g.screen
+        pygame.draw.rect(scr, back, r, border_radius=3)
+        fw = min(r.w, max(1, int(r.w * clamp(frac, 0, 1))))
+        if fw > 0:
+            pygame.draw.rect(scr, col, (r.x, r.y, fw, r.h), border_radius=3)
+            scr.blit(self._gloss(fw, r.h, col), (r.x, r.y))
+            ex = r.x + fw - 1
+            if fw > 2:
+                pygame.draw.line(scr, lift(col, 0.55), (ex, r.y + 1), (ex, r.bottom - 2))
+        pygame.draw.rect(scr, mix(BRASS, back, 0.3), r, 1, border_radius=3)
+        if r.h >= 8:
+            cap = lift(BRASS, 0.25)
+            pygame.draw.line(scr, cap, (r.x + 1, r.y + 1), (r.x + 1, r.bottom - 2))
+            pygame.draw.line(scr, cap, (r.right - 2, r.y + 1), (r.right - 2, r.bottom - 2))
 
     def icon(self, key, size=32):
         return self.art.icon(key, size)
@@ -79,34 +498,43 @@ class UI:
     def button(self, rect, label, action, enabled=True, style="wood", icon=None, hotkey=None):
         r = pygame.Rect(rect)
         hover = r.collidepoint(self.mouse) and enabled
-        if style == "wood":
-            bg = (62, 46, 34) if hover else (45, 34, 27)
-            bd = GOLD_L if hover else BRASS
-        elif style == "danger":
-            bg = (92, 40, 34) if hover else (66, 31, 28)
-            bd = (200, 100, 84) if hover else (130, 62, 52)
-        elif style == "flat":
-            bg = (30, 24, 21, 0); bd = (0, 0, 0, 0)
+        down = hover and self.mouse_down
+        if style == "flat":
+            state = "norm"
         else:
-            bg = (52, 42, 34); bd = BRASS
-        if style != "flat":
-            pygame.draw.rect(self.g.screen, bg, r, border_radius=5)
-            pygame.draw.rect(self.g.screen, bd, r, 1, border_radius=5)
+            state = "off" if not enabled else ("down" if down else ("hover" if hover else "norm"))
+            if style == "danger":
+                base, rim = ((48, 30, 28), (92, 58, 52)) if not enabled else \
+                            ((92, 40, 34), (200, 100, 84)) if hover else \
+                            ((66, 31, 28), (130, 62, 52))
+            elif style == "wood":
+                base, rim = ((37, 32, 27), (78, 68, 54)) if not enabled else \
+                            ((62, 46, 34), GOLD_L) if hover else \
+                            ((45, 34, 27), BRASS)
+            else:
+                base, rim = ((40, 35, 30), (78, 68, 54)) if not enabled else \
+                            ((64, 52, 42), GOLD_L) if hover else \
+                            ((52, 42, 34), BRASS)
+            self.g.screen.blit(self._plate(r.w, r.h, base, rim, radius=5,
+                                           state=state, seed=hash(style) & 0xff),
+                               r.topleft)
+        dx, dy = (1, 1) if state == "down" else (0, 0)
         if icon:
             im = self.icon(icon, min(r.h - 8, 34))
-            self.g.screen.blit(im, (r.x + 6, r.y + (r.h - im.get_height()) // 2))
+            self.g.screen.blit(im, (r.x + 6 + dx, r.y + (r.h - im.get_height()) // 2 + dy))
             tx = r.x + im.get_width() + 12
         else:
             tx = r.centerx
         col = PARCH if enabled else MUTED
         lab = self.t(label, 16 if r.h <= 36 else 19, col, "serif")
         if icon:
-            self.g.screen.blit(lab, (tx, r.centery - lab.get_height() // 2))
+            self.g.screen.blit(lab, (tx + dx, r.centery - lab.get_height() // 2 + dy))
         else:
-            self.g.screen.blit(lab, (tx - lab.get_width() // 2, r.centery - lab.get_height() // 2))
+            self.g.screen.blit(lab, (tx - lab.get_width() // 2 + dx,
+                                     r.centery - lab.get_height() // 2 + dy))
         if hotkey:
             hk = self.t(hotkey, 12, GOLD if enabled else MUTED, "sans")
-            self.g.screen.blit(hk, (r.right - hk.get_width() - 5, r.y + 3))
+            self.g.screen.blit(hk, (r.right - hk.get_width() - 5, r.y + 3 + dy))
         if enabled:
             self.add(r, kind="menu", action=action[0] if isinstance(action, tuple) else action, **action[1] if isinstance(action, tuple) else {})
         return r
@@ -120,6 +548,7 @@ class UI:
         mapped = self.g.map_pos(pygame.mouse.get_pos())
         if mapped is not None:
             self.mouse = mapped
+        self.mouse_down = bool(pygame.mouse.get_pressed()[0])
 
     def release(self):
         pass
@@ -256,7 +685,7 @@ class UI:
         g = self.g
         r = pygame.Rect(SCREEN_W // 2 - 380, 210, 760, 480)
         self.panel(r, (30, 23, 19), BRASS, 250)
-        title = self.t("Choose your war", 34, PARCH, "display")
+        title = self.head("Choose your war", 34, PARCH, "display")
         g.screen.blit(title, (r.centerx - title.get_width() // 2, r.y + 22))
         desc = self.art.text_wrap("The Hollow Host does not sleep. Pick the pressure you can survive.",
                                   15, 640, PARCH_D)
@@ -269,9 +698,11 @@ class UI:
         for i, (key, d) in enumerate(tiers):
             b = pygame.Rect(r.x + 40, top + i * (row_h + gap), 680, row_h)
             hover = b.collidepoint(self.mouse)
-            pygame.draw.rect(g.screen, (58, 44, 33) if hover else (42, 32, 25), b, border_radius=6)
-            pygame.draw.rect(g.screen, GOLD_L if hover else BRASS, b, 1, border_radius=6)
-            n = self.t(d["name"], 22 if row_h > 70 else 19, PARCH, "display")
+            base, rim = ((58, 44, 33), GOLD_L) if hover else ((42, 32, 25), BRASS)
+            g.screen.blit(self._plate(b.w, b.h, base, rim, radius=6,
+                                      state="hover" if hover else "norm", seed=21),
+                          b.topleft)
+            n = self.head(d["name"], 22 if row_h > 70 else 19, PARCH, "display", track=1)
             g.screen.blit(n, (b.x + 18, b.y + (10 if row_h > 70 else 7)))
             bl = self.art.text_wrap(d["blurb"], 14, 620, PARCH_D)
             g.screen.blit(bl, (b.x + 18, b.y + (40 if row_h > 70 else 34)))
@@ -284,7 +715,7 @@ class UI:
         g = self.g
         r = pygame.Rect(SCREEN_W // 2 - 440, 96, 880, 726)
         self.panel(r, (30, 23, 19), BRASS, 250)
-        title = self.t("THE MARCH OF EMBERS", 34, PARCH, "display")
+        title = self.head("THE MARCH OF EMBERS", 34, PARCH, "display", track=2)
         g.screen.blit(title, (r.centerx - title.get_width() // 2, r.y + 18))
         sub = self.t("Nine maps · each a bigger war than the last · one crown at the end",
                      14, PARCH_D, "serif")
@@ -300,20 +731,23 @@ class UI:
             b = pygame.Rect(r.x + 30, y, r.w - 60, row_h)
             hover = unlocked and b.collidepoint(self.mouse)
             if not unlocked:
-                base = (30, 26, 24)
+                base, rim, state = (30, 26, 24), (74, 64, 52), "off"
             elif hover:
-                base = (58, 44, 33)
+                base, rim, state = (58, 44, 33), GOLD_L, "hover"
             elif i == have - 1:
-                base = (48, 37, 27)
+                base, rim, state = (48, 37, 27), GOLD, "norm"
             else:
-                base = (42, 32, 25)
-            pygame.draw.rect(g.screen, base, b, border_radius=6)
-            pygame.draw.rect(g.screen, GOLD_L if hover else BRASS, b, 1, border_radius=6)
-            # number badge
+                base, rim, state = (42, 32, 25), BRASS, "norm"
+            g.screen.blit(self._plate(b.w, b.h, base, rim, radius=6,
+                                      state=state, seed=33), b.topleft)
+            # number badge — brass medallion
             badge = pygame.Rect(b.x + 10, b.y + 10, 36, 36)
-            pygame.draw.rect(g.screen, (60, 45, 33), badge, border_radius=4)
-            pygame.draw.rect(g.screen, BRASS, badge, 1, border_radius=4)
-            num = self.t(str(i + 1), 20, GOLD if unlocked else MUTED, "display")
+            g.screen.blit(self._plate(badge.w, badge.h,
+                                      (60, 45, 33) if unlocked else (38, 34, 30),
+                                      BRASS if unlocked else (74, 64, 52),
+                                      radius=6, state="norm", seed=34),
+                          badge.topleft)
+            num = self.head(str(i + 1), 20, GOLD if unlocked else MUTED, "display", track=0)
             g.screen.blit(num, (badge.centerx - num.get_width() // 2, badge.y + 6))
             name_c = PARCH if unlocked else MUTED
             nm = self.t(sc["name"], 21, name_c, "display")
@@ -345,29 +779,31 @@ class UI:
         s = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA); s.fill((8, 7, 9, 120)); g.screen.blit(s, (0, 0))
         r = pygame.Rect(SCREEN_W // 2 - 460, 120, 920, 610)
         self.panel(r, (38, 29, 22), BRASS, 252)
-        title = self.t((sc["name"] if sc else "THE ASHEN VALE").upper(), 40, PARCH, "display")
+        title = self.head((sc["name"] if sc else "THE ASHEN VALE"), 40, PARCH, "display", track=3)
         g.screen.blit(title, (r.centerx - title.get_width() // 2, r.y + 26))
         sub = self.t(f"Emberhold · Mission {gi + 1} of {campaign.count()}" if sc
                      else "Emberhold · Year of the Hollow Crown", 15, GOLD, "serif")
         g.screen.blit(sub, (r.centerx - sub.get_width() // 2, r.y + 78))
+        # parchment dispatch sheet — the briefing reads as a written order
+        self.sheet(pygame.Rect(r.x + 26, r.y + 100, r.w - 52, 354))
         lore = (sc["lore"] if sc else
                 ("The crown is broken. The king beneath it is not. "
                  "For three nights the Hollow Host has crossed the Ashen Vale, and every farm burns colder than the last. "
                  "You are Marshal Aldric, last Ember of the Emberhold. Four workers, a handful of steel, and one hearth. "
                  "Raise the hall, wake the vale, and break the Necropolis before the Host drowns it."))
-        txt = self.art.text_wrap(lore, 18, 820, PARCH_D, line_gap=5)
+        txt = self.art.text_wrap(lore, 18, 820, INK_S, line_gap=5)
         g.screen.blit(txt, (r.centerx - 410, r.y + 112))
         box = pygame.Rect(r.x + 40, r.y + 300, 840, 150)
-        self.panel(box, (28, 22, 18), (102, 82, 50), 230)
-        o = self.t("OBJECTIVES", 14, GOLD, "display")
+        self.sheet(box, radius=6, tone=(214, 197, 165))
+        o = self.head("OBJECTIVES", 14, OCHRE, "display", track=2)
         g.screen.blit(o, (box.x + 16, box.y + 12))
-        m = self.art.text_wrap("Main: " + (sc["main"] if sc else OBJECTIVE_MAIN), 17, 790, PARCH)
+        m = self.art.text_wrap("Main: " + (sc["main"] if sc else OBJECTIVE_MAIN), 17, 790, INK_S)
         g.screen.blit(m, (box.x + 16, box.y + 40))
-        b = self.art.text_wrap("Bonus: " + (sc["bonus"] if sc else OBJECTIVE_BONUS), 15, 790, PARCH_D)
+        b = self.art.text_wrap("Bonus: " + (sc["bonus"] if sc else OBJECTIVE_BONUS), 15, 790, INK_S_D)
         g.screen.blit(b, (box.x + 16, box.y + 80))
         tip = self.t(sc["hint"] if sc else
                      "Controls: right-click to move/attack/gather · A attack-move · QWER hero · B build · Esc menu",
-                     13, MUTED, "sans")
+                     13, INK_S_D, "sans")
         g.screen.blit(tip, (box.x + 16, box.y + 118))
         self.button(pygame.Rect(r.centerx - 140, r.bottom - 76, 280, 46), "Begin the vigil", ("begin", {}), style="wood")
         self.button(pygame.Rect(r.x + 20, r.bottom - 46, 120, 30), "Title", ("title", {}), style="flat")
@@ -376,17 +812,23 @@ class UI:
         g = self.g
         w = g.world
         scr = g.screen
-        # top bar
-        pygame.draw.rect(scr, (24, 18, 15), (0, 0, SCREEN_W, 46))
-        pygame.draw.line(scr, BRASS, (0, 46), (SCREEN_W, 46), 2)
-        pygame.draw.line(scr, (8, 6, 5), (0, 48), (SCREEN_W, 48), 1)
+        # top bar — walnut deck plate + brass rail
+        scr.blit(self._wood(SCREEN_W, 46, (24, 18, 15), radius=0, seed=5, grain=0.85),
+                 (0, 0))
+        pygame.draw.line(scr, lift(BRASS, 0.3), (0, 46), (SCREEN_W, 46), 2)
+        pygame.draw.line(scr, lift(BRASS, -0.5), (0, 48), (SCREEN_W, 48), 1)
+        pygame.draw.line(scr, (8, 6, 5), (0, 49), (SCREEN_W, 49), 1)
         self.resource(22, "gold", fmt(w.gold))
         self.resource(158, "lumber", fmt(w.lumber))
         self.resource(294, "food", f"{w.food_used(PLAYER)}/{w.food_max(PLAYER)}")
-        timer = self.t(fmt_time(w.time), 18, PARCH, "serif")
-        scr.blit(timer, (SCREEN_W // 2 - timer.get_width() // 2, 12))
-        diff = self.t(w.diff["name"].upper(), 11, GOLD, "sans")
-        scr.blit(diff, (SCREEN_W // 2 - diff.get_width() // 2, 32))
+        # mission clock plaque
+        cx = SCREEN_W // 2
+        scr.blit(self._plate(150, 42, (31, 24, 19), BRASS, radius=5,
+                             state="norm", seed=77), (cx - 75, 3))
+        timer = self.head(fmt_time(w.time), 17, PARCH, "sans_bold")
+        scr.blit(timer, (cx - timer.get_width() // 2, 9))
+        diff = self.head(w.diff["name"], 11, GOLD, "sans", track=1)
+        scr.blit(diff, (cx - diff.get_width() // 2, 31))
         # objectives / menu
         self.button(pygame.Rect(1198, 8, 158, 30), "Objectives  [O]", ("objectives", {}))
         self.button(pygame.Rect(1364, 8, 116, 30), "Shop  [P]", ("shop", {}))
@@ -405,10 +847,15 @@ class UI:
             y += rr.h + 4
         if self.show_objectives:
             self.draw_objectives()
-        # bottom bar
-        pygame.draw.rect(scr, (28, 21, 17), (0, 706, SCREEN_W, 194))
-        pygame.draw.line(scr, BRASS, (0, 706), (SCREEN_W, 706), 2)
-        pygame.draw.line(scr, (10, 8, 7), (0, 708), (SCREEN_W, 708), 1)
+        # bottom bar — assembled command console: deck plate + rails
+        scr.blit(self._wood(SCREEN_W, 194, (28, 21, 17), radius=0, seed=11, grain=1.1),
+                 (0, 706))
+        pygame.draw.line(scr, lift(BRASS, 0.3), (0, 706), (SCREEN_W, 706), 2)
+        pygame.draw.line(scr, lift(BRASS, -0.5), (0, 708), (SCREEN_W, 708), 1)
+        pygame.draw.line(scr, (10, 8, 7), (0, 709), (SCREEN_W, 709), 1)
+        self.vrail(401, 716, 890)
+        self.vrail(655, 716, 890)
+        self.vrail(1361, 712, 890)
         self.draw_selection_panel()
         self.draw_command_card()
         self.draw_center_panel()
@@ -421,20 +868,24 @@ class UI:
             scr.blit(hint, (SCREEN_W // 2 - hint.get_width() // 2, 680))
 
     def resource(self, x, icon, value):
+        self.g.screen.blit(self._plate(106, 36, (33, 25, 19), BRASS, radius=5,
+                                       state="norm", seed=88), (x - 8, 5))
         im = self.icon(icon, 26)
         self.g.screen.blit(im, (x, 9))
-        t = self.t(value, 18, PARCH, "serif")
+        t = self.head(value, 17, PARCH, "sans_bold")
         self.g.screen.blit(t, (x + 32, 12))
 
     def draw_objectives(self):
         g = self.g; w = g.world
         r = pygame.Rect(1220, 58, 362, 166)
         self.panel(r, (31, 24, 19), BRASS, 242)
-        t = self.t("OBJECTIVES", 14, GOLD, "display")
+        t = self.head("OBJECTIVES", 14, GOLD, "display", track=2)
         g.screen.blit(t, (r.x + 14, r.y + 10))
-        main = self.art.text_wrap(w.mission["main"], 15, 330, PARCH)
+        # parchment order slip behind the wrapped objectives
+        self.sheet(pygame.Rect(r.x + 8, r.y + 30, 346, 94))
+        main = self.art.text_wrap(w.mission["main"], 15, 330, INK_S)
         g.screen.blit(main, (r.x + 14, r.y + 36))
-        bon = self.art.text_wrap(w.mission["bonus"], 13, 330, PARCH_D)
+        bon = self.art.text_wrap(w.mission["bonus"], 13, 330, INK_S_D)
         g.screen.blit(bon, (r.x + 14, r.y + 88))
         necro = next((b for b in w.buildings_of(ENEMY) if b.bid == "necropolis"), None)
         if necro:
@@ -448,8 +899,11 @@ class UI:
         sel = g.selected()
         box = pygame.Rect(12, 718, 386, 172)
         self.panel(box, (33, 25, 20), BRASS, 240)
-        por = pygame.Rect(20, 726, 148, 148)
-        pygame.draw.rect(g.screen, (18, 14, 12), por)
+        # arched brass frame plate + recessed niche behind the portrait
+        g.screen.blit(self._arch_plate(pygame.Rect(16, 720, 156, 168)), (16, 720))
+        por = pygame.Rect(24, 746, 140, 140)
+        g.screen.blit(self._socket(por.w, por.h, (18, 14, 12), BRASS, radius=6,
+                                   state="norm", seed=5), por.topleft)
         if sel:
             e = sel[0]
             if e.is_building:
@@ -460,12 +914,17 @@ class UI:
             else:
                 im = self.art.portrait(e.rig, e.team, por.w - 8)
                 g.screen.blit(im, (por.x + 4, por.y + 4))
-            pygame.draw.rect(g.screen, BRASS, por, 1)
             name = e.name if hasattr(e, "name") and e.name else \
                 (BUILDINGS[e.bid]["name"] if e.is_building else UNITS[e.kind]["name"])
             if e.is_hero:
                 name = f"Marshal Aldric  ·  level {e.level}"
-            t = self.t(name, 18 if len(name) < 26 else 15, PARCH, "display")
+            # fit long names to the right rail (180 -> ~392 max); Cinzel runs wide
+            nsize = 18
+            for cand in (18, 16, 15, 14, 13, 12):
+                nsize = cand
+                if self.art.font(cand, "display").size(name)[0] <= 212:
+                    break
+            t = self.t(name, nsize, PARCH, "display")
             g.screen.blit(t, (180, 728))
             if e.is_building:
                 sub = self.t(("Structure · " + ("Emberhold" if e.team == PLAYER else "Hollow Host")), 12, MUTED, "sans")
@@ -497,8 +956,8 @@ class UI:
             if e.is_building and e.build_progress < 1:
                 self.bar(pygame.Rect(180, 824, 200, 8), e.build_progress, GOLD)
         else:
-            im = self.icon("emblem", 140)
-            g.screen.blit(im, (por.centerx - 70, por.centery - 70))
+            im = self.icon("emblem", 124)
+            g.screen.blit(im, (por.centerx - 62, por.centery - 62))
             t = self.t("No selection", 18, MUTED, "display")
             g.screen.blit(t, (180, 730))
             tip = self.art.text_wrap("Select your workers, then right-click gold and trees. Build farms and a barracks to raise an army.", 13, 190, PARCH_D)
@@ -508,14 +967,18 @@ class UI:
         g = self.g; w = g.world
         r = pygame.Rect(668, 714, 690, 180)
         self.panel(r, (31, 24, 19), BRASS, 238)
-        title = self.t("THE VALE", 12, GOLD, "display")
+        title = self.head("THE VALE", 12, GOLD, "display", track=2)
         g.screen.blit(title, (r.x + 14, r.y + 9))
+        # stat plates — recessed readout strip
+        g.screen.blit(self._socket(452, 46, (25, 19, 15), BRASS, radius=5,
+                                   state="norm", seed=6), (r.x + 8, r.y + 24))
         objs = [("Wave", str(getattr(getattr(w, "ai", None), "wave", 0))),
                 ("Kills", str(w.stats["kills"])), ("Losses", str(w.stats["losses"])),
                 ("Hero", f"lvl {w.hero.level}" if w.hero else "-")]
         for i, (k, v) in enumerate(objs):
-            x = r.x + 14 + i * 118
-            kt = self.t(k.upper(), 10, MUTED, "sans"); vt = self.t(v, 17, PARCH, "display")
+            x = r.x + 16 + i * 118
+            kt = self.head(k, 11, LABEL, "sans", track=1)
+            vt = self.head(v, 16, PARCH, "sans_bold")
             g.screen.blit(kt, (x, r.y + 30)); g.screen.blit(vt, (x, r.y + 44))
         # objective line
         obj = self.art.text_wrap(w.mission["main"], 12, 420, PARCH_D)
@@ -524,7 +987,7 @@ class UI:
         groups = self.subgroups()
         xx = r.x + 470
         yy = r.y + 30
-        for i, grp in enumerate(groups[:4]):
+        for i, grp in enumerate(groups[:3]):
             e = grp[0]
             ic = self.icon(e.bid if e.is_building else e.kind, 28)
             g.screen.blit(ic, (xx, yy))
@@ -537,43 +1000,48 @@ class UI:
         yy = r.y + 92
         if groups and groups[0][0].is_building and groups[0][0].queue:
             b = groups[0][0]
-            lab = self.t("Training queue", 11, PARCH_D, "sans")
+            lab = self.head("Training queue", 11, LABEL, "sans", track=1)
             g.screen.blit(lab, (r.x + 14, yy))
             for i, q in enumerate(b.queue[:6]):
+                qx = r.x + 14 + i * 40
+                g.screen.blit(self._socket(36, 36, (24, 18, 15), BRASS, radius=4,
+                                           state="norm", seed=8), (qx - 1, yy + 15))
                 ic = self.icon(UNITS[q["type"]]["icon"], 34)
-                g.screen.blit(ic, (r.x + 14 + i * 40, yy + 16))
+                g.screen.blit(ic, (qx, yy + 16))
                 f = q["progress"] / max(1, q["time"])
-                pygame.draw.rect(g.screen, GOLD, (r.x + 14 + i * 40, yy + 50, int(34 * f), 3))
+                pygame.draw.rect(g.screen, GOLD, (qx, yy + 50, int(34 * f), 3))
         else:
-            lab = self.t("Control groups", 11, PARCH_D, "sans")
+            lab = self.head("Control groups", 11, LABEL, "sans", track=1)
             g.screen.blit(lab, (r.x + 14, yy))
             for num in range(1, 7):
                 grp = g.control_groups.get(num)
                 x = r.x + 14 + (num - 1) * 58
                 rr = pygame.Rect(x, yy + 18, 48, 30)
-                pygame.draw.rect(g.screen, (40, 31, 24), rr, border_radius=4)
-                pygame.draw.rect(g.screen, BRASS if grp else (70, 58, 44), rr, 1, border_radius=4)
+                g.screen.blit(self._socket(rr.w, rr.h, (40, 31, 24),
+                                           BRASS if grp else (74, 62, 46),
+                                           radius=4, state="norm", seed=9),
+                              rr.topleft)
                 key = self.t(str(num), 12, GOLD if grp else MUTED, "sans")
                 g.screen.blit(key, (rr.x + 4, rr.y + 4))
                 if grp:
                     ic = self.icon(grp[0].bid if grp[0].is_building else grp[0].kind, 20)
                     g.screen.blit(ic, (rr.x + 20, rr.y + 4))
-            # hero ability summary
+            # hero ability summary — kept clear of the control-group keys above
             h = w.hero
             if h and h.alive:
-                ab = self.t("Abilities", 11, PARCH_D, "sans")
-                g.screen.blit(ab, (r.x + 14, r.y + 138))
+                ab = self.head("Abilities", 11, LABEL, "sans", track=1)
+                g.screen.blit(ab, (r.x + 14, r.y + 146))
                 for i, aid in enumerate(("ember-lance", "aegis", "consecrate", "daybreak")):
                     a = ABILITIES[aid]
                     x = r.x + 80 + i * 46
                     ic = self.icon(a["icon"], 26)
                     if h.level < a["unlock"]:
                         ic = ic.copy(); ic.set_alpha(70)
-                    g.screen.blit(ic, (x, r.y + 130))
+                    g.screen.blit(ic, (x, r.y + 140))
                     cd = h.abil_cd.get(aid, 0)
                     if cd > 0:
                         cdv = self.t(str(int(math.ceil(cd))), 13, PARCH, "sans")
-                        g.screen.blit(cdv, (x + 8, r.y + 134))
+                        g.screen.blit(cdv, (x + 8, r.y + 144))
         self.add(pygame.Rect(r.x, r.y, r.w, r.h), kind="noop")
 
     # ---------------------------------------------------------------- items / shop
@@ -600,18 +1068,24 @@ class UI:
     def draw_item_slot(self, rect, iid, slot, hero=None):
         g = self.g; w = g.world
         hero = hero or w.hero
-        pygame.draw.rect(g.screen, (22, 18, 15), rect, border_radius=4)
+        hover = rect.collidepoint(self.mouse)
         if not iid:
-            pygame.draw.rect(g.screen, (62, 51, 40), rect, 1, border_radius=4)
+            # empty satchel socket — same craft as the command card
+            g.screen.blit(self._socket(rect.w, rect.h, (27, 21, 16), (92, 77, 56),
+                                       radius=4, state="norm", seed=10), rect.topleft)
             return
         it = ITEMS[iid]
-        pygame.draw.rect(g.screen, GOLD if it.get("active") else BRASS, rect, 1, border_radius=4)
+        rim = GOLD if it.get("active") else BRASS
+        g.screen.blit(self._socket(rect.w, rect.h, (22, 18, 15), rim, radius=4,
+                                   state="hover" if hover else "norm", seed=10),
+                      rect.topleft)
         ic = self.icon(it["icon"], rect.w - 8)
         g.screen.blit(ic, (rect.centerx - ic.get_width() // 2, rect.y + 4))
         cd = hero.item_cd.get(iid, 0) if hero else 0
         if cd > 0:
             ov = pygame.Surface(rect.size, pygame.SRCALPHA)
-            ov.fill((8, 8, 12, 165))
+            pygame.draw.rect(ov, (8, 8, 12, 165), (0, 0, rect.w, rect.h),
+                             border_radius=4)
             g.screen.blit(ov, rect.topleft)
             t = self.t(str(int(math.ceil(cd))), 14, PARCH, "sans")
             g.screen.blit(t, (rect.centerx - t.get_width() // 2, rect.centery - 8))
@@ -629,7 +1103,6 @@ class UI:
         it = ITEMS[iid]
         hover = rect.collidepoint(self.mouse)
         ok = st["ready"] and st["afford"] and not st["owned"]
-        pygame.draw.rect(g.screen, (52, 42, 31) if hover else (36, 29, 23), rect, border_radius=5)
         if st["owned"]:
             bd = GREEN
         elif hover and ok:
@@ -638,21 +1111,25 @@ class UI:
             bd = GOLD
         else:
             bd = (88, 75, 58)
-        pygame.draw.rect(g.screen, bd, rect, 1, border_radius=5)
+        base = (54, 43, 32) if hover else (36, 29, 23)
+        g.screen.blit(self._plate(rect.w, rect.h, base, bd, radius=5,
+                                  state="hover" if hover else "norm", seed=12),
+                      rect.topleft)
         ic = self.icon(it["icon"], rect.w - 14)
         if not st["ready"] or st["owned"]:
             ic = ic.copy()
             ic.set_alpha(96 if not st["ready"] else 170)
         g.screen.blit(ic, (rect.centerx - ic.get_width() // 2, rect.y + 6))
         strip = pygame.Rect(rect.x + 1, rect.bottom - 17, rect.w - 2, 16)
-        pygame.draw.rect(g.screen, (18, 14, 12), strip, border_radius=3)
+        g.screen.blit(self._socket(strip.w, strip.h, (18, 14, 12), (70, 58, 42),
+                                   radius=3, state="norm", seed=13), strip.topleft)
         if st["owned"]:
             txt, col = "OWNED", GREEN
         elif st["ready"]:
             txt, col = (f"forge {st['fee']}g" if st["parts"] else f"{st['fee']}g"),                        (GOLD if st["afford"] else (196, 120, 96))
         else:
             txt, col = f"{st['have']}/{st['need']} parts", MUTED
-        pt = self.t(txt, 10, col, "sans")
+        pt = self.t(txt, 11, col, "sans")
         g.screen.blit(pt, (rect.centerx - pt.get_width() // 2, rect.bottom - 16))
         lines = self.item_lines(iid)
         if st["owned"]:
@@ -672,25 +1149,25 @@ class UI:
         r = pygame.Rect(286, 62, 1028, 634)
         self.overlay(96)
         self.panel(r, (30, 23, 18), BRASS, 252)
-        title = self.t("THE EMBERHOLD PURVEYOR", 20, GOLD_L, "display")
+        title = self.head("THE EMBERHOLD PURVEYOR", 20, GOLD_L, "display", track=2)
         g.screen.blit(title, (r.x + 18, r.y + 10))
         sub = self.t("Buy components, then forge them into one stronger item — every stat carries over.",
                      12, PARCH_D, "sans")
         g.screen.blit(sub, (r.x + 18, r.y + 36))
         gi = self.icon("gold", 22)
         g.screen.blit(gi, (r.right - 214, r.y + 17))
-        gt = self.t(fmt(w.gold), 20, PARCH, "display")
+        gt = self.head(fmt(w.gold), 19, PARCH, "sans_bold")
         g.screen.blit(gt, (r.right - 186, r.y + 14))
         self.button(pygame.Rect(r.right - 116, r.y + 12, 98, 28), "Close [P]", ("shopclose", {}))
         self.line(r.x + 352, r.y + 62, r.x + 352, r.bottom - 16, (92, 74, 50))
         # ---- hero + satchel
         x0, y0 = r.x + 18, r.y + 64
         por = pygame.Rect(x0, y0, 96, 96)
-        pygame.draw.rect(g.screen, (18, 14, 12), por)
+        g.screen.blit(self._socket(por.w, por.h, (18, 14, 12), BRASS, radius=5,
+                                   state="norm", seed=16), por.topleft)
         if hero:
             im = self.art.portrait(hero.rig, hero.team, 88)
             g.screen.blit(im, (por.centerx - im.get_width() // 2, por.centery - im.get_height() // 2))
-        pygame.draw.rect(g.screen, BRASS, por, 1)
         if hero:
             nm = self.t("Marshal Aldric", 18, PARCH, "display")
             g.screen.blit(nm, (x0 + 108, y0))
@@ -707,9 +1184,9 @@ class UI:
             g.screen.blit(st1, (x0 + 108, y0 + 78))
             st2 = self.t(f"MOVE {hero.speed:.2f}   REGEN {hero.hp_regen:g} hp/s", 11, PARCH_D, "sans")
             g.screen.blit(st2, (x0 + 108, y0 + 92))
-        lab = self.t("SATCHEL", 12, GOLD, "display")
+        lab = self.head("SATCHEL", 12, GOLD, "display", track=2)
         g.screen.blit(lab, (x0, y0 + 112))
-        hint = self.t("left-click an active · right-click to sell", 10, MUTED, "sans")
+        hint = self.t("left-click an active · right-click to sell", 11, LABEL, "sans")
         g.screen.blit(hint, (x0 + 66, y0 + 114))
         for i in range(ITEM_SLOTS):
             col, row = i % 3, i // 3
@@ -717,12 +1194,12 @@ class UI:
             iid = hero.items[i] if hero and i < len(hero.items) else None
             self.draw_item_slot(rr, iid, i, hero)
             if iid:
-                nm = self.t(ITEMS[iid]["name"], 10, PARCH_D, "sans")
+                nm = self.t(ITEMS[iid]["name"], 11, PARCH_D, "sans")
                 g.screen.blit(nm, (rr.x, rr.bottom + 2))
         if not w.shop_in_range(hero):
             wr = pygame.Rect(x0, r.bottom - 78, 330, 60)
             self.panel(wr, (70, 30, 26), (176, 84, 72), 244)
-            t1 = self.t("OUT OF REACH", 14, (240, 172, 150), "display")
+            t1 = self.head("OUT OF REACH", 14, (240, 172, 150), "display", track=2)
             g.screen.blit(t1, (wr.x + 10, wr.y + 6))
             t2 = self.art.text_wrap("Aldric must stand near the Hall, Keep or Altar of Embers to trade.",
                                     11, 306, PARCH_D)
@@ -732,7 +1209,7 @@ class UI:
         cell, step = 92, 106
         for gtitle, ids in SHOP_GROUPS:
             per_row = 6 if len(ids) <= 6 else 4
-            gl = self.t(gtitle, 12, GOLD, "display")
+            gl = self.head(gtitle, 12, GOLD, "display", track=2)
             g.screen.blit(gl, (x1, yy))
             yy += 18
             for i, iid in enumerate(ids):
@@ -740,7 +1217,7 @@ class UI:
                 cy = yy + (i // per_row) * (cell + 22)
                 tile = pygame.Rect(cx, cy, cell, cell)
                 self.shop_tile(tile, iid, hero)
-                nm = self.t(ITEMS[iid]["name"], 10,
+                nm = self.t(ITEMS[iid]["name"], 11,
                             PARCH if hero and iid in hero.items else PARCH_D, "sans")
                 g.screen.blit(nm, (cx + max(0, (cell - nm.get_width()) // 2), cy + cell + 3))
                 it = ITEMS[iid]
@@ -857,8 +1334,12 @@ class UI:
             for i, grp in enumerate(groups[:6]):
                 r = pygame.Rect(x0 + i * 44, 698, 40, 20)
                 active = grp[0] in g.selection and len(g.selection) == len(grp)
-                pygame.draw.rect(g.screen, (58, 45, 33) if active else (34, 27, 21), r, border_radius=3)
-                pygame.draw.rect(g.screen, GOLD if active else BRASS, r, 1, border_radius=3)
+                hover = r.collidepoint(self.mouse)
+                base = (58, 45, 33) if active else (34, 27, 21)
+                rim = GOLD if active else BRASS
+                g.screen.blit(self._plate(r.w, r.h, base, rim, radius=3,
+                                          state="hover" if hover else "norm",
+                                          seed=15), r.topleft)
                 ic = self.icon((grp[0].bid if grp[0].is_building else grp[0].kind), 16)
                 g.screen.blit(ic, (r.x + 2, r.y + 2))
                 n = self.t(str(len(grp)), 11, PARCH, "sans")
@@ -869,24 +1350,31 @@ class UI:
             r = pygame.Rect(x0 + col * (cell + gap), y0 + row * (cell + gap), cell, cell)
             enabled = c.get("enabled", True)
             hover = r.collidepoint(self.mouse)
-            pygame.draw.rect(g.screen, (52, 41, 31) if (hover and enabled) else (34, 27, 21), r, border_radius=5)
-            pygame.draw.rect(g.screen, GOLD_L if (hover and enabled) else ((96, 80, 54) if enabled else (60, 52, 42)), r, 1, border_radius=5)
+            live = hover and enabled
+            # inset socket with hover glow / pressed depth / muted-off states
+            rim = GOLD_L if live else ((96, 80, 54) if enabled else (60, 52, 42))
+            g.screen.blit(self._socket(cell, cell, (35, 27, 21), rim, radius=5,
+                                       state="hover" if live else "norm", seed=14),
+                          r.topleft)
+            dx, dy = (1, 1) if (live and self.mouse_down) else (0, 0)
             ic = self.icon(c.get("icon", "cancel"), 44)
             if not enabled:
                 ic = ic.copy(); ic.set_alpha(105)
-            g.screen.blit(ic, (r.centerx - 22, r.y + 5))
+            g.screen.blit(ic, (r.centerx - 22 + dx, r.y + 5 + dy))
             if c.get("hotkey"):
                 hk = self.t(c["hotkey"], 11, GOLD if enabled else MUTED, "sans")
-                g.screen.blit(hk, (r.right - hk.get_width() - 4, r.bottom - 16))
+                g.screen.blit(hk, (r.right - hk.get_width() - 4, r.bottom - 16 + dy))
             if c.get("cd", 0) > 0:
-                ov = pygame.Surface((cell, cell), pygame.SRCALPHA); ov.fill((10, 10, 16, 140))
+                ov = pygame.Surface((cell, cell), pygame.SRCALPHA)
+                pygame.draw.rect(ov, (10, 10, 16, 140), (0, 0, cell, cell),
+                                 border_radius=5)
                 g.screen.blit(ov, r.topleft)
                 cd = self.t(str(int(math.ceil(c["cd"]))), 18, PARCH, "sans")
                 g.screen.blit(cd, (r.centerx - cd.get_width() // 2, r.centery - 10))
             if not c.get("enabled", True) and c.get("kind") in ("train", "build", "research"):
                 if c.get("cost"):
-                    ct = self.t(self.cost(c["cost"]), 10, (206, 120, 96), "sans")
-                    g.screen.blit(ct, (r.x + 3, r.y + 2))
+                    ct = self.t(self.cost(c["cost"]), 11, (206, 120, 96), "sans")
+                    g.screen.blit(ct, (r.x + 3, r.y + 2 + dy))
             a = dict(c)
             a.pop("building", None)
             a["rect"] = r
@@ -901,13 +1389,13 @@ class UI:
             b = sel[0]
             for i, q in enumerate(b.queue[:5]):
                 r = pygame.Rect(690 + i * 42, 820, 36, 36)
-                pygame.draw.rect(g.screen, (26, 21, 17), r, border_radius=3)
-                pygame.draw.rect(g.screen, BRASS, r, 1, border_radius=3)
+                g.screen.blit(self._socket(r.w, r.h, (26, 21, 17), BRASS, radius=4,
+                                           state="norm", seed=17), r.topleft)
                 ic = self.icon(UNITS[q["type"]]["icon"], 32)
                 g.screen.blit(ic, (r.x + 2, r.y + 2))
                 f = q["progress"] / max(1, q["time"])
                 pygame.draw.rect(g.screen, GOLD, (r.x, r.bottom - 3, int(r.w * f), 3))
-            lab = self.t("Training", 12, PARCH_D, "sans")
+            lab = self.head("Training", 12, LABEL, "sans", track=1)
             g.screen.blit(lab, (690, 804))
 
     def cost(self, cost):
@@ -959,6 +1447,13 @@ class UI:
         rw = SCREEN_W / g.renderer.MW * r.w
         rh = SCREEN_H / g.renderer.MH * r.h
         pygame.draw.rect(g.screen, (255, 238, 190), (int(rx), int(ry), max(6, int(rw)), max(4, int(rh))), 1)
+        # brass frame line + corner mounts: the map reads as bolted in
+        pygame.draw.rect(g.screen, mix(GOLD, (0, 0, 0), 0.18), r, 1)
+        fr = r.inflate(10, 10)
+        mount = self._mount()
+        for mx, my in ((fr.x - 3, fr.y - 3), (fr.right - 13, fr.y - 3),
+                       (fr.x - 3, 884), (fr.right - 13, 884)):
+            g.screen.blit(mount, (mx, my))
         self.add(r, kind="minimap")
 
     # ---------------------------------------------------------------- tooltip
@@ -1011,10 +1506,11 @@ class UI:
         self.overlay(160)
         r = pygame.Rect(SCREEN_W // 2 - 250, 220, 500, 430)
         self.panel(r, (34, 26, 21), BRASS, 250)
-        t = self.t("PAUSED", 38, PARCH, "display")
+        t = self.head("PAUSED", 38, PARCH, "display", track=4)
         g.screen.blit(t, (r.centerx - t.get_width() // 2, r.y + 20))
         sub = self.t("The vale waits.", 14, PARCH_D, "serif")
         g.screen.blit(sub, (r.centerx - sub.get_width() // 2, r.y + 70))
+        self.line(r.x + 90, r.y + 96, r.right - 90, r.y + 96, BRASS)
         items = [("Resume", "resume"), ("Restart", "restart"), ("Settings", "settings"),
                  ("Controls", "controls"), ("Quit to Title", "title")]
         for i, (lab, act) in enumerate(items):
@@ -1031,7 +1527,8 @@ class UI:
             title_txt = "MISSION SECURED" if win else "THE LINE BROKE"
         else:
             title_txt = "THE VALE ENDURES" if win else "THE EMBER FAILS"
-        title = self.t(title_txt, 42, (240, 200, 120) if win else (200, 100, 90), "display")
+        title = self.head(title_txt, 42, (240, 200, 120) if win else (200, 100, 90),
+                          "display", track=3)
         g.screen.blit(title, (r.centerx - title.get_width() // 2, r.y + 22))
         if sc:
             sub_txt = (f"{sc['name']} — the path ahead opens." if win
@@ -1041,6 +1538,8 @@ class UI:
                        else "The Hollow Crown remembers every grave.")
         sub = self.t(sub_txt, 16, PARCH_D, "serif")
         g.screen.blit(sub, (r.centerx - sub.get_width() // 2, r.y + 80))
+        # parchment tally sheet for the after-action report
+        self.sheet(pygame.Rect(r.x + 30, r.y + 118, 700, 172))
         stats = [
             ("Time", fmt_time(w.time)), ("Kills", str(w.stats["kills"])),
             ("Losses", str(w.stats["losses"])), ("Gold gathered", fmt(w.stats["gold_gathered"])),
@@ -1050,7 +1549,8 @@ class UI:
         for i, (k, v) in enumerate(stats):
             col = i % 2; row = i // 2
             x = r.x + 50 + col * 340; y = r.y + 130 + row * 52
-            kt = self.t(k, 14, PARCH_D, "sans"); vt = self.t(v, 20, PARCH, "display")
+            kt = self.head(k, 13, INK_S_D, "sans", track=1)
+            vt = self.head(v, 20, INK_S, "sans_bold", track=0)
             g.screen.blit(kt, (x, y)); g.screen.blit(vt, (x, y + 18))
         if sc:
             nxt = (win and gi + 1 < campaign.count() and campaign.is_unlocked(gi + 1))
@@ -1076,8 +1576,9 @@ class UI:
         self.overlay(150)
         r = pygame.Rect(SCREEN_W // 2 - 280, 200, 560, 400)
         self.panel(r, (34, 26, 21), BRASS, 250)
-        t = self.t("SETTINGS", 32, PARCH, "display")
+        t = self.head("SETTINGS", 32, PARCH, "display", track=3)
         g.screen.blit(t, (r.centerx - t.get_width() // 2, r.y + 18))
+        self.line(r.x + 60, r.y + 66, r.right - 60, r.y + 66, BRASS)
         # sliders
         for i, (label, key) in enumerate((("Music", "music"), ("Sound effects", "sfx"))):
             y = r.y + 100 + i * 80
@@ -1097,8 +1598,10 @@ class UI:
         self.overlay(170)
         r = pygame.Rect(SCREEN_W // 2 - 430, 100, 860, 660)
         self.panel(r, (34, 26, 21), BRASS, 252)
-        t = self.t("CONTROLS", 32, PARCH, "display")
+        t = self.head("CONTROLS", 32, PARCH, "display", track=3)
         g.screen.blit(t, (r.centerx - t.get_width() // 2, r.y + 18))
+        # parchment reference sheet
+        self.sheet(pygame.Rect(r.x + 30, r.y + 70, 800, 520))
         rows = [
             ("Right-click", "Move · attack · gather · set rally"),
             ("Left-drag", "Box select   ·   Shift adds   ·   double-click selects type"),
@@ -1114,7 +1617,8 @@ class UI:
         ]
         for i, (k, v) in enumerate(rows):
             y = r.y + 80 + i * 48
-            kt = self.t(k, 16, GOLD, "display"); vt = self.t(v, 15, PARCH_D, "serif")
+            kt = self.head(k, 16, OCHRE, "display", track=1)
+            vt = self.t(v, 15, INK_S, "serif")
             g.screen.blit(kt, (r.x + 42, y)); g.screen.blit(vt, (r.x + 290, y))
         self.button(pygame.Rect(r.centerx - 90, r.bottom - 58, 180, 36), "Back", ("back", {}))
 
@@ -1123,10 +1627,12 @@ class UI:
         self.overlay(170)
         r = pygame.Rect(SCREEN_W // 2 - 430, 100, 860, 660)
         self.panel(r, (34, 26, 21), BRASS, 252)
-        t = self.t("CREDITS", 32, PARCH, "display")
+        t = self.head("CREDITS", 32, PARCH, "display", track=3)
         g.screen.blit(t, (r.centerx - t.get_width() // 2, r.y + 18))
-        body = ("EMBERFALL — The Hollow Crown\n"
-                "A native isometric RTS made in one night by deepseek and mimo.\n\n"
+        self.sheet(pygame.Rect(r.x + 36, r.y + 70, 788, 404))
+        hdr = self.head("EMBERFALL — The Hollow Crown", 21, INK_S, "display", track=2)
+        g.screen.blit(hdr, (r.x + 52, r.y + 86))
+        body = ("A native isometric RTS made in one night by deepseek and mimo.\n\n"
                 "Design, simulation, UI and direction: deepseek\n"
                 "Audio, QA and art direction: mimo\n\n"
                 "Art: Flare (clintbellanger/flare-game) — CC-BY-SA 3.0.\n"
@@ -1135,6 +1641,6 @@ class UI:
                 "Engine: Python 3 + pygame-ce. No web technology.\n"
                 "Map: Ashen Vale. 84×84 handcrafted tiles.\n\n"
                 "Thank you for waking up and playing it.")
-        txt = self.art.text_wrap(body, 16, 760, PARCH_D, line_gap=6)
-        g.screen.blit(txt, (r.x + 50, r.y + 78))
+        txt = self.art.text_wrap(body, 16, 752, INK_S_D, line_gap=6)
+        g.screen.blit(txt, (r.x + 52, r.y + 124))
         self.button(pygame.Rect(r.centerx - 90, r.bottom - 58, 180, 36), "Back", ("back", {}))
