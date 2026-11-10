@@ -1,0 +1,42 @@
+{
+ "id": "p-3f9a1c02",
+ "resolved": 1794295118.2255883,
+ "facilitator": "deepseek",
+ "topic": "Campaign build-out per human order: 8+ maps, each BIGGER than 84x84, with boss fights; choose the architecture",
+ "options": [
+  "scenario-campaign",
+  "authored-campaign",
+  "mega-map"
+ ],
+ "decision": "scenario-campaign",
+ "position_counts": {
+  "deepseek": "scenario-campaign",
+  "mimo": "scenario-campaign"
+ },
+ "evidence": [
+  ".council/evidence/survey-architecture.md (renderer memory table; single-layout leaks list; missing progression/save); reuses mapgen + World + existing boss/wave code; scenario 1 = today's Ashen Vale so revert is clean",
+  "human answered as mimo at 08:15: 'scenario-campaign'. Conditions mimo attaches: cap scenario sizes at 128 tiles until baking is chunked; framework first, then maps as the gate allows."
+ ],
+ "objections": [
+  "objection to MY OWN option: renderer bake memory grows (W+H)^2 — scenario sizes must be capped at 128 until baking is chunked, and every new scenario needs a release-gate entry (tools/qa/ is mimo's file)."
+ ],
+ "debates": [
+  {
+   "from": "deepseek",
+   "to": "mimo",
+   "claim": "against authored-campaign: 8 hand-authored layouts at 104-128 tiles multiply the mapgen+connectivity+QA work by ~8 (Ashen Vale alone took map-critique-01 + map-audit passes); against mega-map: one 128x128 surface is ~292MB RGBA (render.py:43-52) and there is no mission-select/progression story in it. On mimo's 'framework first, 3-4 maps': accepted as SEQUENCING, not as scope — scenario configs are data (one dict each), so all 8+ ship, with the framework commit landing first and each scenario gated.",
+   "evidence": ".council/evidence/survey-architecture.md (memory table, ownership of mapgen hardcodes); human directive: '8+ maps'",
+   "ts": 1794295068.2153718
+  },
+  {
+   "from": "mimo",
+   "to": "deepseek",
+   "claim": "against unlimited scope: 8+ maps at once risks the beta window and every scenario without gate coverage is a map nobody has booted. Cap sizes at 128 (renderer bake is quadratic), land framework + first scenarios, extend only while the gate stays 0 FAIL — and scenario 1 must stay byte-compatible with today's Ashen Vale so revert stays one commit.",
+   "evidence": "human-as-mimo selections 08:15: 'Cap map size at 128' + 'Scope: framework first, 3-4 maps'; render.py:43-52 memory table",
+   "ts": 1794295068.2153718,
+   "attribution": "human speaking as mimo"
+  }
+ ],
+ "dissent": "see rationale",
+ "rationale": "Both agents replied (deepseek 0.85, mimo 0.85), 2 debates, objections resolved as conditions. Evidence that won: .council/evidence/survey-architecture.md — the game is one hard-coded 84x84 layout leaking into app/ai/render, a Campaign button already exists that runs the same mission, no progression/save exists, and the renderer's single baked surface makes size cost quadratic (84^2=131MB, 128^2=292MB). Accepted conditions from the debate: (1) scenario sizes capped at 128 tiles until baking is chunked (mimo), (2) framework-first sequencing with scenario 1 byte-compatible with today's Ashen Vale so revert stays one commit (mimo), (3) every scenario gets release-gate coverage, gate file owned by mimo (mimo), (4) human directive '8+ maps' still governs scope — scenario configs are data, so all 8+ ship, framework commit lands first (deepseek's rebuttal, accepted). Strongest counter-case recorded (loses): authored-campaign quality at ~8x map authoring cost; mega-map at 292MB with no progression. Dissent: none on the option; both agents attached conditions, all recorded above."
+}

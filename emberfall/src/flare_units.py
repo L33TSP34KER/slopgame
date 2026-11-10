@@ -42,6 +42,15 @@ ENEMIES = {
     "goblin-brute": ("goblin_elite", 1.05),
     "elder-wolf": ("goblin_elite", 1.05),
     "hollow-king": ("skeleton_knight_boss", 1.05),
+    # campaign bosses (council p-3f9a1c02) — same Flare champion sheet under
+    # distinct ids so scale tells the ladder apart on the field
+    "boss-grave-warden": ("skeleton_knight_boss", 1.05),
+    "boss-crypt-herald": ("skeleton_knight_boss", 1.05),
+    "boss-bone-tyrant": ("skeleton_knight_boss", 1.05),
+    "boss-ash-lich": ("skeleton_knight_boss", 1.05),
+    "boss-slaughter-king": ("skeleton_knight_boss", 1.05),
+    "boss-frost-sovereign": ("skeleton_knight_boss", 1.05),
+    "boss-hollow-champion": ("skeleton_knight_boss", 1.05),
 }
 RANGED = {"archer": "shoot", "priest": "shoot", "fiend": "shoot",
           "necromancer": "cast", "revenant": "cast", "hero": "swing"}
@@ -50,6 +59,13 @@ UNIT_SCALE = {
     "hero": 1.70, "ghoul": 1.30, "fiend": 1.36, "necromancer": 1.30, "abomination": 1.56,
     "revenant": 1.43, "skeleton": 1.17, "goblin": 1.19, "goblin-brute": 1.43,
     "hollow-king": 1.76,
+    "boss-grave-warden": 1.18,
+    "boss-crypt-herald": 1.28,
+    "boss-bone-tyrant": 1.40,
+    "boss-ash-lich": 1.34,
+    "boss-slaughter-king": 1.52,
+    "boss-frost-sovereign": 1.46,
+    "boss-hollow-champion": 1.64,
 }
 TINT = {
     "hero": (1.0, 0.9, 0.62),

@@ -142,6 +142,51 @@ UNITS = {
         dmg=(22, 28), range=1.3, cooldown=1.6, speed=3.0, sight=9,
         food=0, bounty=90, xp=120, radius=0.55, neutral=True,
         desc="The warband leader. His bounty is worth a small fortune."),
+    # ---- campaign bosses (council p-3f9a1c02: one boss per mission 2..9,
+    # a ladder that ends at the Hollow King; each reuses the king's Flare rig
+    # under its own id so scale/colour can tell them apart on the field).
+    "boss-grave-warden": _unit(
+        id="boss-grave-warden", name="Grave Warden", icon="hollow-king", rig="boss-grave-warden",
+        hp=1500, armor=3, armor_type="heavy", damage_type="normal",
+        dmg=(20, 26), range=1.5, cooldown=2.0, speed=2.0, sight=10,
+        food=0, bounty=160, xp=320, radius=0.6, enemy=True, boss=True,
+        desc="First of the Host's wardens. He guards a crossing and nothing else."),
+    "boss-crypt-herald": _unit(
+        id="boss-crypt-herald", name="Crypt Herald", icon="hollow-king", rig="boss-crypt-herald",
+        hp=2300, armor=4, armor_type="heavy", damage_type="normal",
+        dmg=(28, 36), range=1.6, cooldown=2.0, speed=2.0, sight=11,
+        food=0, bounty=260, xp=480, radius=0.65, enemy=True, boss=True,
+        desc="He preached in the drowned chapel until the congregation answered."),
+    "boss-bone-tyrant": _unit(
+        id="boss-bone-tyrant", name="Bone Tyrant", icon="hollow-king", rig="boss-bone-tyrant",
+        hp=3100, armor=5, armor_type="heavy", damage_type="normal",
+        dmg=(36, 46), range=1.7, cooldown=2.1, speed=2.0, sight=11,
+        food=0, bounty=340, xp=640, radius=0.7, enemy=True, boss=True,
+        desc="Armoured like a gate, and he hits like one closing."),
+    "boss-ash-lich": _unit(
+        id="boss-ash-lich", name="Ash Lich", icon="hollow-king", rig="boss-ash-lich",
+        hp=3600, armor=5, armor_type="heavy", damage_type="normal",
+        dmg=(42, 54), range=1.7, cooldown=2.0, speed=2.1, sight=12,
+        food=0, bounty=400, xp=760, radius=0.7, enemy=True, boss=True,
+        desc="Walks the burned fields leaving no footprints, only ash."),
+    "boss-slaughter-king": _unit(
+        id="boss-slaughter-king", name="Slaughter King", icon="hollow-king", rig="boss-slaughter-king",
+        hp=4100, armor=6, armor_type="heavy", damage_type="normal",
+        dmg=(48, 60), range=1.7, cooldown=2.1, speed=2.0, sight=12,
+        food=0, bounty=460, xp=900, radius=0.75, enemy=True, boss=True,
+        desc="He feeds the Host from the front of every wave."),
+    "boss-frost-sovereign": _unit(
+        id="boss-frost-sovereign", name="Frost Sovereign", icon="hollow-king", rig="boss-frost-sovereign",
+        hp=4600, armor=6, armor_type="heavy", damage_type="normal",
+        dmg=(50, 62), range=1.7, cooldown=2.1, speed=2.0, sight=12,
+        food=0, bounty=480, xp=1000, radius=0.75, enemy=True, boss=True,
+        desc="Marches his dead in step; his cold slows everything it touches."),
+    "boss-hollow-champion": _unit(
+        id="boss-hollow-champion", name="Hollow Champion", icon="hollow-king", rig="boss-hollow-champion",
+        hp=5000, armor=6, armor_type="heavy", damage_type="normal",
+        dmg=(54, 68), range=1.7, cooldown=2.1, speed=2.1, sight=12,
+        food=0, bounty=520, xp=1100, radius=0.8, enemy=True, boss=True,
+        desc="A knight of the old Emberhold, taken whole and turned."),
     "hollow-king": _unit(
         id="hollow-king", name="The Hollow King", icon="hollow-king", rig="hollow-king",
         hp=5200, armor=6, armor_type="heavy", damage_type="normal",
@@ -436,10 +481,10 @@ FACTION = {
 }
 
 DIFFICULTY = {
-    "novice": dict(id="novice", name="Novice", income=0.30, hp=0.40, dmg=0.40,
-                   wave_gap=2.6, wave_size=0.40, speed=0.90,
-                   first_wave=600.0, cap=14, start_gold=1600, start_lumber=500,
-                   blurb="The first watch teaches. No real threat for ten minutes."),
+    "novice": dict(id="novice", name="Novice", income=0.20, hp=0.35, dmg=0.30,
+                   wave_gap=3.0, wave_size=0.30, speed=0.90,
+                   first_wave=720.0, cap=8, start_gold=1600, start_lumber=500,
+                   blurb="The first watch teaches. No real threat for twelve minutes."),
     "squire": dict(id="squire", name="Squire", income=0.62, hp=0.55, dmg=0.55,
                    wave_gap=1.75, wave_size=0.55, speed=0.92,
                    first_wave=315.0, cap=26, start_gold=1200, start_lumber=350,

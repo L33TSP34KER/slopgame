@@ -13,3 +13,6 @@ prototype-web/
 vendor/
 design/notes/shots/
 design/notes/flare-tmp/
+# campaign progress saves (home dir is the real location; cwd is the fallback)
+.emberfall_campaign.json
+.emberfall/

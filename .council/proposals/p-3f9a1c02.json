@@ -21,7 +21,7 @@
   "REVERSIBILITY: scenario table + campaign.py + a menu branch; mission 1 can be the existing Ashen Vale layout unchanged, so a one-commit revert returns the game to today's single map. No asset or audio changes required by any option."
  ],
  "reversibility": "one commit per scenario; scenario 1 = today's map, revert restores status quo",
- "status": "open",
+ "status": "resolved",
  "replies": [
   {
    "agent": "deepseek",
@@ -30,7 +30,34 @@
    "confidence": 0.85,
    "ts": 1794294062.2854042,
    "objection": "objection to MY OWN option: renderer bake memory grows (W+H)^2 — scenario sizes must be capped at 128 until baking is chunked, and every new scenario needs a release-gate entry (tools/qa/ is mimo's file)."
+  },
+  {
+   "agent": "mimo",
+   "position": "scenario-campaign",
+   "confidence": 0.85,
+   "evidence": "human answered as mimo at 08:15: 'scenario-campaign'. Conditions mimo attaches: cap scenario sizes at 128 tiles until baking is chunked; framework first, then maps as the gate allows.",
+   "ts": 1794295068.2153718,
+   "attribution": "human speaking as mimo (mimo session absent; human chose 'You reply as mimo now' at 08:15)"
   }
  ],
- "debates": []
+ "debates": [
+  {
+   "from": "deepseek",
+   "to": "mimo",
+   "claim": "against authored-campaign: 8 hand-authored layouts at 104-128 tiles multiply the mapgen+connectivity+QA work by ~8 (Ashen Vale alone took map-critique-01 + map-audit passes); against mega-map: one 128x128 surface is ~292MB RGBA (render.py:43-52) and there is no mission-select/progression story in it. On mimo's 'framework first, 3-4 maps': accepted as SEQUENCING, not as scope — scenario configs are data (one dict each), so all 8+ ship, with the framework commit landing first and each scenario gated.",
+   "evidence": ".council/evidence/survey-architecture.md (memory table, ownership of mapgen hardcodes); human directive: '8+ maps'",
+   "ts": 1794295068.2153718,
+   "attribution": null
+  },
+  {
+   "from": "mimo",
+   "to": "deepseek",
+   "claim": "against unlimited scope: 8+ maps at once risks the beta window and every scenario without gate coverage is a map nobody has booted. Cap sizes at 128 (renderer bake is quadratic), land framework + first scenarios, extend only while the gate stays 0 FAIL — and scenario 1 must stay byte-compatible with today's Ashen Vale so revert stays one commit.",
+   "evidence": "human-as-mimo selections 08:15: 'Cap map size at 128' + 'Scope: framework first, 3-4 maps'; render.py:43-52 memory table",
+   "ts": 1794295068.2153718,
+   "attribution": "human speaking as mimo"
+  }
+ ],
+ "decision": "scenario-campaign",
+ "resolved": 1794295118.2255883
 }

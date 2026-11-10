@@ -11,6 +11,7 @@ from .ai import EnemyAI
 from .audio import Audio
 from .ui import UI
 from .core import clamp, dist
+from . import campaign
 
 
 def _desktop_size():
@@ -81,6 +82,8 @@ class Game:
         self.audio = Audio()
         self.sfx = self.audio
         self.difficulty = self.args.difficulty
+        self.campaign_index = None  # set while a campaign mission is running
+        self._map_shaped = False    # True once campaign.apply_scenario touched self.map
         self.world = World(self, self.map, self.art, self.difficulty)
         self.world.mode = "menu"
         self.world.started = False
@@ -212,14 +215,50 @@ class Game:
             self.world.state = "defeat"
             self.state = "defeat"
 
-    def start_mission(self, difficulty=None, skip_intro=False):
-        diff = difficulty or self.difficulty
+    def start_mission(self, difficulty=None, skip_intro=False, scenario=None):
+        """Build and start a mission.
+
+        scenario=None keeps the classic single-map skirmish path (one shared
+        Ashen Vale map, player-picked difficulty). With a campaign scenario the
+        map is generated at that scenario's size/seed/flip, shaped by
+        campaign.apply_scenario, and the Renderer is rebuilt so the baked
+        surface matches the bigger map (council p-3f9a1c02).
+        """
+        rebake = False
+        if scenario is not None:
+            diff = scenario["diff"]
+            self.map = generate_map(seed=scenario["seed"], difficulty=diff,
+                                    w=scenario["w"], h=scenario["h"],
+                                    variant=scenario.get("variant"),
+                                    name=scenario["name"])
+            campaign.apply_scenario(scenario, self.map)
+            self.campaign_index = scenario.get("_index")
+            self._map_shaped = True
+            rebake = True
+        else:
+            diff = difficulty or self.difficulty
+            self.campaign_index = None
+            # skirmish always plays the CLASSIC Ashen Vale: if the last mission
+            # left a bigger, campaign-shaped map behind, regenerate the default
+            # so guard counts/boss/size never leak between modes
+            if (self.map.w, self.map.h) != (MAP_W, MAP_H) or getattr(self, "_map_shaped", False):
+                self.map = generate_map()
+                self._map_shaped = False
+                rebake = True
         self.difficulty = diff
         self.world = World(self, self.map, self.art, diff)
         self.world.ai = EnemyAI(self.world)
+        if scenario is not None:
+            campaign.apply_to_world(scenario, self.world)
+            self.world.mission = dict(main=scenario["main"],
+                                      bonus=scenario.get("bonus", ""),
+                                      hint=scenario.get("hint", ""))
+        if rebake:
+            self.renderer = Renderer(self.world)   # fresh bake at this map's size
+        else:
+            self.renderer.game = self.world
         self.world.mode = "play" if skip_intro else "intro"
         self.world.started = skip_intro
-        self.renderer.game = self.world
         self.selection = []
         self.build_menu = False
         self.shop_open = False
@@ -241,7 +280,10 @@ class Game:
                         self.world.explored[yy * self.world.map.w + xx] = 1
         if self.world.hero and self.world.hero.alive:
             self.select([self.world.hero])
-        cx, cy = self.renderer.w2s(24, 68, 1) if skip_intro else self.renderer.w2s(33, 60, 1)
+        # open on the Hearth Guard, not on hard-coded 84x84 coordinates
+        camx, camy = self.map.starts.get(PLAYER, {}).get("camera", (24, 69))
+        cx, cy = (self.renderer.w2s(camx, camy - 1, 1) if skip_intro
+                  else self.renderer.w2s(camx + 9, camy - 9, 1))
         self.camera = Camera(cx, cy, self.renderer.cam_bounds())
         self.camera.clamp()
         self.state = "play" if skip_intro else "intro"
@@ -265,6 +307,13 @@ class Game:
     def on_mission_end(self, result):
         self.state = result
         self.stats_saved = True
+        # campaign: a win unlocks the next mission and records the best time
+        if result == "victory" and self.campaign_index is not None:
+            try:
+                campaign.record_best(self.campaign_index, self.world.time)
+                campaign.unlock(self.campaign_index)
+            except Exception:
+                pass
         try:
             best = int(open(os.path.join(os.path.dirname(__file__), "..", "..", "design", ".best")).read())
         except Exception:
@@ -435,7 +484,25 @@ class Game:
         if k == "menu":
             act = a.get("action")
             if act == "campaign":
-                self.start_mission(self.difficulty, skip_intro=False)
+                # mission select (council p-3f9a1c02): the old behaviour —
+                # launching the single Ashen Vale skirmish — moved to Skirmish
+                self.state = "campaign"
+                self.state_before = "title"
+            elif act == "mission":
+                i = int(a.get("value", 0))
+                if campaign.is_unlocked(i) and 0 <= i < campaign.count():
+                    sc = dict(campaign.scenario(i))
+                    sc["_index"] = i
+                    self.start_mission(scenario=sc, skip_intro=False)
+            elif act == "next_mission":
+                i = (self.campaign_index or 0) + 1
+                if campaign.is_unlocked(i) and i < campaign.count():
+                    sc = dict(campaign.scenario(i))
+                    sc["_index"] = i
+                    self.start_mission(scenario=sc, skip_intro=False)
+                else:
+                    self.state = "campaign"
+                    self.state_before = "title"
             elif act == "skirmish":
                 self.state = "skirmish"
                 self.state_before = "title"
@@ -452,7 +519,12 @@ class Game:
                 self.state = "paused"
                 w.paused = True
             elif act == "restart":
-                self.start_mission(self.difficulty, skip_intro=True)
+                if self.campaign_index is not None:
+                    sc = dict(campaign.scenario(self.campaign_index))
+                    sc["_index"] = self.campaign_index
+                    self.start_mission(scenario=sc, skip_intro=True)
+                else:
+                    self.start_mission(self.difficulty, skip_intro=True)
             elif act == "title":
                 self.to_title()
             elif act == "settings":
@@ -783,6 +855,7 @@ class Game:
     # ---------------------------------------------------------------- update/draw
     def to_title(self):
         self.state = "title"
+        self.campaign_index = None
         self.selection = []
         self.build_menu = False
         self.placement = None
@@ -833,6 +906,9 @@ class Game:
         self.ui.update(dt)
 
     def _free_spot(self, bid, cx, cy, radius=9):
+        # hall/anchor coordinates are floats (buildings sit on half tiles), so
+        # cast before building integer tile ranges
+        cx, cy = int(round(cx)), int(round(cy))
         for r in range(2, radius):
             for yy in range(cy - r, cy + r + 1):
                 for xx in range(cx - r, cx + r + 1):
@@ -863,13 +939,25 @@ class Game:
                 if near:
                     w.cmd_gather([wu], {"type": "wood", "x": near["x"], "y": near["y"]})
                     self.auto_wood_t = t + 4.0
-        if "farm" not in self.auto_done and t > 2.5 and workers:
-            sp = self._free_spot("farm", 20, 72)
-            if sp:
-                w.cmd_build([workers[0]], "farm", sp[0], sp[1])
-                self.auto_done.add("farm")
+        # supply: autoplay used to build exactly ONE farm and then starve at
+        # 16 food forever, which is why its army never reached the push
+        # threshold on a real (non-QA-boosted) mission start
+        if workers and t > 2.5 and t > getattr(self, "auto_farm_t", 0.0):
+            farms = [b for b in w.buildings_of(PLAYER) if b.bid == "farm"]
+            slack = w.food_max(PLAYER) - w.food_used(PLAYER)
+            building_now = any((u.order or {}).get("type") == "build" for u in workers)
+            if len(farms) < 6 and slack <= 3 and not building_now:
+                hall0 = next((b for b in w.buildings_of(PLAYER) if b.bid in ("townhall", "keep")), None)
+                hx, hy = (hall0.x, hall0.y) if hall0 else (18.0, 66.0)
+                sp = self._free_spot("farm", hx + 2, hy + 6)
+                if sp:
+                    w.cmd_build([workers[0]], "farm", sp[0], sp[1])
+                    self.auto_farm_t = t + 8
+                    self.auto_done.add("farm")
         if "barracks" not in self.auto_done and t > 8 and workers:
-            sp = self._free_spot("barracks", 22, 62)
+            hall0 = next((b for b in w.buildings_of(PLAYER) if b.bid in ("townhall", "keep")), None)
+            hx, hy = (hall0.x, hall0.y) if hall0 else (18.0, 66.0)
+            sp = self._free_spot("barracks", hx + 4, hy - 4)
             if sp:
                 w.cmd_build([workers[0]], "barracks", sp[0], sp[1])
                 self.auto_done.add("barracks")
@@ -884,8 +972,27 @@ class Game:
         if t > 40 and "push" not in self.auto_done:
             army = [u for u in w.units_of(PLAYER) if not u.worker]
             if len(army) >= 6:
-                w.cmd_attack_move(army, 61, 28)
+                necro = next((b for b in w.buildings_of(ENEMY) if b.bid == "necropolis"), None)
+                if necro and necro.alive:
+                    # siege the objective itself: attack-move to a point left
+                    # the Necropolis at full HP forever (autoplay never won
+                    # mission 1 that way) — see .council/evidence/
+                    w.cmd_attack(army, necro)
+                    self.auto_push_t = t + 25
+                else:
+                    px, py = ((necro.x + necro.bw / 2, necro.y + necro.bh / 2 + 13)
+                              if necro else (w.map.w * 0.73, w.map.h * 0.33))
+                    w.cmd_attack_move(army, px, py)
                 self.auto_done.add("push")
+        # keep the siege pinned: skirmishes peel units off, and an idle army
+        # never finishes a building mission
+        if "push" in self.auto_done and t > getattr(self, "auto_push_t", 0.0):
+            necro = next((b for b in w.buildings_of(ENEMY) if b.bid == "necropolis"), None)
+            if necro and necro.alive:
+                army = [u for u in w.units_of(PLAYER) if not u.worker and u.alive]
+                if army:
+                    w.cmd_attack(army, necro)
+                    self.auto_push_t = t + 25
         hero = w.hero
         if hero and hero.alive:
             foes = w.nearest_enemy(hero, 6)

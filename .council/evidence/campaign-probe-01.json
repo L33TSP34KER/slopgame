@@ -1,0 +1,166 @@
+{
+ "results": [
+  {
+   "mission": 1,
+   "name": "The First Ember",
+   "size": [
+    96,
+    96
+   ],
+   "tier": "novice",
+   "boss": null,
+   "necro": 3200,
+   "foes": 2,
+   "surface": [
+    6424,
+    6564
+   ]
+  },
+  {
+   "mission": 2,
+   "name": "The Blackford Crossing",
+   "size": [
+    96,
+    96
+   ],
+   "tier": "novice",
+   "boss": "boss-grave-warden",
+   "necro": 4200,
+   "foes": 3,
+   "surface": [
+    6424,
+    6564
+   ]
+  },
+  {
+   "mission": 3,
+   "name": "The Sunken Chapel",
+   "size": [
+    104,
+    104
+   ],
+   "tier": "squire",
+   "boss": "boss-crypt-herald",
+   "necro": 4600,
+   "foes": 6,
+   "surface": [
+    6936,
+    7076
+   ]
+  },
+  {
+   "mission": 4,
+   "name": "Warren of Bones",
+   "size": [
+    104,
+    104
+   ],
+   "tier": "squire",
+   "boss": "boss-bone-tyrant",
+   "necro": 5000,
+   "foes": 6,
+   "surface": [
+    6936,
+    7076
+   ]
+  },
+  {
+   "mission": 5,
+   "name": "The Ashen Fields",
+   "size": [
+    112,
+    112
+   ],
+   "tier": "squire",
+   "boss": "boss-ash-lich",
+   "necro": 5400,
+   "foes": 6,
+   "surface": [
+    7448,
+    7588
+   ]
+  },
+  {
+   "mission": 6,
+   "name": "Slaughter Row",
+   "size": [
+    112,
+    112
+   ],
+   "tier": "knight",
+   "boss": "boss-slaughter-king",
+   "necro": 5800,
+   "foes": 6,
+   "surface": [
+    7448,
+    7588
+   ]
+  },
+  {
+   "mission": 7,
+   "name": "The Frost March",
+   "size": [
+    120,
+    120
+   ],
+   "tier": "knight",
+   "boss": "boss-frost-sovereign",
+   "necro": 6200,
+   "foes": 6,
+   "surface": [
+    7960,
+    8100
+   ]
+  },
+  {
+   "mission": 8,
+   "name": "Before the Hollow Throne",
+   "size": [
+    120,
+    120
+   ],
+   "tier": "knight",
+   "boss": "boss-hollow-champion",
+   "necro": 6600,
+   "foes": 6,
+   "surface": [
+    7960,
+    8100
+   ]
+  },
+  {
+   "mission": 9,
+   "name": "The Hollow Crown",
+   "size": [
+    128,
+    128
+   ],
+   "tier": "warlord",
+   "boss": "hollow-king",
+   "necro": 7200,
+   "foes": 6,
+   "surface": [
+    8472,
+    8612
+   ]
+  },
+  {
+   "mission": 1,
+   "autoplay": {
+    "outcome": "victory",
+    "game_time": 545.3,
+    "hall": "1800/1800",
+    "army": 45,
+    "foes": 4,
+    "kills": 7,
+    "losses": 26,
+    "necro_hp": 0,
+    "hero_alive": false,
+    "waves": 0,
+    "wall": 11.7
+   }
+  }
+ ],
+ "fails": [],
+ "warns": []
+}

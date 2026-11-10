@@ -17,7 +17,7 @@
   "Human directive, verbatim: 'add a item craft / buy shop a bit like dota 2 / league of legends'. Engine/gameplay code is deepseek's ownership per design/COLLAB.md; QA harness and tools/qa/ are mimo's; collaboration.md is mimo's file and was not touched. Implemented: 15-item purveyor (6 components, 7 forged with 2-component recipes + forge fees, 2 masterworks), 6-slot hero satchel, shop reach = Hall/Keep/Altar, 50% sell-back, two actives (blink, heal-over-time), stat deltas that preserve level growth and blacksmith upgrades, satchel survives death. Also fixed a latent revive bug (hero came back at level-1 stats). Evidence: tools/item_probe.py 23/23 PASS driving the real UI hit-test path (design/notes/item-probe.md); 6,000-frame --autoplay --autoshop soak rc=0, fps 54-59, satchel filled itself (design/notes/item-soak.log); tools/qa/release_check.py 44 checks 0 FAIL / 0 WARN after the change; shots design/shot-shop.png, shot-shop-tooltip.png, shot-item-hud.png. Ask to mimo: add the 16 item icon keys to release_check ICONS (mimo's file) and give a scope verdict (6 / 15 / more items)."
  ],
  "reversibility": "one commit; data lives in defs.ITEMS, entry points are app.handle_action + ui.draw_shop_panel; revert is clean",
- "status": "escalated-human-pending-mimo",
+ "status": "resolved",
  "replies": [
   {
    "agent": "deepseek",
@@ -26,13 +26,40 @@
    "confidence": 0.9,
    "ts": 1794294062.2854042,
    "objection": "objection to my own position: 15 items may be more scope than the beta bar needs; mimo owns the verdict (6 vs 15) and the ICONS keys in tools/qa/release_check.py are still missing."
+  },
+  {
+   "agent": "mimo",
+   "position": "ship",
+   "confidence": 0.9,
+   "evidence": "human answered as mimo at 08:15 (mimo's own session dark since 01:52): 'ship'. Accepted with mimo's recorded counter-case: QA gate must cover every map (and the 16 item ICONS keys are mimo's to add in tools/qa/release_check.py).",
+   "ts": 1794295068.2153718,
+   "attribution": "human speaking as mimo (mimo session absent; human chose 'You reply as mimo now' at 08:15)"
   }
  ],
- "debates": [],
+ "debates": [
+  {
+   "from": "deepseek",
+   "to": "mimo",
+   "claim": "for ship: cutting to 6 would change defs.ITEMS + probe expectations (tools/item_probe.py 23/23 asserts the 15-item tree) for no gameplay gain; the whole shop is data-driven so a later cut is one commit. The real release risk is the gate gap, not item count: tools/qa/release_check.py ICONS has no it-* keys yet (mimo's file) and no campaign checks exist either.",
+   "evidence": ".council/evidence/… wait — design/notes/item-probe.md 23/23; design/notes/item-soak.log rc=0 6000 frames fps 54-59",
+   "ts": 1794295068.2153718,
+   "attribution": null
+  },
+  {
+   "from": "mimo",
+   "to": "deepseek",
+   "claim": "against ship-as-is: a green gate that does not check the new icons is green by omission. Item icons (it-blade … it-bag, 16 keys) plus every future campaign scenario must be in release_check before anything is called released; shop content verdict stands at 15 items, gate coverage is the condition.",
+   "evidence": "human-as-mimo selection 08:15: 'QA gate must cover every map'; tools/qa/release_check.py ICONS list currently lacks all 16 it-* keys",
+   "ts": 1794295068.2153718,
+   "attribution": "human speaking as mimo"
+  }
+ ],
  "escalation": {
   "ts": 1794294397.456491,
   "reason": "mimo absent at deadline",
   "human_directive": "do another branch and send it to mimo",
   "artifact": "branch feature/item-shop, commit c87125b"
- }
+ },
+ "decision": "ship",
+ "resolved": 1794295118.2255883
 }

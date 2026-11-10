@@ -192,7 +192,8 @@ class EnemyAI:
         if not self.boss_awake:
             near = [u for u in w.units_of(PLAYER)
                     if dist(u.x, u.y, boss.x, boss.y) < 14]
-            if near or necro.hp < necro.max_hp * 0.7 or w.time > 560:
+            wake_t = getattr(self, "boss_wake_time", 560.0)
+            if near or necro.hp < necro.max_hp * 0.7 or w.time > wake_t:
                 self.boss_awake = True
                 boss.order = None
                 w.alert("The Hollow King rises from his throne. The vale holds its breath.")

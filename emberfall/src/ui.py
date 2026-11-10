@@ -4,6 +4,7 @@ import math, os
 import pygame
 from .defs import *
 from .core import clamp, fmt_time, fmt
+from . import campaign
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 INK = (22, 17, 15)
@@ -182,6 +183,9 @@ class UI:
         elif st == "skirmish":
             self.draw_title(dim=True)
             self.draw_skirmish()
+        elif st == "campaign":
+            self.draw_title(dim=True)
+            self.draw_campaign()
         elif st == "intro":
             self.draw_intro()
         elif st in ("settings", "controls", "credits") and self.g.state_before == "title":
@@ -275,30 +279,95 @@ class UI:
         self.button(pygame.Rect(r.x + 40, r.bottom - 54, 150, 38), "Back", ("back", {}))
         self.state = None
 
+    def draw_campaign(self):
+        """Mission select for the nine-map campaign (council p-3f9a1c02)."""
+        g = self.g
+        r = pygame.Rect(SCREEN_W // 2 - 440, 96, 880, 726)
+        self.panel(r, (30, 23, 19), BRASS, 250)
+        title = self.t("THE MARCH OF EMBERS", 34, PARCH, "display")
+        g.screen.blit(title, (r.centerx - title.get_width() // 2, r.y + 18))
+        sub = self.t("Nine maps · each a bigger war than the last · one crown at the end",
+                     14, PARCH_D, "serif")
+        g.screen.blit(sub, (r.centerx - sub.get_width() // 2, r.y + 60))
+        have = campaign.unlocked_count()
+        row_h, gap = 56, 6
+        top = r.y + 90
+        for i, sc in enumerate(campaign.SCENARIOS):
+            y = top + i * (row_h + gap)
+            if y + row_h > r.bottom - 66:
+                break
+            unlocked = i < have
+            b = pygame.Rect(r.x + 30, y, r.w - 60, row_h)
+            hover = unlocked and b.collidepoint(self.mouse)
+            if not unlocked:
+                base = (30, 26, 24)
+            elif hover:
+                base = (58, 44, 33)
+            elif i == have - 1:
+                base = (48, 37, 27)
+            else:
+                base = (42, 32, 25)
+            pygame.draw.rect(g.screen, base, b, border_radius=6)
+            pygame.draw.rect(g.screen, GOLD_L if hover else BRASS, b, 1, border_radius=6)
+            # number badge
+            badge = pygame.Rect(b.x + 10, b.y + 10, 36, 36)
+            pygame.draw.rect(g.screen, (60, 45, 33), badge, border_radius=4)
+            pygame.draw.rect(g.screen, BRASS, badge, 1, border_radius=4)
+            num = self.t(str(i + 1), 20, GOLD if unlocked else MUTED, "display")
+            g.screen.blit(num, (badge.centerx - num.get_width() // 2, badge.y + 6))
+            name_c = PARCH if unlocked else MUTED
+            nm = self.t(sc["name"], 21, name_c, "display")
+            g.screen.blit(nm, (b.x + 60, b.y + 6))
+            tier = DIFFICULTY[sc["diff"]]["name"]
+            boss = UNITS.get(sc.get("boss") or "", {}).get("name")
+            meta = f"{sc['w']}×{sc['h']}  ·  {tier}  ·  " + (f"Boss: {boss}" if boss else "No boss")
+            g.screen.blit(self.t(meta, 13, PARCH_D if unlocked else MUTED, "sans"),
+                          (b.x + 60, b.y + 33))
+            if unlocked:
+                best = campaign.best_time(i)
+                right = self.t(f"best {fmt_time(best)}" if best else "unplayed", 13,
+                               PARCH_D, "sans")
+                g.screen.blit(right, (b.right - 18 - right.get_width(), b.y + 8))
+                self.add(b, kind="menu", action="mission", value=i)
+            else:
+                right = self.t("locked — win the previous mission", 13, MUTED, "sans")
+                g.screen.blit(right, (b.right - 18 - right.get_width(), b.y + 8))
+        tip = self.t("Progress saves automatically · Skirmish keeps its own trials",
+                     13, MUTED, "sans")
+        g.screen.blit(tip, (r.centerx - tip.get_width() // 2, r.bottom - 44))
+        self.button(pygame.Rect(r.x + 30, r.bottom - 54, 150, 38), "Back", ("back", {}))
+        self.state = None
+
     def draw_intro(self):
         g = self.g
+        gi = getattr(g, "campaign_index", None)
+        sc = campaign.scenario(gi) if (gi is not None and 0 <= gi < campaign.count()) else None
         s = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA); s.fill((8, 7, 9, 120)); g.screen.blit(s, (0, 0))
         r = pygame.Rect(SCREEN_W // 2 - 460, 120, 920, 610)
         self.panel(r, (38, 29, 22), BRASS, 252)
-        title = self.t("THE ASHEN VALE", 40, PARCH, "display")
+        title = self.t((sc["name"] if sc else "THE ASHEN VALE").upper(), 40, PARCH, "display")
         g.screen.blit(title, (r.centerx - title.get_width() // 2, r.y + 26))
-        sub = self.t("Emberhold · Year of the Hollow Crown", 15, GOLD, "serif")
+        sub = self.t(f"Emberhold · Mission {gi + 1} of {campaign.count()}" if sc
+                     else "Emberhold · Year of the Hollow Crown", 15, GOLD, "serif")
         g.screen.blit(sub, (r.centerx - sub.get_width() // 2, r.y + 78))
-        lore = ("The crown is broken. The king beneath it is not. "
-                "For three nights the Hollow Host has crossed the Ashen Vale, and every farm burns colder than the last. "
-                "You are Marshal Aldric, last Ember of the Emberhold. Four workers, a handful of steel, and one hearth. "
-                "Raise the hall, wake the vale, and break the Necropolis before the Host drowns it.")
+        lore = (sc["lore"] if sc else
+                ("The crown is broken. The king beneath it is not. "
+                 "For three nights the Hollow Host has crossed the Ashen Vale, and every farm burns colder than the last. "
+                 "You are Marshal Aldric, last Ember of the Emberhold. Four workers, a handful of steel, and one hearth. "
+                 "Raise the hall, wake the vale, and break the Necropolis before the Host drowns it."))
         txt = self.art.text_wrap(lore, 18, 820, PARCH_D, line_gap=5)
         g.screen.blit(txt, (r.centerx - 410, r.y + 112))
         box = pygame.Rect(r.x + 40, r.y + 300, 840, 150)
         self.panel(box, (28, 22, 18), (102, 82, 50), 230)
         o = self.t("OBJECTIVES", 14, GOLD, "display")
         g.screen.blit(o, (box.x + 16, box.y + 12))
-        m = self.art.text_wrap("Main: " + OBJECTIVE_MAIN, 17, 790, PARCH)
+        m = self.art.text_wrap("Main: " + (sc["main"] if sc else OBJECTIVE_MAIN), 17, 790, PARCH)
         g.screen.blit(m, (box.x + 16, box.y + 40))
-        b = self.art.text_wrap("Bonus: " + OBJECTIVE_BONUS, 15, 790, PARCH_D)
+        b = self.art.text_wrap("Bonus: " + (sc["bonus"] if sc else OBJECTIVE_BONUS), 15, 790, PARCH_D)
         g.screen.blit(b, (box.x + 16, box.y + 80))
-        tip = self.t("Controls: right-click to move/attack/gather · A attack-move · QWER hero · B build · Esc menu", 13, MUTED, "sans")
+        tip = self.t(sc["hint"] if sc else
+                     "Controls: right-click to move/attack/gather · A attack-move · QWER hero · B build · Esc menu",
+                     13, MUTED, "sans")
         g.screen.blit(tip, (box.x + 16, box.y + 118))
         self.button(pygame.Rect(r.centerx - 140, r.bottom - 76, 280, 46), "Begin the vigil", ("begin", {}), style="wood")
         self.button(pygame.Rect(r.x + 20, r.bottom - 46, 120, 30), "Title", ("title", {}), style="flat")
@@ -953,13 +1022,24 @@ class UI:
 
     def draw_end(self, win):
         g = self.g; w = g.world
+        gi = getattr(g, "campaign_index", None)
+        sc = campaign.scenario(gi) if (gi is not None and 0 <= gi < campaign.count()) else None
         self.overlay(180)
         r = pygame.Rect(SCREEN_W // 2 - 380, 150, 760, 560)
         self.panel(r, (30, 23, 19), BRASS, 250)
-        title = self.t("THE VALE ENDURES" if win else "THE EMBER FAILS", 42,
-                       (240, 200, 120) if win else (200, 100, 90), "display")
+        if sc:
+            title_txt = "MISSION SECURED" if win else "THE LINE BROKE"
+        else:
+            title_txt = "THE VALE ENDURES" if win else "THE EMBER FAILS"
+        title = self.t(title_txt, 42, (240, 200, 120) if win else (200, 100, 90), "display")
         g.screen.blit(title, (r.centerx - title.get_width() // 2, r.y + 22))
-        sub = self.t("The Hollow Crown is broken." if win else "The Hollow Crown remembers every grave.", 16, PARCH_D, "serif")
+        if sc:
+            sub_txt = (f"{sc['name']} — the path ahead opens." if win
+                       else f"{sc['name']} — the Host holds the field.")
+        else:
+            sub_txt = ("The Hollow Crown is broken." if win
+                       else "The Hollow Crown remembers every grave.")
+        sub = self.t(sub_txt, 16, PARCH_D, "serif")
         g.screen.blit(sub, (r.centerx - sub.get_width() // 2, r.y + 80))
         stats = [
             ("Time", fmt_time(w.time)), ("Kills", str(w.stats["kills"])),
@@ -972,8 +1052,24 @@ class UI:
             x = r.x + 50 + col * 340; y = r.y + 130 + row * 52
             kt = self.t(k, 14, PARCH_D, "sans"); vt = self.t(v, 20, PARCH, "display")
             g.screen.blit(kt, (x, y)); g.screen.blit(vt, (x, y + 18))
-        self.button(pygame.Rect(r.centerx - 300, r.bottom - 90, 220, 46), "Fight again", ("restart", {}))
-        self.button(pygame.Rect(r.centerx + 80, r.bottom - 90, 220, 46), "Title", ("title", {}))
+        if sc:
+            nxt = (win and gi + 1 < campaign.count() and campaign.is_unlocked(gi + 1))
+            btns = []
+            if nxt:
+                btns.append(("Next mission", ("next_mission", {})))
+            else:
+                btns.append(("Mission select", ("campaign", {})))
+            btns.append(("Fight again", ("restart", {})))
+            btns.append(("Title", ("title", {})))
+            bw, gapx = 210, 18
+            total = len(btns) * bw + (len(btns) - 1) * gapx
+            x = r.centerx - total // 2
+            for lab, act in btns:
+                self.button(pygame.Rect(x, r.bottom - 90, bw, 46), lab, act)
+                x += bw + gapx
+        else:
+            self.button(pygame.Rect(r.centerx - 300, r.bottom - 90, 220, 46), "Fight again", ("restart", {}))
+            self.button(pygame.Rect(r.centerx + 80, r.bottom - 90, 220, 46), "Title", ("title", {}))
 
     def draw_settings(self):
         g = self.g

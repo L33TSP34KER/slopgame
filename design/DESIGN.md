@@ -19,8 +19,11 @@ gathering, creeping, one handcrafted battlefield, escalating undead pressure.
   tooltips/costs/hotkeys, minimap with fog + camera + pings, objectives,
   alerts, hero XP/abilities, pause/settings, victory/defeat with stats.
 - Fog of war (explored vs visible), day/night, weather-grade atmosphere.
-- One map, fully dressed: cliffs, river + two fords, forests, gold mines,
-  ruins, camps, expansions. Asymmetry is fine; fairness is not.
+- Nine campaign maps, each fully dressed (cliffs, river + fords, forests,
+  gold mines, ruins, camps, expansions), each BIGGER than the last —
+  84² base scale up to 128² (renderer-bake cap, council `p-3f9a1c02`).
+  Asymmetry is fine; fairness is not. Mission 1 is a walk by design
+  (council `p-7b4e55d1`: Novice tier, no boss, impossible to lose).
 
 ## Factions
 
@@ -79,13 +82,27 @@ menu — but nothing is lost crafting on the counter.
 
 ## Mission
 
-Intro card + camera pan (skippable). Objective: **destroy the Necropolis.**
-Waves: first at 4:00, then every ~2:30, scaling; boss joins the final assault
-or defends. Side objective: clear the two creep camps for bounty.
-Victory/defeat screens with time, kills, gold gathered, hero level; retry.
+**Campaign — nine missions, one crown** (council `p-3f9a1c02`,
+scenario-campaign): a data-driven scenario table (`emberfall/src/campaign.py`)
+holds size, seed, layout flip, tier, boss, guard intensity, Necropolis HP,
+objectives and briefing per mission. Mission select lives under the title's
+**Campaign** button; winning a mission unlocks the next and progress persists
+in `~/.emberfall/campaign.json`. Skirmish keeps the classic Ashen Vale and its
+own difficulty picker.
 
-Difficulties: Squire (0.8× AI income/HP), Knight (1.0×), Warlord (1.3×, faster
-waves). Skirmish reuses the mission with a random wave seed.
+Boss ladder (one per mission 2–9): Grave Warden · Crypt Herald · Bone Tyrant ·
+Ash Lich · Slaughter King · Frost Sovereign · Hollow Champion · **the Hollow
+King** at the Necropolis — each wakes on proximity, on Necropolis damage, or
+on its scenario timer, and hits harder than the last.
+
+Intro card + camera pan (skippable), objectives and lore per mission.
+Objective: **destroy the Necropolis** (the boss guards it). Waves scale by
+tier; side objective: clear the creep camps for bounty. Victory/defeat screens
+with time, kills, gold gathered, hero level; retry, next mission, mission select.
+
+Difficulties: **Novice** (mission 1's floor: 0.4× enemy, first wave 10:00),
+Squire (0.55–0.62×), Knight (1.0×), Warlord (1.3×, faster waves). Skirmish
+reuses the mission with a random wave seed.
 
 ## Art direction
 

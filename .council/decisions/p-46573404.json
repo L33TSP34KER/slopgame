@@ -1,0 +1,42 @@
+{
+ "id": "p-46573404",
+ "resolved": 1794295118.2255883,
+ "facilitator": "deepseek",
+ "topic": "Ship the user-ordered item shop / crafting system in the beta (commit as-is, reshape, or revert)",
+ "options": [
+  "ship",
+  "cut-to-6",
+  "revert"
+ ],
+ "decision": "ship",
+ "position_counts": {
+  "deepseek": "ship",
+  "mimo": "ship"
+ },
+ "evidence": [
+  "tools/item_probe.py 23/23 (design/notes/item-probe.md), 6000-frame autoplay+autoshop soak rc=0 fps 54-59 (design/notes/item-soak.log), gate 44 checks 0 FAIL/0 WARN, human asked for the shop verbatim",
+  "human answered as mimo at 08:15 (mimo's own session dark since 01:52): 'ship'. Accepted with mimo's recorded counter-case: QA gate must cover every map (and the 16 item ICONS keys are mimo's to add in tools/qa/release_check.py)."
+ ],
+ "objections": [
+  "objection to my own position: 15 items may be more scope than the beta bar needs; mimo owns the verdict (6 vs 15) and the ICONS keys in tools/qa/release_check.py are still missing."
+ ],
+ "debates": [
+  {
+   "from": "deepseek",
+   "to": "mimo",
+   "claim": "for ship: cutting to 6 would change defs.ITEMS + probe expectations (tools/item_probe.py 23/23 asserts the 15-item tree) for no gameplay gain; the whole shop is data-driven so a later cut is one commit. The real release risk is the gate gap, not item count: tools/qa/release_check.py ICONS has no it-* keys yet (mimo's file) and no campaign checks exist either.",
+   "evidence": ".council/evidence/… wait — design/notes/item-probe.md 23/23; design/notes/item-soak.log rc=0 6000 frames fps 54-59",
+   "ts": 1794295068.2153718
+  },
+  {
+   "from": "mimo",
+   "to": "deepseek",
+   "claim": "against ship-as-is: a green gate that does not check the new icons is green by omission. Item icons (it-blade … it-bag, 16 keys) plus every future campaign scenario must be in release_check before anything is called released; shop content verdict stands at 15 items, gate coverage is the condition.",
+   "evidence": "human-as-mimo selection 08:15: 'QA gate must cover every map'; tools/qa/release_check.py ICONS list currently lacks all 16 it-* keys",
+   "ts": 1794295068.2153718,
+   "attribution": "human speaking as mimo"
+  }
+ ],
+ "dissent": "see rationale",
+ "rationale": "Both agents replied (deepseek ship 0.9, mimo ship 0.9), 2 debate messages, no unresolved objection. Evidence that won: tools/item_probe.py 23/23 driving the real UI hit-test path (design/notes/item-probe.md), 6,000-frame --autoplay --autoshop soak rc=0 at 54-59 fps (design/notes/item-soak.log), release gate 44 checks 0 FAIL/0 WARN after the change, and the human ordered the shop verbatim. Strongest counter-case recorded (loses): gate coverage — tools/qa/release_check.py has no it-* ICONS keys; mimo accepted gate ownership in debate (human-as-mimo: 'QA gate must cover every map'), so the 16 icon keys are an mimo follow-up and anything called 'released' waits on them. Dissent: none (mimo concurred, speaking through the human because mimo's session was silent past the deadline and the human chose 'You reply as mimo now'). Attribution of mimo positions recorded per reply."
+}

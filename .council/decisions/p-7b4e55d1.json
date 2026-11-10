@@ -1,0 +1,43 @@
+{
+ "id": "p-7b4e55d1",
+ "resolved": 1794295118.2255883,
+ "facilitator": "deepseek",
+ "topic": "Mission 1 tuning: human says the first map is 'actually impossible' and must be super easy - choose the mechanism",
+ "options": [
+  "mission-override-easy",
+  "no-threat-tutorial",
+  "novice-tier"
+ ],
+ "decision": "novice-tier",
+ "position_counts": {
+  "deepseek": "mission-override-easy",
+  "mimo": "novice-tier"
+ },
+ "evidence": [
+  ".council/evidence/difficulty-map1.md — knight = no-win stalemate (DEFEAT 12:24 with Necropolis 5200/5200), warlord auto-loss 5:03, hero never revives (no Altar placed, world.py:1516-1522), squire 'win' is an AI threat early-return bug (ai.py:96-107 suppresses waves), and all runs used a QA-boosted start a real player does not get",
+  "human answered as mimo at 08:15: 'novice-tier' (rejecting deepseek's mission-override-easy). mimo's condition: fix the two structural bugs first (no-Altar hero revive; ai.py:96-107 threat early-return) or the ease is fake."
+ ],
+ "objections": [
+  "map-1 easing must ALSO fix the two structural bugs or it stays fake-easy: (1) no Altar at start = hero permanently dead on first death, (2) ai.manage threat early-return makes waves binary (never if you attack, always if you turtle). Fixing those changes the intended difficulty gradient and is balance scope = mimo's call.",
+  "mission-override-easy creates a second parallel difficulty system: QA would have to test mission overrides x 3 tiers; the tested DIFFICULTY pipeline already exists (defs.py:438-451, consumers world.py:99/170, ai.py:35/41/113) and one more tier is data, not code."
+ ],
+ "debates": [
+  {
+   "from": "deepseek",
+   "to": "mimo",
+   "claim": "against novice-tier: DIFFICULTY is drawn straight into the skirmish picker (ui.py:260 iterates DIFFICULTY.items()), so a 4th tier leaks into skirmish and rewrites the locked 3-tier design (DESIGN.md:87-88); and a global tier cannot make MISSION 1 'impossible to lose' — the campaign needs per-mission knobs anyway for maps 2..8+ (escalating boss/wave ramps), so one mechanism should serve both instead of two.",
+   "evidence": "ui.py:260-269; DESIGN.md:87-88; .council/evidence/survey-architecture.md (no per-map config plumbing exists)",
+   "ts": 1794295068.2153718
+  },
+  {
+   "from": "mimo",
+   "to": "deepseek",
+   "claim": "against mission-override-easy: a second parallel difficulty system doubles the QA matrix (mission override x 3 tiers) in mimo's gate, while one extra DIFFICULTY entry is pure data wired through the already-tested consumers; and both of us agree the sequencing: fix the no-Altar revive (world.py:1516-1522) and the ai threat early-return (ai.py:96-107) BEFORE any tuning, or 'super easy' is an artifact of broken systems, not balance.",
+   "evidence": "human-as-mimo selections 08:15: 'novice-tier' + 'Fix bugs before tuning'; .council/evidence/difficulty-map1.md root causes 2 and 3",
+   "ts": 1794295068.2153718,
+   "attribution": "human speaking as mimo"
+  }
+ ],
+ "dissent": "see rationale",
+ "rationale": "Both agents replied (deepseek mission-override-easy 0.9, mimo novice-tier 0.8), 2 debates, initial SPLIT resolved by deepseek changing its mind on the record. deepseek's case (loses): ui.py:260 draws every DIFFICULTY entry into the skirmish picker, so a 4th tier leaks beyond mission 1 and edits the locked 3-tier design (DESIGN.md:87-88), and campaign maps 2..8+ need per-mission ramps anyway. mimo's case (wins): a second parallel difficulty system doubles the QA matrix inside mimo's gate, while one extra DIFFICULTY entry is pure data flowing through already-tested consumers (defs.py:438-451 -> world.py:99/170, ai.py:35/41/57/113/140); and mimo's sequencing condition, which deepseek also holds: fix the two structural bugs FIRST or 'super easy' is an artifact of broken systems — (a) hero can never revive because no Altar of Embers is placed (world.py:1516-1522, mapgen.py:406-417), (b) ai.manage early-returns while any player unit is within 22 tiles of the Necropolis (ai.py:96-107), which is why squire's only 'win' had wave=0 at 632s. Decision: add a novice tier to DIFFICULTY; campaign mission 1 runs novice (locked in campaign flow, not player-pickable on mission 1); fix bugs (a)+(b) before tuning claims are made. Evidence: .council/evidence/difficulty-map1.md (knight DEFEAT 12:24 with Necropolis 5200/5200; warlord DEFEAT 5:03; hero dead every run). Dissent: deepseek initially dissented (recorded above) and changed its mind after mimo's debate; if mimo later prefers per-mission overrides, a new proposal referencing this id is the path (skill section 6)."
+}

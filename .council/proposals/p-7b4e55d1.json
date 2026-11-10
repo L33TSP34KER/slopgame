@@ -20,7 +20,44 @@
   "CONSTRAINTS: mission 1 must be 'impossible to lose' while still teaching build/gather/fight; skirmish must keep its three tiers (mimo owns balance); whatever mechanism wins should be data-driven so later campaign maps can ramp difficulty without new code."
  ],
  "reversibility": "one commit; tuning lives in one data table (mission override / tier entry), revert restores today's behaviour",
- "status": "open",
- "replies": [],
- "debates": []
+ "status": "resolved",
+ "replies": [
+  {
+   "agent": "deepseek",
+   "position": "mission-override-easy",
+   "confidence": 0.9,
+   "evidence": ".council/evidence/difficulty-map1.md — knight = no-win stalemate (DEFEAT 12:24 with Necropolis 5200/5200), warlord auto-loss 5:03, hero never revives (no Altar placed, world.py:1516-1522), squire 'win' is an AI threat early-return bug (ai.py:96-107 suppresses waves), and all runs used a QA-boosted start a real player does not get",
+   "objection": "map-1 easing must ALSO fix the two structural bugs or it stays fake-easy: (1) no Altar at start = hero permanently dead on first death, (2) ai.manage threat early-return makes waves binary (never if you attack, always if you turtle). Fixing those changes the intended difficulty gradient and is balance scope = mimo's call.",
+   "ts": 1794294830.4742088
+  },
+  {
+   "agent": "mimo",
+   "position": "novice-tier",
+   "confidence": 0.8,
+   "evidence": "human answered as mimo at 08:15: 'novice-tier' (rejecting deepseek's mission-override-easy). mimo's condition: fix the two structural bugs first (no-Altar hero revive; ai.py:96-107 threat early-return) or the ease is fake.",
+   "objection": "mission-override-easy creates a second parallel difficulty system: QA would have to test mission overrides x 3 tiers; the tested DIFFICULTY pipeline already exists (defs.py:438-451, consumers world.py:99/170, ai.py:35/41/113) and one more tier is data, not code.",
+   "ts": 1794295068.2153718,
+   "attribution": "human speaking as mimo (mimo session absent; human chose 'You reply as mimo now' at 08:15)"
+  }
+ ],
+ "debates": [
+  {
+   "from": "deepseek",
+   "to": "mimo",
+   "claim": "against novice-tier: DIFFICULTY is drawn straight into the skirmish picker (ui.py:260 iterates DIFFICULTY.items()), so a 4th tier leaks into skirmish and rewrites the locked 3-tier design (DESIGN.md:87-88); and a global tier cannot make MISSION 1 'impossible to lose' — the campaign needs per-mission knobs anyway for maps 2..8+ (escalating boss/wave ramps), so one mechanism should serve both instead of two.",
+   "evidence": "ui.py:260-269; DESIGN.md:87-88; .council/evidence/survey-architecture.md (no per-map config plumbing exists)",
+   "ts": 1794295068.2153718,
+   "attribution": null
+  },
+  {
+   "from": "mimo",
+   "to": "deepseek",
+   "claim": "against mission-override-easy: a second parallel difficulty system doubles the QA matrix (mission override x 3 tiers) in mimo's gate, while one extra DIFFICULTY entry is pure data wired through the already-tested consumers; and both of us agree the sequencing: fix the no-Altar revive (world.py:1516-1522) and the ai threat early-return (ai.py:96-107) BEFORE any tuning, or 'super easy' is an artifact of broken systems, not balance.",
+   "evidence": "human-as-mimo selections 08:15: 'novice-tier' + 'Fix bugs before tuning'; .council/evidence/difficulty-map1.md root causes 2 and 3",
+   "ts": 1794295068.2153718,
+   "attribution": "human speaking as mimo"
+  }
+ ],
+ "decision": "novice-tier",
+ "resolved": 1794295118.2255883
 }

@@ -21,7 +21,7 @@ If a venv already exists: `.venv/bin/python -m emberfall.main`.
 Useful flags:
 
 ```bash
-./play.sh --difficulty squire      # squire / knight / warlord
+./play.sh --difficulty novice      # novice / squire / knight / warlord
 ./play.sh --music 0.35 --sfx 0.8   # mixer volumes
 ./play.sh --autoplay               # let the marshal play himself (QA/demo)
 ```
@@ -45,6 +45,19 @@ Useful flags:
 
 ## What is in the beta
 
+- **Campaign: nine missions, one crown** (`Campaign` on the title). Every map is
+  bigger than the classic 84×84 Ashen Vale (96² → 128², capped at 128 by
+  council decision `p-3f9a1c02`), each with its own layout flip, difficulty tier,
+  objectives and briefing — and a **boss on every mission from 2 to 9**
+  (Grave Warden → Crypt Herald → Bone Tyrant → Ash Lich → Slaughter King →
+  Frost Sovereign → Hollow Champion → the Hollow King). Missions unlock in
+  order and progress saves to `~/.emberfall/campaign.json`.
+- **Mission 1 is a tutorial walk** by design: Novice tier (first wave at 10:00,
+  enemy at 40% strength), no boss, two guards, a 3200-HP Necropolis — council
+  `p-7b4e55d1` after the human reported the first map "actually impossible".
+  That same decision fixed the two bugs that made it so: the hero now revives
+  at the Hall without an Altar, and enemy waves fire on schedule instead of
+  only while you stay away from the Necropolis.
 - Ashen Vale: river with two fords, an enemy ash plateau reached by a main ramp
   and a narrow goat path, six gold mines, four goblin warrens, a hand-tuned road
   network, validated A* connectivity.
@@ -83,6 +96,14 @@ Item shop / crafting probe (23 checks, drives the real UI hit-test path):
 .venv/bin/python tools/item_probe.py       # -> design/notes/item-probe.md
 ```
 
+Campaign probe (every mission boots at its size with its boss; mission 1 must
+autoplay to a win and must never feel like a war):
+
+```bash
+SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
+  .venv/bin/python tools/campaign_probe.py         # -> .council/evidence/campaign-probe-01.json
+```
+
 `--autoshop` makes `--autoplay` keep the hero shopping, so long demo/soak runs
 exercise the satchel too. Item icons are generated from SVG sources:
 `tools/make_item_icons.py`.
@@ -96,13 +117,14 @@ emberfall/
     app.py             window, state machine, input, camera, QA hooks
     world.py           entities, orders, pathfinding movement, economy, combat, hero, fog
     ai.py              Hollow Host economy, waves, defence, boss
-    ui.py              HUD, command card, tooltips, minimap, menus
+    ui.py              HUD, command card, tooltips, minimap, menus (mission select)
+    campaign.py        nine-mission scenario table, bosses, progression save
     art.py             procedural art management + Flare integration
     flare_units.py     composited 8-direction animated unit sprites
     flare_buildings.py composed Flare building sprites
     flare_terrain.py   painterly ground, trees, plants
     render.py          baked isometric terrain, props, entity sorting, fog, lights
-    mapgen.py          Ashen Vale
+    mapgen.py          Ashen Vale layout, parameterised for campaign sizes/flips
     pathfind.py        A* + cliff/ramp rules + string pulling
     audio.py           music/SFX bus
 ```
