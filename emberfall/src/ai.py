@@ -3,6 +3,7 @@ from __future__ import annotations
 import math, random
 from .defs import *
 from .core import dist, clamp
+from . import vfx
 
 SPAWN_TABLE = [
     (0, "ghoul", 110), (140, "fiend", 150), (260, "necromancer", 180),
@@ -198,6 +199,7 @@ class EnemyAI:
                 boss.order = None
                 w.alert("The Hollow King rises from his throne. The vale holds its breath.")
                 w.play("roar")
+                vfx.spawn_boss_wake(boss)   # violet shockwave + screen-edge pulse
                 if w.game:
                     w.game.shake(12, 0.7)
         if self.boss_awake and (boss.order is None or boss.order.get("type") == "hold"):

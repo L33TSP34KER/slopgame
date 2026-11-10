@@ -5,6 +5,7 @@ from .core import (clamp, dist, dist2, angle_lerp, approach, SpatialHash, fmt_ti
 from .defs import *
 from .pathfind import find_path, walkable, nearest_walkable, line_clear
 from . import mapgen as MG
+from . import vfx
 
 ARATE = dict(idle=3.0, walk=9.0, attack=8.0, cast=5.0, death=5.0, gather=7.0)
 ANIM_LEN = dict(idle=1.0, walk=1.0, attack=1.0, cast=1.0, death=1.0, gather=1.0)
@@ -733,6 +734,9 @@ class World:
                 self.alert(a["name"] + " needs a valid enemy target.")
                 self.play("error")
                 return
+            # VFX only: the lance flies and delivers its own impact FX; the
+            # damage below still lands instantly (gameplay byte-for-byte equal)
+            vfx.spawn_ember_lance(hero, target)
             self.damage(target, a["dmg"](lv), hero, "magic")
             if a.get("stun"):
                 target.stun = max(target.stun, a["stun"])
@@ -741,6 +745,7 @@ class World:
             if a.get("shield"):
                 hero.shield_hp = a["shield"](lv)
                 hero.shield_t = a.get("duration", 8)
+            vfx.spawn_aegis(hero)
             self.burst(hero.x, hero.y, (255, 190, 100), 14, 1.0)
         else:
             if hasattr(target, "x"):
@@ -762,6 +767,11 @@ class World:
                 elif (e.team == PLAYER and not e.is_building and d <= a["radius"]
                       and a.get("heal")):
                     e.hp = min(e.max_hp, e.hp + a["heal"](lv))
+            # VFX only: ground nova (E) / screen climax (R)
+            if aid == "daybreak":
+                vfx.spawn_daybreak(hero, tx, ty, a.get("radius", 5))
+            else:
+                vfx.spawn_consecrate(tx, ty, a.get("radius", 3.6))
             self.burst(tx, ty, (255, 214, 140) if aid == "daybreak" else (255, 150, 70),
                        26 if aid == "daybreak" else 16, 1.6)
         hero.mana -= a["mana"]
@@ -1350,6 +1360,7 @@ class World:
         if amount <= 0:
             return
         tgt.hp -= amount
+        vfx.hit(tgt, source, dtype)   # presentation only: impact sparks
         st = getattr(source, "team", None)
         if isinstance(source, dict):
             st = source.get("team")
@@ -1394,6 +1405,7 @@ class World:
                 if tgt.team == PLAYER:
                     self.stats["losses"] += 1
             self.burst(tgt.x, tgt.y, (150, 40, 40), 10, 0.9)
+            vfx.spawn_poof(tgt.x, tgt.y, tgt.height, tgt.team)
             self.play("death")
             if tgt.is_hero and tgt.team == PLAYER:
                 # p-7b4e55d1 (council): the hero must never be permanently lost.

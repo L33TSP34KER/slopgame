@@ -12,6 +12,7 @@ from .audio import Audio
 from .ui import UI
 from .core import clamp, dist
 from . import campaign
+from . import vfx
 
 
 def _desktop_size():
@@ -224,6 +225,7 @@ class Game:
         campaign.apply_scenario, and the Renderer is rebuilt so the baked
         surface matches the bigger map (council p-3f9a1c02).
         """
+        vfx.reset()   # no effect from a previous mission may leak into this one
         rebake = False
         if scenario is not None:
             diff = scenario["diff"]
@@ -444,6 +446,7 @@ class Game:
         workers = [u for u in self.selected() if u.worker]
         b = self.world.cmd_build(workers, bid, tile[0], tile[1])
         if b:
+            vfx.spawn_dust(b.x + b.bw / 2, b.y + b.bh / 2, max(b.bw, b.bh) * 0.7)
             self.placement = None
             self.world.placement = None
             self.ui.build_menu = False
@@ -855,6 +858,7 @@ class Game:
     # ---------------------------------------------------------------- update/draw
     def to_title(self):
         self.state = "title"
+        vfx.reset()
         self.campaign_index = None
         self.selection = []
         self.build_menu = False
@@ -902,6 +906,7 @@ class Game:
             self.world.fps = self.fps
             if self.autoplay and self.world.started:
                 self.autoplay_tick()
+        vfx.update(dt)          # effect clocks run in real time, after the sim
         self.camera.update(dt)
         self.ui.update(dt)
 
@@ -1008,7 +1013,11 @@ class Game:
         scr = self.screen
         self.world.mouse_tile = self.mouse_tile
         self.world.mouse_pos = self.map_pos(pygame.mouse.get_pos()) or (SCREEN_W // 2, SCREEN_H // 2)
-        self.renderer.draw(scr, self.world, self.camera, self.world.time if self.state != "title" else self.menu_t)
+        t = self.world.time if self.state != "title" else self.menu_t
+        self.renderer.draw(scr, self.world, self.camera, t)
+        # VFX overlay sits between the world layer and the HUD: spell FX read
+        # on top of the battlefield, the UI still reads on top of everything
+        vfx.draw(scr, self.renderer, self.camera, t)
         self.ui.draw(scr)
         self.present()
 
