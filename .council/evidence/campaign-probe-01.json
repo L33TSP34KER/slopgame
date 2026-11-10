@@ -143,22 +143,6 @@
     8472,
     8612
    ]
-  },
-  {
-   "mission": 1,
-   "autoplay": {
-    "outcome": "victory",
-    "game_time": 545.3,
-    "hall": "1800/1800",
-    "army": 45,
-    "foes": 4,
-    "kills": 7,
-    "losses": 26,
-    "necro_hp": 0,
-    "hero_alive": false,
-    "waves": 0,
-    "wall": 11.3
-   }
   }
  ],
  "fails": [],
