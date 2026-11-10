@@ -44,13 +44,27 @@ def floor_sources():
 
 
 def water_sources():
-    sheet = _load("grassland_water.png")
+    """{'depth': 16 deep->shallow diamonds, 'shore': 16 water|sand edges}.
+
+    Prefers the seam-blended emberfall_water.png (design/notes/flare-tiles.md
+    §6): row 0 is a clean depth ramp with no per-tile outlines or foam dashes.
+    The row this function used to return — grassland_water.png y=32 — is a
+    SHORELINE row (cliffs, docks, dashes); tiled as open water it is part of
+    the "water is a test pattern" report.  The legacy fallback now reads the
+    atlas's only clean full-coverage water row (y=160) instead.
+    """
+    sheet = _load("emberfall_water.png")
+    if sheet is not None and sheet.get_size() == (1024, 64):
+        def row(r: int):
+            return [sheet.subsurface(pygame.Rect(c * 64, r * 32, 64, 32)).copy()
+                    for c in range(16)]
+        return {"depth": row(0), "shore": row(1)}
+    legacy = _load("grassland_water.png")
     out = []
-    if sheet is None:
-        return out
-    for col in range(16):
-        out.append(sheet.subsurface(pygame.Rect(col * 64, 32, 64, 32)).copy())
-    return out
+    if legacy is not None and legacy.get_height() >= 192:
+        for col in range(16):
+            out.append(legacy.subsurface(pygame.Rect(col * 64, 160, 64, 32)).copy())
+    return {"depth": out, "shore": []}
 
 
 def tree_sources():

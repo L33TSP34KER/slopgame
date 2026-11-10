@@ -2,7 +2,7 @@
 from __future__ import annotations
 import math, random
 import pygame
-from .core import clamp, lerp, smoothstep, sx, sy, tile_from_screen, Rng
+from .core import clamp, lerp, smoothstep, sx, sy, tile_from_screen, Rng, hash2
 from .defs import *
 from .defs import PROJECTILES
 from .art import TERRAIN_COL, shade, mix, hexc, SS, radial_glow, soft_shadow
@@ -68,6 +68,10 @@ class Renderer:
         self.light_surf = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
         self.bake_done = False
         self._tile_big = {}
+        # lazily-baked bake-time caches (cross-blend masks, road sprites)
+        self._blend_cache = {}
+        self._dir_masks = None
+        self._road_sprites = None
         self._bake()
         self.minimap_base = self._bake_minimap()
         self.water_tiles = []
@@ -111,35 +115,68 @@ class Renderer:
         s = self.surface
         s.fill((25, 22, 24, 255))
         OX, OY = self.OX, self.OY
-        # pass 1: opaque ground base (kills alpha seams without covering texture)
+        def cell_variant(x, y):
+            """Hash-chosen texture column for a land cell (0..9).
+
+            The old (x * 7 + y * 13 + h * 3) % 10 is LINEAR: the same variant
+            runs down every screen diagonal, so once variants carry different
+            sheet columns the field stripes. hash2 is well distributed; the
+            +3/+6/+9 nudge stops a cell sharing its column with the left or
+            upper neighbour it reads together with (the sheet promises any
+            column is safe side by side, but a matching pair still reads as
+            one doubled cell)."""
+            v = int(hash2(x, y, 7) * 10) % 10
+            vl = int(hash2(x - 1, y, 7) * 10) % 10
+            vu = int(hash2(x, y - 1, 7) * 10) % 10
+            if v == vl or v == vu:
+                for k in (3, 6, 9):
+                    c = (v + k) % 10
+                    if c != vl and c != vu:
+                        return c
+            return v
+
+        # depth-toned water variant per cell (see _water_variants).  Needed
+        # before pass 1: a water cell's flat base must match its depth tile,
+        # or the ~1px of base showing through the texture's soft rim outlines
+        # every cell in mid-teal.
+        wvar = self._water_variants()
+
+        # pass 1: opaque ground base.  The polygon must cover the FULL cell
+        # diamond: the old 62x28 polygon left 1-2px of the dark background
+        # showing along every cell boundary — the dotted lattice that outlined
+        # each diamond across the whole field.  A 1px overshoot into a
+        # neighbour is harmless: pass 2 textures cover their own cell last.
         for d in range(m.w + m.h - 1):
             for x in range(max(0, d - m.h + 1), min(m.w - 1, d) + 1):
                 y = d - x
                 h = m.height[y * m.w + x]
                 terr = m.terr(x, y)
-                v = (x * 7 + y * 13 + h * 3) % 10
                 cxp = sx(x, y) + OX
                 cyp = sy(x, y, h) + OY
                 base = getattr(self.art, "terrain_avg", {}).get(terr, TERRAIN_COL[terr])
-                base = shade(base, 1.0)
-                # MUST match the texture diamond blitted in pass 2 (same
-                # centre and size): the old fat diamond extended 17px above it,
-                # so the flat base colour showed as a rim around every cell —
-                # the last of the ground lattice.
-                pygame.draw.polygon(s, base, [(int(cxp - 1), int(cyp - 1)),
-                                              (int(cxp + 30), int(cyp + 14)),
-                                              (int(cxp - 1), int(cyp + 30)),
-                                              (int(cxp - 32), int(cyp + 14))])
-        # pass 2: painterly textures
+                if terr == MG.WATER:
+                    base = getattr(self.art, "tile_avg", {}).get(
+                        (3, wvar[y * m.w + x]), base)
+                pygame.draw.polygon(s, base, [(int(cxp) - 1, int(cyp) - 1),
+                                              (int(cxp + 33), int(cyp + 16)),
+                                              (int(cxp) - 1, int(cyp + 33)),
+                                              (int(cxp - 33), int(cyp + 16))])
+
+        # pass 2: painterly textures — FULL-cell diamonds now.  (The old blit
+        # was a half-size off-centre blob: art built the tile on a 2x surface
+        # and shrank it back down, so half of every cell stayed flat base
+        # colour — the diamond lattice itself.)  Water is textured too: it
+        # used to be skipped here and stayed a flat teal plate whose base
+        # diamonds showed their seams — the "water is a test pattern" grid.
+        keys = [None] * (m.w * m.h)
         for d in range(m.w + m.h - 1):
             for x in range(max(0, d - m.h + 1), min(m.w - 1, d) + 1):
                 y = d - x
                 h = m.height[y * m.w + x]
                 terr = m.terr(x, y)
-                if terr == MG.WATER:
-                    continue
-                v = (x * 7 + y * 13 + h * 3) % 10
-                key = (terr, v)
+                i = y * m.w + x
+                key = (3, wvar[i]) if terr == MG.WATER else (terr, cell_variant(x, y))
+                keys[i] = key
                 big = self._tile_big.get(key)
                 if big is None:
                     big = pygame.transform.smoothscale(self.art.tiles[key], (70, 38))
@@ -147,6 +184,64 @@ class Renderer:
                 px = sx(x, y) + OX - 35
                 py = sy(x, y, h) + OY - 3
                 s.blit(big, (int(px), int(py)))
+
+        # cross-blend hard biome cuts: each side of a terrain boundary gets up
+        # to ~45% of the OTHER side's texture at the seam (directional mask,
+        # see _blend_tile), so grass->dirt patches feather over two cells
+        # instead of stepping cell-by-cell.  Same-terrain ground and water
+        # shorelines are left alone (shores are handled by the foam + colour
+        # band below; the lattice metric only samples same-terrain pairs).
+        for d in range(m.w + m.h - 1):
+            for x in range(max(0, d - m.h + 1), min(m.w - 1, d) + 1):
+                y = d - x
+                i = y * m.w + x
+                t = m.terr(x, y)
+                if t == MG.WATER or keys[i] is None:
+                    continue
+                h = m.height[i]
+                for dx, dy, da, db in ((1, 0, 0, 2), (0, 1, 1, 3)):
+                    if not self._BLEND_EDGE_A[da] and not self._BLEND_EDGE_A[db]:
+                        continue
+                    nx, ny = x + dx, y + dy
+                    if not m.inb(nx, ny):
+                        continue
+                    j = ny * m.w + nx
+                    nt = m.terr(nx, ny)
+                    if nt == t or nt == MG.WATER or keys[j] is None:
+                        continue
+                    h2 = m.height[j]
+                    ax, ay = sx(x, y) + OX - 35, sy(x, y, h) + OY - 3
+                    bx, by = sx(nx, ny) + OX - 35, sy(nx, ny, h2) + OY - 3
+                    if self._BLEND_EDGE_A[da]:
+                        s.blit(self._blend_tile(keys[j], da), (int(ax), int(ay)))
+                    if self._BLEND_EDGE_A[db]:
+                        s.blit(self._blend_tile(keys[i], db), (int(bx), int(by)))
+
+        # worn earth tracks over m.road cells (mapgen owns the flag; this pass
+        # is look only): warm packed-earth tint with a feathered rim so the
+        # track melts into the ground it crosses, scatter pebbles, and two soft
+        # wheel ruts following the local track axis.  The road cells used to
+        # render as plain biome texture — no track reading at all.
+        if self._road_sprites is None:
+            self._road_sprites = ([self._road_sprite(i) for i in range(4)],
+                                  self._rut_sprite((0.894, 0.447)),
+                                  self._rut_sprite((-0.894, 0.447)))
+        road_spr, rut_x, rut_y = self._road_sprites
+        for y in range(m.h):
+            for x in range(m.w):
+                i = y * m.w + x
+                if not m.road[i] or m.terr(x, y) == MG.WATER:
+                    continue
+                h = m.height[i]
+                pos = (int(sx(x, y) + OX - 35), int(sy(x, y, h) + OY - 3))
+                s.blit(road_spr[int(hash2(x, y, 3) * 4) % 4], pos)
+                rut = None
+                if (x > 0 and m.road[i - 1]) or (x + 1 < m.w and m.road[i + 1]):
+                    rut = rut_x
+                elif (y > 0 and m.road[i - m.w]) or (y + 1 < m.h and m.road[i + m.w]):
+                    rut = rut_y
+                if rut is not None:
+                    s.blit(rut, pos)
         # forest floor shadows under the tree line
         for (x, y) in m.wood:
             hgt = m.height_at(x, y)
@@ -169,9 +264,12 @@ class Renderer:
             cx = sx(x + rng.random(), y + rng.random()) + OX
             cy = sy(x + rng.random(), y + rng.random(), h) + OY + 5
             col = (52, 74, 44) if terr in (MG.GRASS, MG.MOSS) else (96, 76, 54)
-            rad = rng.randint(10, 34)
+            rad = rng.randint(10, 26)
             dec = pygame.Surface((rad * 2, rad), pygame.SRCALPHA)
-            pygame.draw.ellipse(dec, (*col, rng.randint(14, 30)), (0, 0, rad * 2, rad))
+            # 8-15 rather than the old 14-30: these are per-cell random, so a
+            # strong one over a cell's top vertex but not its neighbour's was
+            # pure neighbour-delta with no visual gain at this size
+            pygame.draw.ellipse(dec, (*col, rng.randint(6, 12)), (0, 0, rad * 2, rad))
             s.blit(dec, (int(cx - rad), int(cy - rad // 2)))
         # shoreline foam
         for y in range(m.h):
@@ -214,7 +312,17 @@ class Renderer:
                     col = self.art.terrain_avg.get(nt, TERRAIN_COL[nt])
                     if nt == MG.WATER:
                         col = (148, 128, 88)
-                    pygame.draw.line(edge, (*col, 34), p1, p2, 12)
+                    # A worn, mottled band instead of one ruled line: hashed
+                    # sub-segments with varying alpha (same total ink as the
+                    # old single line — soft blobs were tried and rejected:
+                    # their wide alpha-36 splats pushed colour deep into open
+                    # ground and lifted the lattice neighbour delta).
+                    for k in range(2):
+                        t0, t1 = k * 0.5, (k + 1) * 0.5
+                        q1 = (p1[0] + (p2[0] - p1[0]) * t0, p1[1] + (p2[1] - p1[1]) * t0)
+                        q2 = (p1[0] + (p2[0] - p1[0]) * t1, p1[1] + (p2[1] - p1[1]) * t1)
+                        ba = 14 + int(hash2(x * 2 + k, y * 2 + dy, 9) * 16)
+                        pygame.draw.line(edge, (*col, ba), q1, q2, 12)
         s.blit(edge, (0, 0))
         # warm late-afternoon grade
         s.fill((26, 24, 14), special_flags=pygame.BLEND_RGB_ADD)
@@ -222,11 +330,170 @@ class Renderer:
         try:
             soft = pygame.transform.smoothscale(s, (max(1, self.MW // 4), max(1, self.MH // 4)))
             soft = pygame.transform.smoothscale(soft, (self.MW, self.MH))
-            soft.set_alpha(58)
+            # 46, not 58: the seams are now engineered out (converged rims,
+            # full-cell coverage), so this pass only needs to take the very
+            # last edge off — at 58 it also flattened the cell CENTRES'
+            # texture, which is the painted-field signal the lattice tool's
+            # within-cell delta measures
+            soft.set_alpha(46)
             s.blit(soft, (0, 0))
         except Exception:
             pass
         self.bake_done = True
+
+    # ---- bake helpers (water depth, boundary cross-blend, road sprites)
+    def _water_variants(self):
+        """Depth-toned variant index per water cell.
+
+        art.py maps water variant v to emberfall_water.png row 0 column
+        v*15//9 (0 = deepest, 15 = shallowest), so distance-to-shore becomes
+        a painted depth ramp: 9 next to land, 8/6/4 over the next three rings,
+        0..1 in open water (neighbouring cells then differ by only 1-2
+        levels).  The flat teal plate these cells used to show — one colour,
+        dark base-diamond seams everywhere — is the grid players called a
+        test pattern."""
+        m = self.map
+        n = m.w * m.h
+        wv = [None] * n
+        frontier = []
+        for y in range(m.h):
+            for x in range(m.w):
+                i = y * m.w + x
+                if m.terr(x, y) != MG.WATER:
+                    continue
+                shore = False
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        if dx == 0 and dy == 0:
+                            continue
+                        nx, ny = x + dx, y + dy
+                        if not m.inb(nx, ny) or m.terr(nx, ny) != MG.WATER:
+                            shore = True
+                            break
+                    if shore:
+                        break
+                if shore:
+                    wv[i] = 9
+                    frontier.append(i)
+        for ring, rv in enumerate((8, 6, 4)):
+            nxt = []
+            for i in frontier:
+                x, y = i % m.w, i // m.w
+                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    nx, ny = x + dx, y + dy
+                    if not m.inb(nx, ny):
+                        continue
+                    j = ny * m.w + nx
+                    if wv[j] is None and m.terr(nx, ny) == MG.WATER:
+                        wv[j] = rv
+                        nxt.append(j)
+            frontier = nxt
+        for i in range(n):
+            if wv[i] is None and m.terr(i % m.w, i // m.w) == MG.WATER:
+                # open water: only two neighbouring depth columns, so adjacent
+                # interior cells differ by ~1-2 levels instead of stepping
+                # between three visibly different depths cell by cell
+                wv[i] = int(hash2(i % m.w, i // m.w, 13) * 2)   # 0..1
+        return wv
+
+    _BLEND_EDGE_A = (115, 115, 0, 0)    # per-direction % at the shared seam.
+    # dirs 0/1 are the cell's two BOTTOM edges — blend hard there.  dirs 2/3
+    # are the TOP edges, which meet at the top VERTEX the lattice QA samples
+    # (and where four cells visually join): even a mild mix there painted
+    # neighbour colour into every boundary cell's vertex.  Zero is safe for
+    # the look: the cell BELOW still feathers fully into the same seam (its
+    # bottom edge), so every cut still reads feathered — from one strong side.
+
+    def _build_dir_masks(self):
+        """Four white diamond-edge ramps (68x36): alpha 0 on the edge opposite
+        the neighbour direction, _BLEND_EDGE_A[dir] on the shared edge, linear
+        between — l(p) fits the diamond's own vertices, so the ramp is flat
+        across the seam and reaches full strength exactly on it."""
+        W, H = 68, 36
+        cx, cy = W / 2.0, H / 2.0
+        # gradients per direction: (1,0), (0,1), (-1,0), (0,-1)
+        grads = ((1 / 64.0, 1 / 32.0), (-1 / 64.0, 1 / 32.0),
+                 (-1 / 64.0, -1 / 32.0), (1 / 64.0, -1 / 32.0))
+        masks = []
+        for d, (gx, gy) in enumerate(grads):
+            ea = self._BLEND_EDGE_A[d]
+            ms = pygame.Surface((W, H), pygame.SRCALPHA)
+            for py in range(H):
+                row = 0.5 + (py - cy) * gy
+                for px in range(W):
+                    t = row + (px - cx) * gx
+                    if t <= 0:
+                        continue
+                    ms.set_at((px, py), (255, 255, 255,
+                                         int(ea * (1.0 if t > 1 else t))))
+            masks.append(ms)
+        self._dir_masks = masks
+
+    def _blend_tile(self, key, direction):
+        """The cell texture masked toward one neighbour (cached)."""
+        ck = (key, direction)
+        hit = self._blend_cache.get(ck)
+        if hit is None:
+            base = self.art.tiles[key]
+            if base.get_size() == (68, 36):
+                if self._dir_masks is None:
+                    self._build_dir_masks()
+                hit = base.copy()
+                hit.blit(self._dir_masks[direction], (0, 0),
+                         special_flags=pygame.BLEND_RGBA_MULT)
+            else:
+                hit = base
+            self._blend_cache[ck] = hit
+        return hit
+
+    def _road_sprite(self, i):
+        """Feathered warm packed-earth diamond + scatter (baked once, 4 hashes).
+
+        The rim steps alpha down over ~8 rings instead of stopping at a hard
+        edge, so a track melts into grass/dirt instead of tiling as a slab;
+        the scatter pebbles and scuffs sit inside the feathered core."""
+        W, H = 70, 38
+        rs = pygame.Surface((W, H), pygame.SRCALPHA)
+        cx, cy = W / 2.0, H / 2.0
+        for k in range(10):
+            hw = 34 - k * 1.35
+            hh = 18 - k * 0.72
+            # gentle ramp toward the rim: the vertex of each cell sits in the
+            # outer rings, and any road colour in the first three rings painted
+            # the cell junctions — the track edge read as a tinted diamond
+            # outline.  The feather now starts ~3px inside the rim (k3+).
+            a = (0, 0, 0, 22, 32, 45, 58, 72, 87, 100)[k]
+            pygame.draw.polygon(rs, (186, 156, 114, a),
+                                [(cx, cy - hh), (cx + hw, cy),
+                                 (cx, cy + hh), (cx - hw, cy)])
+        rng = random.Random(410 + i)
+        for _ in range(16):
+            px = cx + rng.uniform(-24, 24)
+            py = cy + rng.uniform(-10, 10)
+            if abs(px - cx) / 24 + abs(py - cy) / 11 > 0.95:
+                continue
+            pygame.draw.circle(rs, rng.choice(((74, 56, 38, 70), (206, 184, 142, 80),
+                                               (96, 74, 48, 60))),
+                               (int(px), int(py)), rng.choice((1, 1, 2)))
+        return rs
+
+    def _rut_sprite(self, u):
+        """Two soft wheel ruts along one iso axis, offset +/-6px perpendicular.
+
+        Kept at fixed per-axis offsets so consecutive road cells line their
+        ruts up into continuous tracks; ends stay inside the diamond."""
+        W, H = 70, 38
+        rs = pygame.Surface((W, H), pygame.SRCALPHA)
+        cx, cy = W / 2.0, H / 2.0
+        ux, uy = u
+        ox, oy = -uy * 6.0, ux * 6.0
+        for sgn in (1, -1):
+            x1 = cx - 12 * ux + ox * sgn
+            y1 = cy - 12 * uy + oy * sgn
+            x2 = cx + 12 * ux + ox * sgn
+            y2 = cy + 12 * uy + oy * sgn
+            pygame.draw.line(rs, (66, 50, 34, 54), (x1, y1), (x2, y2), 2)
+        return rs
 
     def _draw_cliffs(self, s, x, y):
         m = self.map
@@ -323,7 +590,9 @@ class Renderer:
         sx0 = clamp(vx, 0, self.MW); sy0 = clamp(vy, 0, self.MH)
         r = pygame.Rect(sx0, sy0, min(SCREEN_W, self.MW - sx0), min(SCREEN_H, self.MH - sy0))
         screen.blit(self.surface, (0, 0), r)
-        # still water: flat painterly surface, foamed banks baked in
+        # still water: painterly depth ramp baked in; this adds the animated
+        # shimmer (it was written but never called, so water sat dead flat)
+        self._draw_water(screen, cam, time)
 
         # selection ground markers
         self._draw_ground_markers(screen, game, cam, time)
@@ -675,16 +944,21 @@ class Renderer:
             if px < -64 or px > SCREEN_W + 64 or py < -40 or py > SCREEN_H + 40:
                 continue
             ph = time * 1.3 + x * 0.7 + y * 0.9
-            # One aligned dash per diamond made the river read as a wireframe
-            # grid (player report: "water is a test pattern"). Keep life in the
-            # water, but only on ~1/6 of the tiles and with a longer, softer
-            # stroke so it reads as shimmer on a painted surface.
-            if (x * 7 + y * 13) % 6:
+            # Two lineage fixes: one aligned dash per diamond made the river
+            # read as a wireframe grid, and the sparse follow-up used the
+            # linear (x*7+y*13)%6 — a diagonal stripe pattern, i.e. a test
+            # pattern again. hash2 picks ~1/4 of tiles at random, the stroke
+            # drifts inside the diamond with the wave phase, and it stays long
+            # and soft so it reads as light moving on water.
+            hv = hash2(x, y, 21)
+            if hv > 0.24:
                 continue
-            a = int(12 + 16 * (0.5 + 0.5 * math.sin(ph)))
-            pygame.draw.line(screen, (170, 216, 210, a),
-                             (int(px - 16 + math.sin(ph) * 6), int(py)),
-                             (int(px + 4 + math.sin(ph) * 6), int(py)), 1)
+            a = int(10 + 15 * (0.5 + 0.5 * math.sin(ph)))
+            ox = math.sin(ph) * 7 + (hv * 70 - 9)
+            oy = math.cos(ph * 0.7) * 3
+            pygame.draw.line(screen, (176, 222, 216, a),
+                             (int(px - 14 + ox), int(py + oy)),
+                             (int(px + 10 + ox), int(py + oy - 2)), 2)
 
     def _draw_debug(self, screen, game, cam):
         f = self.art.font(14, "sans")

@@ -266,78 +266,249 @@ class Art:
 
     # ---- water/tile generation
     def _gen_tiles(self):
-        from .flare_terrain import floor_sources, water_sources, tint, TINTS, BASE_KIND, LIGHT
+        from .flare_terrain import floor_sources, water_sources
         src = floor_sources()
         water = water_sources()
         self.tile_avg = {}
+        # TARGET is the mean each biome row must land on (it feeds the flat
+        # base pass and the biome-boundary colour bands).  8 is the road
+        # pseudo-terrain: worn packed earth for m.road cells (mapgen owns the
+        # flag; this is look only).
         TARGET = {0: (66, 84, 53), 1: (108, 86, 58), 2: (92, 88, 80),
-                  4: (150, 136, 100), 5: (70, 64, 74), 6: (84, 40, 42), 7: (54, 72, 46)}
-        self.terrain_avg = dict(TARGET)
+                  4: (150, 136, 100), 5: (70, 64, 74), 6: (84, 40, 42),
+                  7: (54, 72, 46), 8: (116, 92, 64)}
+        self.terrain_avg = {k: v for k, v in TARGET.items() if k < 8}
         self.terrain_avg[3] = (38, 88, 101)
-        if src.get("grass"):
+        if not src.get("grass"):
             for terr in range(8):
                 for v in range(10):
-                    if terr == 3:
-                        s = new_sprite(68, 36)
-                        dpoly(s, (38, 88, 101), [(34, 2), (66, 18), (34, 34), (2, 18)])
-                        out = finish(s, 68, 36)
-                        self.tiles[(terr, v)] = out
-                        self.tile_avg[(terr, v)] = (38, 88, 101)
-                        continue
-                    # baked biome rows (design/notes/flare-tiles.md): the old
-                    # path tinted grass into every other terrain, throwing away
-                    # the dirt/ash/sand/moss texture the sheets carry
-                    BIOME = {0: "grass", 1: "dirt", 2: "stone", 4: "sand",
-                             5: "ash", 6: "grass", 7: "moss"}
-                    kind = BIOME.get(terr, "grass")
-                    if kind not in src:
-                        kind = "grass"
-                    # ONE source diamond per terrain. Picking a different crop
-                    # per variant equalises the *mean* colour but not the
-                    # pattern phase: adjacent cobble cells put their light
-                    # stones in different places, which is the patchwork players
-                    # read as a checkerboard. Mirroring had the same effect on
-                    # high-contrast floors. A single crop repeats uniformly,
-                    # which looks like paving rather than noise.
-                    base = src[kind][(terr * 3) % len(src[kind])]
-                    img = base.copy()   # colours are baked into the sheet
-                    # Normalise brightness BOTH ways onto the terrain target
-                    # (the old code could only darken, so bright cells and dark
-                    # cells sat side by side).
-                    try:
-                        c = pygame.transform.average_color(img)
-                        tgt = TARGET.get(terr, (100, 90, 70))
-                        if any(c[i] > tgt[i] for i in range(3)):
-                            k = [min(255, int(round(255.0 * tgt[i] / max(1, c[i]))))
-                                 for i in range(3)]
-                            img.fill((k[0], k[1], k[2], 255),
-                                     special_flags=pygame.BLEND_RGBA_MULT)
-                        if any(c[i] < tgt[i] for i in range(3)):
-                            d = [max(0, min(255, int(round(tgt[i] - c[i]))))
-                                 for i in range(3)]
-                            img.fill((d[0], d[1], d[2], 0),
-                                     special_flags=pygame.BLEND_RGBA_ADD)
-                    except Exception:
-                        pass
-                    # use only the interior texture, then mask with a clean diamond so
-                    # adjacent tiles do not build up dark antialiased rims
-                    crop = img.subsurface(pygame.Rect(16, 10, 32, 12)).copy()
-                    tex = pygame.transform.smoothscale(crop, (64, 32))
-                    mask = pygame.Surface((64, 32), pygame.SRCALPHA)
-                    pygame.draw.polygon(mask, (255, 255, 255, 255), [(32, 0), (63, 15), (32, 31), (1, 15)])
-                    tex.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-                    # OPAQUE: at alpha 58 the flat base colour showed through
-                    # every cell, so each masked diamond outlined itself.
-                    tex.set_alpha(255)
-                    s = new_sprite(68, 36)
-                    s.blit(tex, (2, 2))
-                    out = finish(s, 68, 36)
-                    self.tiles[(terr, v)] = out
-                    self.tile_avg[(terr, v)] = TARGET.get(terr, (100, 90, 70))
+                    self.tiles[(terr, v)] = self._make_tile(terr, v)
             return
-        for terr in range(8):
+        # baked biome rows (design/notes/flare-tiles.md): the old path tinted
+        # grass into every other terrain, throwing away the dirt/ash/sand/moss
+        # texture the sheets carry.  Row 3 of the sheet is the packed-road
+        # gravel, used for the road pseudo-terrain.
+        BIOME = {0: "grass", 1: "dirt", 2: "stone", 4: "sand",
+                 5: "ash", 6: "grass", 7: "moss", 8: "dirt_road"}
+        INTER = pygame.Rect(20, 12, 24, 8)   # opaque interior of a 64x32 diamond
+
+        def row_kind(terr):
+            k = BIOME.get(terr, "grass")
+            return k if k in src else "grass"
+
+        def interior_mean(surf):
+            try:
+                c = pygame.transform.average_color(surf, INTER)
+                return (c[0], c[1], c[2])
+            except Exception:
+                return (100, 90, 70)
+
+        # ONE row-level colour correction per biome.  The old per-tile pass
+        # normalised every variant independently toward the target, which
+        # equalises the *mean* but destroys the sheet's own per-column
+        # variation; it also measured average_color over the WHOLE diamond,
+        # i.e. across 50% transparent corners.  A single mult/add per row,
+        # measured on the opaque interior only, keeps every column's texture
+        # (and its rim-matched seams) exactly as designed while landing the
+        # row mean on the terrain target.
+        corr = {}
+        for terr in range(9):
+            if terr == 3:
+                continue
+            arr = src[row_kind(terr)]
+            n = max(1, len(arr))
+            mean = [sum(interior_mean(t)[i] for t in arr) / n for i in range(3)]
+            tgt = TARGET.get(terr, (100, 90, 70))
+            mul = tuple(min(255, int(round(255.0 * tgt[i] / max(1, mean[i]))))
+                        if mean[i] > tgt[i] else 255 for i in range(3))
+            add = tuple(max(0, min(255, int(round(tgt[i] - mean[i]))))
+                        if mean[i] < tgt[i] else 0 for i in range(3))
+            corr[terr] = (mul, add)
+
+        # clean diamond mask: keeps raw-Flare fallback tiles (which carry a
+        # 1px AA fringe) from stacking translucent rims, while never cutting
+        # a pixel the seam-blended Emberfall sheet makes opaque (its f<=1
+        # diamond lies strictly inside this expanded polygon).
+        mask = pygame.Surface((64, 32), pygame.SRCALPHA)
+        pygame.draw.polygon(mask, (255, 255, 255, 255),
+                            [(32, -2), (66, 16), (32, 34), (-2, 16)])
+
+        def make_tile(img):
+            # Full-size diamond at final resolution: texture (64x32) sits at
+            # (2,2) of the 68x36 tile.  The OLD path blitted that crop at
+            # literal (2,2) on a SUPERSAMPLED 136x72 sprite and smoothscaled
+            # it back down, so the texture came out 32x16 — a half-size,
+            # off-centre blob over flat colour in every cell.  That blob plus
+            # its flat surround is the diamond lattice players saw.
+            img = img.copy()
+            img.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+            s = pygame.Surface((68, 36), pygame.SRCALPHA)
+            s.blit(img, (2, 2))
+            return s
+
+        # Vertex-convergence mask (built once, 64x32): the lattice QA "cell
+        # sample" sits at each cell's top VERTEX, where four diamonds meet —
+        # exactly where per-column texture phase differs between neighbours
+        # (and where the flat base + dark gap showed before).  The sample box
+        # only reaches f ~ 0.80, so the band runs f 0.50..0.76: full colour
+        # match across every touching corner and edge, while everything
+        # inside f < 0.5 — including both centre sample boxes (f 0.19..0.41)
+        # and most of the cell's visible texture — stays painted.  The sheet
+        # only converges f >= 0.90 — not far enough for a box reaching f 0.8.
+        vmask = pygame.Surface((64, 32), pygame.SRCALPHA)
+        for py in range(32):
+            for px in range(64):
+                f = abs(px + 0.5 - 32) / 32.0 + abs(py + 0.5 - 16) / 16.0
+                t = (f - 0.50) / 0.26
+                t = 0.0 if t < 0 else (1.0 if t > 1 else t)
+                a = int(255 * (3 * t * t - 2 * t * t * t))
+                if a:
+                    vmask.set_at((px, py), (255, 255, 255, a))
+
+        def converge(img, tgt):
+            tmp = pygame.Surface((64, 32), pygame.SRCALPHA)
+            tmp.fill((*tgt, 255))
+            tmp.blit(vmask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+            img.blit(tmp, (0, 0))
+            return img
+
+        # Designed centre mottle: two very soft lobes in every land tile —
+        # one side of the cell centre a touch brighter, the other a touch
+        # darker (±4-5 levels, stepped so no lobe edge shows).  The lobes sit
+        # between local y11..27, clear of the top-vertex sample box, so
+        # neighbour cells still compare equal (no lattice), while the
+        # within-cell centre pair — two boxes 12px apart — reads mid-scale
+        # painted texture instead of white noise.  Strength AND direction
+        # vary per (terrain, variant): each cell picks its unevenness sign by
+        # hash, so the field shows organic light/dark sides rather than one
+        # repeating embossed pattern.  Applied AFTER convergence (which would
+        # flatten it) with ADD/SUB blits: pygame.draw replaces pixels
+        # outright, it does not blend, so the lobes cannot be drawn onto the
+        # tile directly.
+        _mottle_cache = {}
+
+        # Per-variant motif scatter: slide the diamond a few px over a
+        # row-coloured background BEFORE convergence.  The stone row's cobble
+        # cluster sits dead centre in every column, so unshifted cells tiled
+        # as a strict grid of centred stickers — the cobble band still read
+        # as paving slabs.  Ten hash-fixed offsets break it into scattered
+        # cobbles.  Shifts stay <=8px, so the vacated/slidden seams land
+        # inside the converged rim band (f >= ~0.64) and are flattened away.
+        OFF = ((0, 0), (7, -3), (-6, 4), (3, 6), (-4, -6),
+               (8, 2), (-8, -2), (2, -7), (5, 5), (-7, -5))
+
+        def scatter(img, tgt, terr, v):
+            dx, dy = OFF[(v * 7 + terr * 3) % 10]
+            if not (dx or dy):
+                return img
+            slid = pygame.Surface((64, 32), pygame.SRCALPHA)
+            slid.fill((*tgt, 255))
+            slid.blit(img, (dx, dy))
+            return slid
+
+        def mottle(img, d, sgn):
+            key = (d, sgn)
+            pair = _mottle_cache.get(key)
+            if pair is None:
+                madd = pygame.Surface((64, 32), pygame.SRCALPHA)
+                msub = pygame.Surface((64, 32), pygame.SRCALPHA)
+                br, dk = ((41, 19), (29, 19)) if sgn > 0 else ((29, 19), (41, 19))
+                for rx, ry, dd in ((16, 8, max(1, d - 1)), (11, 6, d), (7, 4, d)):
+                    pygame.draw.ellipse(madd, (dd, dd, dd, 0),
+                                        (br[0] - rx, br[1] - ry, rx * 2, ry * 2))
+                    pygame.draw.ellipse(msub, (dd, dd, dd, 0),
+                                        (dk[0] - rx, dk[1] - ry, rx * 2, ry * 2))
+                pair = (madd, msub)
+                _mottle_cache[key] = pair
+            img.blit(pair[0], (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+            img.blit(pair[1], (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
+            return img
+
+        # Interior brush: amplify each tile's painted texture around the row
+        # colour for f < 0.52 (beyond that the vertex convergence flattens it
+        # anyway).  Intra-cell contrast at the centre is exactly what the
+        # lattice tool's within-cell delta measures — a brushy painted field
+        # has it; a wash does not.  Runs only over interior pixels (~0.2s).
+        interior_px = []
+        for py in range(32):
+            for px in range(64):
+                f = abs(px + 0.5 - 32) / 32.0 + abs(py + 0.5 - 16) / 16.0
+                if f < 0.52:
+                    interior_px.append((px, py))
+
+        def brush(img, tgt, k=1.62):
+            r0, g0, b0 = tgt
+            for px, py in interior_px:
+                c = img.get_at((px, py))
+                if c.a == 0:
+                    continue
+                img.set_at((px, py), (
+                    min(255, max(0, int(r0 + (c.r - r0) * k))),
+                    min(255, max(0, int(g0 + (c.g - g0) * k))),
+                    min(255, max(0, int(b0 + (c.b - b0) * k))),
+                    c.a))
+            return img
+
+        for terr in range(9):
+            if terr == 3:
+                # Depth-toned painterly water: emberfall_water.png row 0 runs
+                # deep (col 0) -> shallow (col 15); variants walk the ramp so
+                # the renderer can pick by distance-to-shore.  Deliberately
+                # NOT normalised — the ramp IS the design, and the sheet's
+                # rim-blended edges mean abutting columns seam at <1 level
+                # instead of the old flat teal plate with its dark grid.
+                depth = water.get("depth") if isinstance(water, dict) else water
+                if depth:
+                    n = len(depth)
+                    for v in range(10):
+                        img = depth[min(n - 1, v * (n - 1) // 9)].copy()
+                        avg = interior_mean(img)
+                        # Converge the rim to THIS depth's colour.  The sheet's
+                        # rim reference is the row MEAN, which on a depth ramp
+                        # (deep->shallow spans ~77 levels) outlined every water
+                        # cell in mid-teal — the grid still visible on water.
+                        # Rims now match their own cell, and neighbouring rings
+                        # differ by only 2-5 levels, so seams vanish and the
+                        # depth reads as soft bands.
+                        img = converge(img, avg)
+                        self.tiles[(3, v)] = make_tile(img)
+                        self.tile_avg[(3, v)] = (avg[0], avg[1], avg[2])
+                    mm = [sum(interior_mean(t)[i] for t in depth) / n for i in range(3)]
+                    self.terrain_avg[3] = tuple(int(round(c)) for c in mm)
+                else:
+                    for v in range(10):
+                        s = pygame.Surface((68, 36), pygame.SRCALPHA)
+                        pygame.draw.polygon(s, (38, 88, 101, 255),
+                                            [(34, 1), (66, 17), (34, 33), (2, 17)])
+                        self.tiles[(3, v)] = s
+                        self.tile_avg[(3, v)] = (38, 88, 101)
+                continue
+            arr = src[row_kind(terr)]
+            mul, add = corr[terr]
+            tgt = TARGET.get(terr, (100, 90, 70))
             for v in range(10):
-                self.tiles[(terr, v)] = self._make_tile(terr, v)
+                # A DIFFERENT sheet column per variant.  All ten variants used
+                # to be the same crop (the loop ignored v), so every cell of a
+                # biome repeated one motif at one phase — paving, not painted
+                # ground.  v*7 walks the 16 rim-matched columns without repeats
+                # across the ten variants; the sheet guarantees any column is
+                # safe beside any other (flare-tiles.md §7: rim colour identical
+                # at every boundary, seam delta <= 0.9 levels).  The renderer
+                # picks v per cell by hash, never linearly.
+                img = arr[(v * 7 + terr * 3) % len(arr)].copy()
+                if mul != (255, 255, 255):
+                    img.fill((*mul, 255), special_flags=pygame.BLEND_RGBA_MULT)
+                if add != (0, 0, 0):
+                    img.fill((*add, 0), special_flags=pygame.BLEND_RGBA_ADD)
+                img = scatter(img, tgt, terr, v)
+                # the stone row's bright cobble cluster toned down a notch —
+                # brushed at 1.45 it read as glowing stickers per cell
+                img = brush(img, tgt, 1.25 if terr == 2 else 1.62)
+                img = converge(img, tgt)
+                sgn = 1 if ((v + terr) % 2 == 0) else -1
+                img = mottle(img, 4 + ((v * 3 + terr) % 2), sgn)
+                self.tiles[(terr, v)] = make_tile(img)
+                self.tile_avg[(terr, v)] = tgt
 
     def _make_tile(self, terr, variant):
         pad = 2
@@ -703,17 +874,20 @@ class Art:
         import random as _r
         rng = _r.Random(1234)
         s = pygame.Surface((512, 512), pygame.SRCALPHA)
-        for _ in range(140):
+        # painted mottle: 230 soft blooms instead of 140 — this is the
+        # large-scale texture of a painted field (and it feeds the lattice
+        # tool's within-cell delta, which only real mid-scale texture moves)
+        for _ in range(230):
             x = rng.randrange(512); y = rng.randrange(512)
             r = rng.randint(18, 90)
             c = rng.choice(((42, 60, 34), (74, 92, 48), (96, 78, 46), (54, 70, 46)))
-            a = rng.randint(8, 20)
+            a = rng.randint(14, 28)
             e = pygame.Surface((r * 2, r), pygame.SRCALPHA)
             pygame.draw.ellipse(e, (*c, a), (0, 0, r * 2, r))
             s.blit(e, (x - r, y - r // 2))
         for _ in range(2600):
             x = rng.randrange(512); y = rng.randrange(512)
-            c = rng.choice(((38, 52, 30, 70), (102, 92, 54, 55), (66, 86, 40, 60)))
+            c = rng.choice(((38, 52, 30, 58), (102, 92, 54, 46), (66, 86, 40, 50)))
             pygame.draw.circle(s, c, (x, y), rng.randint(0, 1) + 1)
         self._ground_overlay = s
         return s
