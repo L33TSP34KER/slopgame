@@ -66,14 +66,17 @@ def sine(f, n, ph=0.0):
     return np.sin(TAU * f * tt(n) + ph)
 
 
-def sine_sweep(f0, f1, n, curve='exp'):
+def freq_sweep(f0, f1, n, curve='exp'):
+    """Per-sample instantaneous frequency from f0 to f1 (exp = sfxr-style ramp)."""
     t_ = tt(n)
     T = max(n - 1, 1) / SR
     if curve == 'exp' and f0 > 0 and f1 > 0:
-        f = f0 * (f1 / f0) ** (t_ / T)
-    else:
-        f = f0 + (f1 - f0) * (t_ / T)
-    ph = np.cumsum(TAU * f / SR)
+        return f0 * (f1 / f0) ** (t_ / T)
+    return f0 + (f1 - f0) * (t_ / T)
+
+
+def sine_sweep(f0, f1, n, curve='exp'):
+    ph = np.cumsum(TAU * freq_sweep(f0, f1, n, curve) / SR)
     return np.sin(ph)
 
 
@@ -153,6 +156,45 @@ def pluck(f, dur, damp=0.995, bright=0.5, seed=0, lp=0.0):
     if lp > 0:
         y = filt(y, 'lp', lp, 2)
     return y
+
+
+# ---------------------------------------------------------------- FM / saturation
+def fm_tone(n, fc, ratio=2.0, index=6.0, i_tau=0.04, env=None):
+    """2-op FM struck-tone (the DX7 "struck metal" recipe): carrier `fc`
+    (scalar or per-sample array, so a freq_sweep() can drive it), modulator at
+    fc*ratio, modulation index decaying with time constant i_tau — bright
+    inharmonic attack that mellows into a near-pure tone. Multiply by `env`
+    for a partial decay (bells) if given."""
+    fc = np.broadcast_to(np.asarray(fc, dtype=float), (n,))
+    im = np.cumsum(TAU * (fc * ratio) / SR)
+    ic = np.cumsum(TAU * fc / SR)
+    idx = index * np.exp(-tt(n) / max(i_tau, 1e-6))
+    y = np.sin(ic + idx * np.sin(im))
+    return y if env is None else y * env
+
+
+def fm_partials(n, f0, parts, index=6.0, i_tau=0.03):
+    """Stack of FM partials -> struck bell / metal bar.
+
+    parts: list of (freq_ratio, amp, decay_tau, mod_ratio). Each partial is its
+    own FM tone with a decaying index (attack brights) and a decaying
+    amplitude (bell decay), which is what separates a real bell from a beep.
+    """
+    t_ = tt(n)
+    y = np.zeros(n)
+    for i, (r, a, tau, mr) in enumerate(parts):
+        env = a * np.exp(-t_ / max(tau, 1e-6))
+        y += fm_tone(n, f0 * r, ratio=mr, index=index * (0.8 + 0.08 * i),
+                     i_tau=i_tau, env=env)
+    return y
+
+
+def soft_sat(x, drive=1.5, asym=0.0):
+    """tanh saturation with ~unity small-signal gain. drive>1 adds harmonics
+    (perceived weight/edge on impacts); asym adds even harmonics (tube-ish
+    warmth) — DC from asymmetry is removed by balance_chain's mean removal."""
+    y = drive * (np.asarray(x, dtype=float) + asym)
+    return (np.tanh(y) - np.tanh(drive * asym)) / drive
 
 
 # ---------------------------------------------------------------- filters
@@ -315,20 +357,43 @@ def fades(x, fin=0.002, fout=0.005):
 
 # ---------------------------------------------------------------- reverb
 def make_ir(dur=0.8, decay=0.3, lp=8000, hp=180, predelay=0.01, seed=7, er=0.5):
+    """Perceptually better noise IR than a single-band exponential:
+
+    * frequency-dependent decay — highs damp fast (decay*0.55), mids at
+      `decay`, lows ring on (decay*1.7). Real rooms behave this way and it
+      stops reverb tails from sounding like white noise on a fader.
+    * early reflections are short *smeared* bursts (1.5 ms), not single
+      sample spikes — spikes comb-filter into a metallic ringing.
+    * predelay gap, then energy-normalized (rev()'s wet gain stays meaningful).
+    """
     n = ns(dur)
     t_ = tt(n)
-    ir = noise(n, seed) * np.exp(-t_ / decay)
+    w = noise(n, seed)
+    lo = filt(w, 'lp', 320, 2)
+    mid = filt(w, 'bp', (320, 2600), 2)
+    hi = filt(w, 'hp', 2600, 2)
+    ir = (lo * np.exp(-t_ / (decay * 1.7))
+          + mid * np.exp(-t_ / decay)
+          + hi * np.exp(-t_ / (decay * 0.55)))
+    ir *= 1.0 - np.exp(-t_ / 0.004)          # 4 ms diffusion build-up
+    pd = ns(predelay)
+    ir[:pd] = 0.0
+    rng = np.random.default_rng(seed + 1)
+    smear = ns(0.0015)
+    sw = np.hanning(smear) if smear > 1 else np.ones(1)
+    t_k = pd
+    for k in range(10):                       # densifying early reflections
+        t_k += int(rng.uniform(0.003, 0.016) * SR)
+        if t_k + smear >= n:
+            break
+        tap = filt(noise(smear, seed + 10 + k), 'lp',
+                   1800 + 3000 * rng.random(), 2) * sw
+        ir[t_k:t_k + smear] += er * (0.95 ** k) * rng.uniform(0.5, 1.0) * \
+            (-1.0 if rng.random() > 0.5 else 1.0) * tap
     if lp:
         ir = filt(ir, 'lp', lp, 2)
     if hp:
         ir = filt(ir, 'hp', hp, 2)
-    pd = ns(predelay)
-    ir[:pd] = 0.0
-    rng = np.random.default_rng(seed + 1)
-    for _ in range(4):
-        p = pd + int(rng.uniform(0.004, 0.05) * SR)
-        if p < n:
-            ir[p] += er * rng.uniform(0.4, 1.0) * (1 if rng.random() > 0.5 else -1)
     e = np.sqrt(np.sum(ir ** 2))
     return ir / (e + 1e-12)
 
