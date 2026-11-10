@@ -32,6 +32,58 @@ def with_a(c, a):
     return (c[0], c[1], c[2], clamp(int(a), 0, 255))
 
 
+# ---- cinematic tone (saturation lift + pivot contrast) -----------------------
+# Applied ONCE per generated tile (and to the row averages those tiles report),
+# never per frame: pygame has no per-channel LUT op, so a frame-time curve
+# would mean a Python loop over 1.4M pixels.  Doing it where the art is baked
+# gives a real S-style curve for free at runtime, and because every variant of
+# a terrain runs the SAME function, vertex-converged rims still map to exactly
+# one colour per row — the lattice metric cannot move from this pass.
+TONE_K = 1.13        # contrast gain around TONE_PIVOT
+TONE_S = 1.22        # saturation lift
+TONE_PIVOT = 104.0
+
+
+def tone_col(c, k=TONE_K, s=TONE_S, piv=TONE_PIVOT):
+    """Saturation lift then pivot contrast for a single colour."""
+    r, g, b = float(c[0]), float(c[1]), float(c[2])
+    gy = 0.299 * r + 0.587 * g + 0.114 * b
+    r = gy + (r - gy) * s
+    g = gy + (g - gy) * s
+    b = gy + (b - gy) * s
+    return (clamp(int(piv + (r - piv) * k), 0, 255),
+            clamp(int(piv + (g - piv) * k), 0, 255),
+            clamp(int(piv + (b - piv) * k), 0, 255))
+
+
+def tone_surface(img, k=TONE_K, s=TONE_S, piv=TONE_PIVOT):
+    """Same curve, every pixel of one tile surface (~2k px, bake time only).
+
+    Built from tobytes/frombytes so the loop is a plain byte walk: 80-90 tiles
+    cost well under a second once at load instead of anything per tick.
+    """
+    w, h = img.get_size()
+    if w <= 0 or h <= 0:
+        return img
+    raw = pygame.image.tobytes(img, "RGBA")
+    lut = [clamp(int(piv + (i - piv) * k), 0, 255) for i in range(256)]
+    out = bytearray(raw)
+    i = 0
+    n = len(raw)
+    while i < n:
+        r = raw[i]; g = raw[i + 1]; b = raw[i + 2]
+        if raw[i + 3]:
+            gy = 0.299 * r + 0.587 * g + 0.114 * b
+            rr = gy + (r - gy) * s
+            gg = gy + (g - gy) * s
+            bb = gy + (b - gy) * s
+            out[i] = lut[0 if rr < 0 else (255 if rr > 255 else int(rr))]
+            out[i + 1] = lut[0 if gg < 0 else (255 if gg > 255 else int(gg))]
+            out[i + 2] = lut[0 if bb < 0 else (255 if bb > 255 else int(bb))]
+        i += 4
+    return pygame.image.frombytes(bytes(out), (w, h), "RGBA")
+
+
 INK = (24, 20, 26)
 PARCH = hexc(PALETTE["parchment"])
 GOLD = hexc(PALETTE["gold"])
@@ -125,6 +177,7 @@ class Art:
             if os.path.exists(fp):
                 self.portrait_faces[name] = pygame.image.load(fp).convert_alpha()
         self.glow = {}
+        self.rims = {}
         self._icon_cache = {}
         self._text_cache = {}
         self._gen_tiles()
@@ -471,6 +524,7 @@ class Art:
                         # differ by only 2-5 levels, so seams vanish and the
                         # depth reads as soft bands.
                         img = converge(img, avg)
+                        img = tone_surface(img)
                         self.tiles[(3, v)] = make_tile(img)
                         self.tile_avg[(3, v)] = (avg[0], avg[1], avg[2])
                     mm = [sum(interior_mean(t)[i] for t in depth) / n for i in range(3)]
@@ -480,6 +534,7 @@ class Art:
                         s = pygame.Surface((68, 36), pygame.SRCALPHA)
                         pygame.draw.polygon(s, (38, 88, 101, 255),
                                             [(34, 1), (66, 17), (34, 33), (2, 17)])
+                        s = tone_surface(s)
                         self.tiles[(3, v)] = s
                         self.tile_avg[(3, v)] = (38, 88, 101)
                 continue
@@ -503,12 +558,20 @@ class Art:
                 img = scatter(img, tgt, terr, v)
                 # the stone row's bright cobble cluster toned down a notch —
                 # brushed at 1.45 it read as glowing stickers per cell
-                img = brush(img, tgt, 1.25 if terr == 2 else 1.62)
+                img = brush(img, tgt, 1.45 if terr == 2 else 1.84)
                 img = converge(img, tgt)
                 sgn = 1 if ((v + terr) % 2 == 0) else -1
-                img = mottle(img, 4 + ((v * 3 + terr) % 2), sgn)
+                img = mottle(img, 5 + ((v * 3 + terr) % 2), sgn)
+                img = tone_surface(img)
                 self.tiles[(terr, v)] = make_tile(img)
                 self.tile_avg[(terr, v)] = tgt
+        # The row averages feed the renderer's flat base diamonds and its
+        # biome-boundary bands: run them through the SAME curve, or a toned
+        # tile sitting on an untoned base shows a seam the lattice tool counts.
+        for k in list(self.tile_avg):
+            self.tile_avg[k] = tone_col(self.tile_avg[k])
+        for k in list(self.terrain_avg):
+            self.terrain_avg[k] = tone_col(self.terrain_avg[k])
 
     def _make_tile(self, terr, variant):
         pad = 2
@@ -897,3 +960,40 @@ class Art:
         if key not in self.glow:
             self.glow[key] = radial_glow(radius, color, strength, 2.2)
         return self.glow[key]
+
+    def rim(self, img, color, shift=2):
+        """Top-left silhouette fringe for a sprite, tinted `color` (night rim).
+
+        Returns (surface, bbox): the band is cropped to its own bounding box
+        because the sprite canvases are 176x176 with ~70% transparent, and a
+        night rim is drawn once PER UNIT — blitting only the fringe's box makes
+        that roughly six times cheaper.
+
+        The sprite's own 1px warm rim is baked in and never moves; at night the
+        vale needs a stronger moonlight edge to keep units off the dark ground.
+        Built as (silhouette MINUS silhouette-shifted-down-right), so the band
+        sits just OUTSIDE the top-left edge — same side the DESIGN sun uses.
+        Four C-level blits per unique frame, cached and bounded (frames are
+        rebuilt if the cache ever overflows, they are cheap).
+        """
+        key = (id(img), color, shift)
+        hit = self.rims.get(key)
+        if hit is not None and hit[0] is img:
+            return hit[1], hit[2]
+        w, h = img.get_size()
+        sil = pygame.Surface((w, h), pygame.SRCALPHA)
+        sil.blit(img, (0, 0))
+        shifted = pygame.Surface((w, h), pygame.SRCALPHA)
+        shifted.blit(img, (shift, shift))
+        band = sil
+        band.blit(shifted, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
+        # normalise RGB to white, then to the rim colour — alpha is the shape
+        band.fill((255, 255, 255), special_flags=pygame.BLEND_RGB_MAX)
+        band.fill(color, special_flags=pygame.BLEND_RGB_MULT)
+        bb = band.get_bounding_rect(min_alpha=1)
+        if 0 < bb.w < w and 0 < bb.h < h:
+            band = band.subsurface(bb).copy()
+        if len(self.rims) > 420:
+            self.rims.clear()
+        self.rims[key] = (img, band, bb)
+        return band, bb
