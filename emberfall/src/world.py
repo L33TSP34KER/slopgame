@@ -734,11 +734,13 @@ class World:
                 self.play("error")
                 return
             self.damage(target, a["dmg"](lv), hero, "magic")
-            target.stun = max(target.stun, a["stun"])
+            if a.get("stun"):
+                target.stun = max(target.stun, a["stun"])
             self.burst(target.x, target.y, (255, 150, 70), 14, 1.2)
         elif a["target"] == "self":
-            hero.shield_hp = a["shield"](lv)
-            hero.shield_t = a["duration"]
+            if a.get("shield"):
+                hero.shield_hp = a["shield"](lv)
+                hero.shield_t = a.get("duration", 8)
             self.burst(hero.x, hero.y, (255, 190, 100), 14, 1.0)
         else:
             if hasattr(target, "x"):
@@ -757,7 +759,8 @@ class World:
                     self.damage(e, a["dmg"](lv), hero, "magic")
                     if a.get("stun"):
                         e.stun = max(e.stun, a["stun"])
-                elif e.team == PLAYER and not e.is_building and d <= a["radius"]:
+                elif (e.team == PLAYER and not e.is_building and d <= a["radius"]
+                      and a.get("heal")):
                     e.hp = min(e.max_hp, e.hp + a["heal"](lv))
             self.burst(tx, ty, (255, 214, 140) if aid == "daybreak" else (255, 150, 70),
                        26 if aid == "daybreak" else 16, 1.6)

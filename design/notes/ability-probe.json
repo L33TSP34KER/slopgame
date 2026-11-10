@@ -1,0 +1,76 @@
+{
+ "ok": 14,
+ "total": 14,
+ "checks": [
+  {
+   "name": "scene has allies to stand in the blast",
+   "ok": true,
+   "detail": "18 allies"
+  },
+  {
+   "name": "Daybreak with allies in radius does not crash",
+   "ok": true,
+   "detail": "clean cast"
+  },
+  {
+   "name": "Daybreak spends 140 mana and goes on a 90s cooldown",
+   "ok": true,
+   "detail": "mana 220->80, cd=90s"
+  },
+  {
+   "name": "Daybreak does not heal allies (it only stuns and burns)",
+   "ok": true,
+   "detail": "allies at or below max hp"
+  },
+  {
+   "name": "Daybreak damages and stuns the enemy in radius",
+   "ok": true,
+   "detail": "hp 192->0, stun=2.0s"
+  },
+  {
+   "name": "Consecrate heals the ally inside the fire",
+   "ok": true,
+   "detail": "ally hp 110->220"
+  },
+  {
+   "name": "Consecrate spends 70 mana and goes on cooldown",
+   "ok": true,
+   "detail": "mana 220->150, cd=12s"
+  },
+  {
+   "name": "Ember Lance on empty ground is refused (no mana, no cooldown)",
+   "ok": true,
+   "detail": "mana 220->220"
+  },
+  {
+   "name": "Ember Lance hits and stuns a target in range",
+   "ok": true,
+   "detail": "hp 192->0, stun=1.2s"
+  },
+  {
+   "name": "Ember Lance refuses an out-of-range target",
+   "ok": true,
+   "detail": "hp 192->192"
+  },
+  {
+   "name": "Aegis shields the hero for 8s",
+   "ok": true,
+   "detail": "shield=440 for 8.0s"
+  },
+  {
+   "name": "Aegis charges its cooldown after use",
+   "ok": true,
+   "detail": "cd=16s"
+  },
+  {
+   "name": "An ability with no mana is refused, not cast",
+   "ok": true,
+   "detail": "mana=5"
+  },
+  {
+   "name": "the game is still running after all casts",
+   "ok": true,
+   "detail": "state=playing"
+  }
+ ]
+}
