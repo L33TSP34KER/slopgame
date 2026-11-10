@@ -1,6 +1,6 @@
 # ability probe
 
-`tools/ability_probe.py` — 14/14 PASS, headless, through the real targeting path (`handle_action` + `cast_at`).
+`tools/ability_probe.py` — 15/15 PASS, headless, through the real targeting path (`handle_action` + `cast_at`).
 
 | check | result | detail |
 |---|---|---|
@@ -9,6 +9,7 @@
 | Daybreak spends 140 mana and goes on a 90s cooldown | **PASS** | mana 220->80, cd=90s |
 | Daybreak does not heal allies (it only stuns and burns) | **PASS** | allies at or below max hp |
 | Daybreak damages and stuns the enemy in radius | **PASS** | hp 192->0, stun=2.0s |
+| reported path (select, R, ground click) casts Daybreak without a crash | **PASS** | armed=True cd=90s state=playing |
 | Consecrate heals the ally inside the fire | **PASS** | ally hp 110->220 |
 | Consecrate spends 70 mana and goes on cooldown | **PASS** | mana 220->150, cd=12s |
 | Ember Lance on empty ground is refused (no mana, no cooldown) | **PASS** | mana 220->220 |

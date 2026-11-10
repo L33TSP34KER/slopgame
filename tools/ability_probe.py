@@ -87,6 +87,22 @@ def main() -> int:
     check("Daybreak damages and stuns the enemy in radius",
           foe.hp < hp0 and foe.stun > 1.5, f"hp {hp0:.0f}->{foe.hp:.0f}, stun={foe.stun:.1f}s")
 
+    # ---- the exact path from the crash report: select hero, press R, click ground
+    g.select([h])
+    g.ui.mouse = (10, 10)
+    frame(g)
+    h.abil_cd.clear()
+    h.mana = h.max_mana
+    g.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_r, unicode="r", mod=0))
+    armed = g.targeting is not None
+    hx, hy = g.screen_pos(h)
+    for et in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP):
+        g.handle_event(pygame.event.Event(et, button=1, pos=(int(hx), int(hy))))
+    frame(g)
+    check("reported path (select, R, ground click) casts Daybreak without a crash",
+          armed and h.abil_cd.get("daybreak", 0) > 0 and g.running,
+          f"armed={armed} cd={h.abil_cd.get('daybreak', 0):.0f}s state={g.world.state}")
+
     # ---- consecrate: the ability that DOES heal
     h.abil_cd.clear()
     h.mana = h.max_mana

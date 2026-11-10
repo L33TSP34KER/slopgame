@@ -1,6 +1,6 @@
 {
- "ok": 14,
- "total": 14,
+ "ok": 15,
+ "total": 15,
  "checks": [
   {
    "name": "scene has allies to stand in the blast",
@@ -26,6 +26,11 @@
    "name": "Daybreak damages and stuns the enemy in radius",
    "ok": true,
    "detail": "hp 192->0, stun=2.0s"
+  },
+  {
+   "name": "reported path (select, R, ground click) casts Daybreak without a crash",
+   "ok": true,
+   "detail": "armed=True cd=90s state=playing"
   },
   {
    "name": "Consecrate heals the ally inside the fire",
