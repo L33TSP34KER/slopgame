@@ -257,15 +257,20 @@ class UI:
         desc = self.art.text_wrap("The Hollow Host does not sleep. Pick the pressure you can survive.",
                                   15, 640, PARCH_D)
         g.screen.blit(desc, (r.centerx - 320, r.y + 72))
-        for i, (key, d) in enumerate(DIFFICULTY.items()):
-            b = pygame.Rect(r.x + 40, r.y + 130 + i * 92, 680, 76)
+        # rows scale with the number of tiers so the 4th tier (Novice, council
+        # p-7b4e55d1) still fits the panel instead of colliding with Back
+        tiers = list(DIFFICULTY.items())
+        row_h, gap = (76, 16) if len(tiers) <= 3 else (64, 10)
+        top = r.y + (130 if len(tiers) <= 3 else 122)
+        for i, (key, d) in enumerate(tiers):
+            b = pygame.Rect(r.x + 40, top + i * (row_h + gap), 680, row_h)
             hover = b.collidepoint(self.mouse)
             pygame.draw.rect(g.screen, (58, 44, 33) if hover else (42, 32, 25), b, border_radius=6)
             pygame.draw.rect(g.screen, GOLD_L if hover else BRASS, b, 1, border_radius=6)
-            n = self.t(d["name"], 22, PARCH, "display")
-            g.screen.blit(n, (b.x + 18, b.y + 10))
+            n = self.t(d["name"], 22 if row_h > 70 else 19, PARCH, "display")
+            g.screen.blit(n, (b.x + 18, b.y + (10 if row_h > 70 else 7)))
             bl = self.art.text_wrap(d["blurb"], 14, 620, PARCH_D)
-            g.screen.blit(bl, (b.x + 18, b.y + 40))
+            g.screen.blit(bl, (b.x + 18, b.y + (40 if row_h > 70 else 34)))
             self.add(b, kind="menu", action="difficulty", value=key)
         self.button(pygame.Rect(r.x + 40, r.bottom - 54, 150, 38), "Back", ("back", {}))
         self.state = None

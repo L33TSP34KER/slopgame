@@ -1396,8 +1396,16 @@ class World:
             self.burst(tgt.x, tgt.y, (150, 40, 40), 10, 0.9)
             self.play("death")
             if tgt.is_hero and tgt.team == PLAYER:
-                tgt.hero_revive_t = 45.0
-                self.alert("Marshal Aldric has fallen. He will return at the Altar.")
+                # p-7b4e55d1 (council): the hero must never be permanently lost.
+                # 45s when a completed Altar waits, 75s when he musters at the
+                # Hall instead — before this, no Altar at map start meant the
+                # Marshal died once and stayed dead all mission.
+                has_altar = any(b.bid == "altar" and b.build_progress >= 1
+                                for b in self.buildings_of(PLAYER))
+                tgt.hero_revive_t = 45.0 if has_altar else 75.0
+                self.alert("Marshal Aldric has fallen. He will return at the Altar."
+                           if has_altar else
+                           "Marshal Aldric has fallen. He will muster at the Hall.")
                 self.play("alert")
         if tgt.team == NEUTRAL:
             self.check_camp(tgt)
@@ -1520,9 +1528,16 @@ class World:
             h.hero_revive_t -= dt
             if h.hero_revive_t <= 0:
                 altars = [b for b in self.buildings_of(PLAYER) if b.bid == "altar" and b.build_progress >= 1]
-                spot = None
-                if altars:
-                    spot = self.find_spawn_spot(altars[0])
+                halls = [b for b in self.buildings_of(PLAYER)
+                         if b.bid in ("townhall", "keep") and b.build_progress >= 1]
+                # Altar first (fast), Hall as the fallback so a map without an
+                # Altar never seals the hero out permanently (council p-7b4e55d1).
+                anchor = altars[0] if altars else (halls[0] if halls else None)
+                spot = self.find_spawn_spot(anchor) if anchor else None
+                if not spot:
+                    # nothing to muster at right now (hall rebuilding/destroyed):
+                    # keep trying instead of parking the timer at <=0 forever.
+                    h.hero_revive_t = 15.0
                 if spot:
                     hero2 = self.spawn_unit("hero", spot[0], spot[1], PLAYER)
                     # revive restores the fallen hero's growth and his satchel:

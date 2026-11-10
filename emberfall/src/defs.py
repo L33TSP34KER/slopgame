@@ -436,6 +436,10 @@ FACTION = {
 }
 
 DIFFICULTY = {
+    "novice": dict(id="novice", name="Novice", income=0.30, hp=0.40, dmg=0.40,
+                   wave_gap=2.6, wave_size=0.40, speed=0.90,
+                   first_wave=600.0, cap=14, start_gold=1600, start_lumber=500,
+                   blurb="The first watch teaches. No real threat for ten minutes."),
     "squire": dict(id="squire", name="Squire", income=0.62, hp=0.55, dmg=0.55,
                    wave_gap=1.75, wave_size=0.55, speed=0.92,
                    first_wave=315.0, cap=26, start_gold=1200, start_lumber=350,
