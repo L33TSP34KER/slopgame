@@ -135,6 +135,12 @@ emberfall/
 - Audio, independent QA, art direction: **mimo**.
 - Art: [Flare](https://github.com/clintbellanger/flare-game) by Clint Bellanger
   and contributors — **CC-BY-SA 3.0**. See `LICENSES-FLARE.md`.
+- Typography: [Cinzel](https://fonts.google.com/specimen/Cinzel),
+  [EB Garamond](https://fonts.google.com/specimen/EB+Garamond) and
+  [Source Sans 3](https://fonts.google.com/specimen/Source+Sans+3) —
+  **SIL OFL 1.1**, bundled in `assets/fonts/` with their `OFL-*.txt`
+  licence texts (static weights instanced from the Google Fonts
+  variable originals).
 - UI icons and brand marks: original for this project, CC-BY-SA 4.0.
 - Engine: pygame-ce (LGPL-2.1+). The game code is MIT.
 
