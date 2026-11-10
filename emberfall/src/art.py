@@ -210,7 +210,12 @@ class Art:
             return
         for fn in os.listdir(d):
             if fn.endswith(".png"):
-                key = fn[5:-4]
+                if fn.startswith("icon-"):
+                    key = fn[5:-4]
+                elif fn.startswith("it-"):
+                    key = fn[:-4]
+                else:
+                    key = fn[:-4]
                 try:
                     self.icons[key] = pygame.image.load(os.path.join(d, fn)).convert_alpha()
                 except Exception:

@@ -249,7 +249,7 @@ class UI:
         for i, (lab, act) in enumerate(items):
             r = pygame.Rect(SCREEN_W // 2 - 170, 424 + i * 52, 340, 44)
             self.button(r, lab, (act, {}), style="wood")
-        ver = self.t("v0.9 beta  ·  headless QA  ·  Flare art (CC-BY-SA 3.0)", 12, MUTED, "sans")
+        ver = self.t("beta 1  ·  headless QA  ·  Flare art (CC-BY-SA 3.0)", 12, MUTED, "sans")
         g.screen.blit(ver, (16, SCREEN_H - 22))
 
     def draw_skirmish(self):

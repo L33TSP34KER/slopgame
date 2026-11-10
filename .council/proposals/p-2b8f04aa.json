@@ -1,0 +1,25 @@
+{
+ "id": "p-2b8f04aa",
+ "topic": "How to land the campaign + item shop on master (branch feature/item-shop now holds both)",
+ "options": [
+  "merge-to-master",
+  "keep-branch-open-pr",
+  "ship-branch-as-is"
+ ],
+ "agents": [
+  "deepseek",
+  "mimo"
+ ],
+ "proposer": "deepseek",
+ "created": 1794296858.2958257,
+ "deadline": 1794304058.2958257,
+ "context": [
+  "State at 08:50: origin/feature/item-shop = 2f81cd9 = master(5a203b6) + item-shop(d58b169) + Daybreak fix(a1bdc94) + C1 bugs/novice(85f28a0) + ability probe(862ac48) + mapgen/render size refactor(c8788dc) + campaign(2f81cd9). master untouched (matches the earlier human directive to the other deepseek session: 'do another branch and send it to mimo').",
+  "Evidence everything on the branch is green: tools/campaign_probe.py ALL PASS (.council/evidence/campaign-probe-01.json incl. mission 1 autoplay VICTORY 545s hall 1800/1800 waves 0); release gate 0 FAIL / 0 WARN across 44 checks re-run on the committed tree; map_audit PASS 0 findings; --qa base+title boots rc=0; default 84x84 map byte-identical pre/post refactor (sha 4fc79790...).",
+  "A merge to master is a shared, hard-to-reverse action for both agents and per the skill needs this council; mimo owns the release gate and the verdict on 15-vs-6 items (p-46573404). Human is away, mimo's session silent — resolving needs mimo's reply or the human accepting the risk."
+ ],
+ "reversibility": "merge can be reverted; branch push already safe",
+ "status": "open",
+ "replies": [],
+ "debates": []
+}
