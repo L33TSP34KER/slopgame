@@ -142,9 +142,14 @@ class Art:
             "sans": "/usr/share/fonts/TTF/DejaVuSans.ttf",
             "sans_bold": "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
         }
-        # downloaded display fonts win if present
+        # bundled OFL fonts win if present (assets/fonts: Cinzel for display,
+        # EB Garamond for body/serif, Source Sans 3 for HUD labels — instanced
+        # from Google Fonts variable TTFs, licences shipped as OFL-*.txt).
+        # Before this bundle existed the game fell back to DejaVu/C059, which
+        # is the "ugly font" the human reported.
         for name, fname in (("display", "Cinzel-Bold.ttf"), ("display_regular", "Cinzel-Regular.ttf"),
-                            ("serif", "EBGaramond-Regular.ttf"), ("serif_bold", "EBGaramond-Bold.ttf")):
+                            ("serif", "EBGaramond-Regular.ttf"), ("serif_bold", "EBGaramond-Bold.ttf"),
+                            ("sans", "SourceSans3-Regular.ttf"), ("sans_bold", "SourceSans3-SemiBold.ttf")):
             p = os.path.join(ASSETS, "fonts", fname)
             if os.path.exists(p):
                 self.font_paths[name] = p
