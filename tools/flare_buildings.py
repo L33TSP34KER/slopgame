@@ -477,12 +477,8 @@ BUILDINGS = [
     dict(
         name="human_guard_tower", kind="human", src="compose", footprint="2x2",
         post="human_guard_tower", draw_width=104,
-        parts=[
-            dict(a="ruins", id=177, gx=1, gy=1),
-            dict(a="ruins", id=177, gx=1, gy=1, above=True, overlap=120),
-            dict(a="ruins", id=199, gx=1, gy=1, above=True, overlap=90),
-        ],
-        note="stacked stone column blocks + tapered crenellated cap (ruins.png)",
+        parts=[],
+        note="battered stone base + tapering shaft + crenellated cap, ember slit, pennant",
     ),
     dict(
         name="human_temple_altar", kind="human", src="compose", footprint="3x3",
@@ -900,24 +896,28 @@ def prism_layer(w, h, kind="stone", seed=0, shade=(0.75, 1.02, 1.24), grad=0.11,
     w, h = max(6, int(w)), max(6, int(h))
     D = w // 2
     pad = 4
-    W, H = w + 2 * pad, h + D + 2 * pad
-    ax, ay = pad + w // 2, pad + h + D
+    # head-room so the battlement parapet (it sits ON the top diamond) is not
+    # clipped by the canvas - that is why crenellations were vanishing
+    top_extra = (int(battlement) + 8) if battlement else 0
+    P = pad + top_extra
+    W, H = w + 2 * pad, h + D + 2 * pad + top_extra
+    ax, ay = pad + w // 2, P + h + D
     # top diamond corners
-    tB = (pad + w / 2.0, pad)                       # back
-    tR = (pad + w, pad + D / 2.0)                   # right
-    tF = (pad + w / 2.0, pad + D)                   # front
-    tL = (pad, pad + D / 2.0)                       # left
+    tB = (pad + w / 2.0, P)                       # back
+    tR = (pad + w, P + D / 2.0)                   # right
+    tF = (pad + w / 2.0, P + D)                   # front
+    tL = (pad, P + D / 2.0)                       # left
     # bottom diamond corners
-    bF = (pad + w / 2.0, pad + h + D)
-    bL = (pad, pad + h + D / 2.0)
-    bR = (pad + w, pad + h + D / 2.0)
+    bF = (pad + w / 2.0, P + h + D)
+    bL = (pad, P + h + D / 2.0)
+    bR = (pad + w, P + h + D / 2.0)
 
     m_left = _poly_mask((W, H), [[tL, tF, bF, bL]])
     m_right = _poly_mask((W, H), [[tF, tR, bR, bF]])
     m_top = _poly_mask((W, H), [[tB, tR, tF, tL]])
 
     yy = np.arange(H, dtype=np.float32)[:, None]
-    tlin = np.clip((yy - pad) / float(max(1, h + D)), 0.0, 1.0)
+    tlin = np.clip((yy - P) / float(max(1, h + D)), 0.0, 1.0)
     sh = np.ones((H, W), dtype=np.float32)
     sh = sh * (1.0 - grad * tlin)
     sh = sh * (1.0 + (shade[2] * top_dim - 1.0) * m_top)
@@ -948,12 +948,13 @@ def prism_layer(w, h, kind="stone", seed=0, shade=(0.75, 1.02, 1.24), grad=0.11,
     out = Image.fromarray(img, "RGBA")
 
     if battlement:
-        out = _add_parapet(out, w, h, int(battlement), kind, seed + 3, over=over)
+        out = _add_parapet(out, w, h, int(battlement), kind, seed + 3, over=over,
+                           top_extra=top_extra)
         # _add_parapet keeps the same anchor (it only grows upward/outward)
     return out, (ax, ay)
 
 
-def _add_parapet(base_img, w, h, mh, kind, seed, over=4):
+def _add_parapet(base_img, w, h, mh, kind, seed, over=4, top_extra=0):
     """Cap the prism with a parapet ring cut by crenel slots (battlements)."""
     W2 = w + 2 * over
     cap, (cx, cy) = prism_layer(W2, mh, kind=kind, seed=seed + 91,
@@ -964,7 +965,7 @@ def _add_parapet(base_img, w, h, mh, kind, seed, over=4):
     D2 = W2 // 2
     # align the cap's base diamond centre with the prism's top diamond centre
     dx = (w - W2) / 2.0
-    dy = D / 2.0 - mh - D2 / 2.0
+    dy = top_extra + D / 2.0 - mh - D2 / 2.0
     out = base_img.copy()
     paste(out, cap, (cx, cy), cx + dx, cy + dy)
     return out
@@ -979,12 +980,12 @@ def _cut_crenels(cap, w2, mh):
     tR = (pad + w2, pad + D2 / 2.0)
     W, H = cap.size
     slots = []
-    sw = max(7.0, w2 * 0.035)
+    sw = max(10.0, mh * 0.52, w2 * 0.030)
     depth = mh + 6
     for a, b in ((tL, tF), (tF, tR)):
         ex, ey = b[0] - a[0], b[1] - a[1]
         L = (ex * ex + ey * ey) ** 0.5
-        n = max(1, int(L / (sw * 3.0)))
+        n = max(1, int(L / (sw * 3.2)))
         for i in range(n):
             t0 = 0.16 + (i + 0.18) * (0.68 / max(1, n))
             t1 = t0 + (0.68 / max(1, n)) * 0.42
@@ -1655,11 +1656,12 @@ def draw_weapon_rack(img, x, y, width, height, seed=0):
 def post_barracks(img, spec):
     img = _grow(img, top=620, left=460, right=460, bottom=60)
     cx, by = anchor_of(img)
-    img = draw_weapon_rack(img, cx - 118, by - 26, 168, 118, seed=3)
-    img = draw_banner(img, cx + 150, by - 58, 300, width=104, seed=2)
+    img = draw_weapon_rack(img, cx - 128, by - 30, 172, 122, seed=3)
+    img = draw_target(img, cx + 66, by - 34, 118, seed=8)
+    img = draw_banner(img, cx + 158, by - 62, 300, width=104, seed=2)
     img = add_glow(img, cx - 6, by - 26, 66, 34, (250, 170, 96), strength=0.30,
                    add_alpha=0.0)
-    return img, "rail palisade corner + spear rack + crimson/gold standard"
+    return img, ("rail palisade corner + spear rack w/ shield + training target + crimson/gold standard (military)")
 
 
 @post("human_blacksmith_smithy")
@@ -1868,16 +1870,85 @@ def post_necropolis(img, spec):
                  "headstones + iron fence ring | violet + sickly-green glow")
 
 
+def draw_smoke(img, x, y, size, n=5, drift=0.35, seed=0):
+    """Soft chimney smoke plume rising from (x, y)."""
+    rng = random.Random(seed + 77)
+    lay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(lay)
+    for i in range(n):
+        t = (i + 1) / float(n)
+        r = size * (0.30 + 0.55 * t) * rng.uniform(0.85, 1.15)
+        cx = x + drift * size * 1.4 * t * rng.uniform(0.6, 1.4)
+        cy = y - size * (0.7 + 2.1 * t) * rng.uniform(0.9, 1.1)
+        a = int(132 * (1.0 - 0.66 * t))
+        d.ellipse([cx - r, cy - r * 0.8, cx + r, cy + r * 0.8],
+                  fill=(150, 146, 144, a))
+    lay = lay.filter(ImageFilter.GaussianBlur(size * 0.22))
+    img.alpha_composite(lay)
+    return img
+
+
+def draw_target(img, x, y, size, seed=0):
+    """Straw archery target on a stand: crimson/gold rings (training ground)."""
+    rng = random.Random(seed + 53)
+    W, H = img.size
+    lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(lay)
+    pal = FACTION["human"]
+    r = size / 2.0
+    # stand
+    d.line([(x - r * 0.45, y), (x - r * 0.22, y - r * 1.05)],
+           fill=(86, 62, 38, 255), width=max(3, int(size * 0.075)))
+    d.line([(x + r * 0.45, y), (x + r * 0.22, y - r * 1.05)],
+           fill=(70, 50, 30, 255), width=max(3, int(size * 0.075)))
+    # straw disc
+    cy = y - r * 1.45
+    d.ellipse([x - r, cy - r, x + r, cy + r], fill=(176, 146, 92, 255))
+    d.ellipse([x - r, cy - r, x + r, cy + r], outline=(92, 70, 40, 255),
+              width=max(2, int(r * 0.12)))
+    for i, col in enumerate((pal["crimson"], (224, 208, 176), pal["gold"],
+                             pal["crimson"])):
+        rr = r * (0.78 - i * 0.20)
+        d.ellipse([x - rr, cy - rr, x + rr, cy + rr], fill=col + (255,))
+    # straw grain
+    for i in range(26):
+        ang = rng.uniform(0, 6.28)
+        rr = rng.uniform(0.2, 0.95) * r
+        px, py = x + __import__("math").cos(ang) * rr, cy + __import__("math").sin(ang) * rr
+        d.line([(px, py), (px + rng.uniform(-6, 6), py + rng.uniform(-4, 4))],
+               fill=(140, 116, 74, 160), width=1)
+    # an arrow sticking in
+    d.line([(x + r * 0.55, cy - r * 0.4), (x + r * 1.5, cy - r * 1.1)],
+           fill=(120, 92, 56, 255), width=max(2, int(r * 0.09)))
+    d.polygon([(x + r * 1.5, cy - r * 1.1), (x + r * 1.68, cy - r * 1.24),
+               (x + r * 1.62, cy - r * 1.02)], fill=(206, 208, 214, 255))
+    img.alpha_composite(lay)
+    return img
+
+
 @post("human_town_hall")
 def post_town_hall(img, spec):
-    img = _grow(img, top=320, left=180, right=180, bottom=40)
+    img = _grow(img, top=560, left=320, right=320, bottom=80)
     cx, by = anchor_of(img)
-    img = draw_banner(img, cx + 36, by - 372, 150, width=56, seed=21,
-                      scale_cloth=0.8)
-    img = add_glow(img, cx + 46, by - 148, 46, 34, (255, 190, 112), strength=0.42,
+    # stone foundation step at the entrance (stone base read)
+    step, (ax, ay) = prism_layer(168, 34, kind="stone", seed=5, courses=24)
+    img = paste(img, step, (ax, ay), cx - 34, by - 2)
+    # chimney on the near roof slope + smoke plume
+    ch, (cxp, cyp) = prism_layer(54, 214, kind="stone", seed=6, courses=24)
+    img = paste(img, ch, (cxp, cyp), cx - 130, by - 286)
+    cap, (capx, capy) = prism_layer(64, 22, kind="stone_dark", seed=7, courses=20)
+    img = paste(img, cap, (capx, capy), cx - 130, by - 286 - 214 - 64 // 4 + 4)
+    img = draw_smoke(img, cx - 130, by - 524, 38, n=4, drift=0.5, seed=4)
+    # banners: roof standard + hall banner by the door
+    img = draw_banner(img, cx + 40, by - 384, 168, width=60, seed=21,
+                      scale_cloth=0.85)
+    img = draw_banner(img, cx + 150, by - 60, 190, width=68, seed=24,
+                      scale_cloth=0.85)
+    img = add_glow(img, cx + 46, by - 150, 46, 34, (255, 190, 112), strength=0.40,
                    add_alpha=0.10)
     img = warm_rim(img, 0.34)
-    return img, "roof pennant + warm window light (crimson/gold)"
+    return img, ("stone entrance step + chimney with smoke + crimson/gold banners "
+                 "+ warm window (economy HQ)")
 
 
 @post("human_house_farm")
@@ -1894,14 +1965,34 @@ def post_farm(img, spec):
 
 @post("human_guard_tower")
 def post_guard_tower(img, spec):
-    img = _grow(img, top=260, left=140, right=140, bottom=30)
+    img = _grow(img, top=520, left=340, right=340, bottom=60)
     cx, by = anchor_of(img)
-    img = draw_banner(img, cx + 30, by - 548, 150, width=52, seed=23,
-                      scale_cloth=0.8)
-    img = add_glow(img, cx, by - 300, 44, 30, (255, 190, 112), strength=0.34,
+    # battered base (wider at the bottom) -> reads defensible
+    b, (ax, ay) = prism_layer(206, 156, kind="stone", seed=61, courses=30)
+    img = paste(img, b, (ax, ay), cx, by)
+    base_top = by - 156 - 206 // 4
+    # tapering shaft
+    sh_, (sx, sy) = prism_layer(158, 336, kind="stone", seed=62, courses=30)
+    sa = base_top + 158 // 4
+    img = paste(img, sh_, (sx, sy), cx, sa)
+    img = draw_window(img, (cx, sa - 158 // 4), (cx + 79, sa), 336, u=0.5,
+                      wfrac=0.34, hfrac=0.16, vfrac=0.62,
+                      warm=(250, 186, 108), strength=0.55)
+    # crenellated cap
+    shaft_top = sa - 336 - 158 // 4
+    cw, chh = 186, 84
+    ca = shaft_top + cw // 4
+    cap, (cxp, cyp) = prism_layer(cw, chh, kind="stone", seed=63, battlement=30,
+                                  courses=26)
+    img = paste(img, cap, (cxp, cyp), cx, ca)
+    cap_top = ca - chh - cw // 4
+    img = draw_banner(img, cx + 34, cap_top + 26, 168, width=58, seed=23,
+                      scale_cloth=0.82)
+    img = add_glow(img, cx + 40, by - 360, 60, 44, (255, 190, 112), strength=0.34,
                    add_alpha=0.08)
     img = warm_rim(img, 0.30)
-    return img, "banner + ember slit high on the tower (crimson/gold)"
+    return img, ("battered base + tapering shaft + crenellated cap, ember arrow slit "
+                 "+ pennant (defensible)")
 
 
 @post("undead_crypt")
