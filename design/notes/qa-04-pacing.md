@@ -31,3 +31,13 @@ changes. Window: up to 520 in-game seconds (capped), headless.
   an income problem.
 
 Verdict: **gradient PASS, pacing OPEN pending a human playtest.**
+
+## Repeatability (added 01:02)
+
+Three independent autoplay runs on Knight, different commits, different speeds:
+**5:59, 5:37, 5:39** — the hall consistently falls during wave 1 within ±12
+seconds of each other. This is not run-to-run noise; the pattern is stable, so
+the pacing question can be answered by one human game rather than a sample.
+Latest run also confirms the defeat overlay holds cleanly while frames keep
+running (no softlock after the loss) and the economy numbers repeat
+(Lumber 3,010, Gold ~4,400).
