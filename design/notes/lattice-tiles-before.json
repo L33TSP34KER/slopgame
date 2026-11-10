@@ -1,0 +1,8 @@
+{
+ "label": "tiles-before",
+ "cells_sampled": 541,
+ "neighbour_delta": 10.96,
+ "within_cell_delta": 8.6,
+ "lattice_ratio": 1.27,
+ "verdict": "PASS"
+}

@@ -1,0 +1,8 @@
+{
+ "label": "tiles-after-k",
+ "cells_sampled": 541,
+ "neighbour_delta": 11.75,
+ "within_cell_delta": 8.71,
+ "lattice_ratio": 1.35,
+ "verdict": "PASS"
+}
