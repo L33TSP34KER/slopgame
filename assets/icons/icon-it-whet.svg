@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Whetstone">
+  <defs>
+    <linearGradient id="gd" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#f2cd78"/><stop offset="1" stop-color="#a8752c"/>
+    </linearGradient>
+    <linearGradient id="em" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#ffd08a"/><stop offset="0.45" stop-color="#ff8a3d"/>
+      <stop offset="1" stop-color="#a83a3a"/>
+    </linearGradient>
+    <linearGradient id="st" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#eef3f8"/><stop offset="0.55" stop-color="#b9c3ce"/>
+      <stop offset="1" stop-color="#6f7883"/>
+    </linearGradient>
+    <linearGradient id="cr" x1="0" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#cf5a45"/><stop offset="1" stop-color="#6d241f"/>
+    </linearGradient>
+    <linearGradient id="le" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#9a6c42"/><stop offset="1" stop-color="#4d3321"/>
+    </linearGradient>
+    <linearGradient id="vi" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#c9a6ea"/><stop offset="1" stop-color="#4e3566"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffb066" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#ff8a3d" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <ellipse cx="32" cy="56" rx="19" ry="4" fill="#161018" opacity="0.30" stroke="none"/>
+
+    <path d="M12 40 L36 24 L52 32 L28 49 Z" fill="url(#st)"/>
+    <path d="M12 40 L28 49 L28 54 L12 45 Z" fill="#6f7883"/>
+    <path d="M28 49 L52 32 L52 37 L28 54 Z" fill="#8f9aa5"/>
+    <path d="M17 39 L34 28" stroke="#eef3f8" stroke-width="1.4"/>
+    <path d="M36 12 L38 19 L45 21 L38 23 L36 30 L34 23 L27 21 L34 19 Z" fill="#ffd08a" stroke="none"/>
+    <path d="M48 14 L49.5 18 L53 19.5 L49.5 21 L48 25 L46.5 21 L43 19.5 L46.5 18 Z" fill="#ff8a3d" stroke="none"/>
+    <circle cx="42" cy="34" r="10" fill="url(#glow)" stroke="none"/>
+  </g>
+</svg>

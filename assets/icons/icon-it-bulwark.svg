@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Ashen Bulwark">
+  <defs>
+    <linearGradient id="gd" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#f2cd78"/><stop offset="1" stop-color="#a8752c"/>
+    </linearGradient>
+    <linearGradient id="em" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#ffd08a"/><stop offset="0.45" stop-color="#ff8a3d"/>
+      <stop offset="1" stop-color="#a83a3a"/>
+    </linearGradient>
+    <linearGradient id="st" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#eef3f8"/><stop offset="0.55" stop-color="#b9c3ce"/>
+      <stop offset="1" stop-color="#6f7883"/>
+    </linearGradient>
+    <linearGradient id="cr" x1="0" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#cf5a45"/><stop offset="1" stop-color="#6d241f"/>
+    </linearGradient>
+    <linearGradient id="le" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#9a6c42"/><stop offset="1" stop-color="#4d3321"/>
+    </linearGradient>
+    <linearGradient id="vi" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#c9a6ea"/><stop offset="1" stop-color="#4e3566"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffb066" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#ff8a3d" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <ellipse cx="32" cy="56" rx="19" ry="4" fill="#161018" opacity="0.30" stroke="none"/>
+
+    <path d="M32 7 L53 13 C53 33 46 47 32 57 C18 47 11 33 11 13 Z" fill="url(#st)"/>
+    <path d="M32 10 L50 15 C50 32 44 44 32 53 C20 44 14 32 14 15 Z" fill="#8b949e"/>
+    <path d="M32 15 C39 21 41 32 32 45 C23 32 25 21 32 15 Z" fill="url(#em)"/>
+    <path d="M32 20 C35 25 36 31 32 38 C28 31 29 25 32 20 Z" fill="#ffe0b0" opacity="0.7" stroke="none"/>
+    <path d="M17 22 H47" stroke="#d9a441" stroke-width="2"/>
+    <path d="M20 44 C26 49 38 49 44 44" fill="none" stroke="#d9a441" stroke-width="2"/>
+    <circle cx="32" cy="30" r="16" fill="url(#glow)" stroke="none"/>
+  </g>
+</svg>

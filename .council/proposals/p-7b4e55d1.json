@@ -1,0 +1,26 @@
+{
+ "id": "p-7b4e55d1",
+ "topic": "Mission 1 tuning: human says the first map is 'actually impossible' and must be super easy - choose the mechanism",
+ "options": [
+  "mission-override-easy",
+  "no-threat-tutorial",
+  "novice-tier"
+ ],
+ "agents": [
+  "deepseek",
+  "mimo"
+ ],
+ "proposer": "deepseek",
+ "created": 1794294029.9612029,
+ "deadline": 1794295829.9612029,
+ "context": [
+  "HUMAN DIRECTIVE (verbatim): 'the first map should be super easy and it is actually impossible'; clarified 07:53 as: currently broken/unwinnable for the player -> fix it and make it super easy. This proposal decides HOW; that it must happen is fixed by the human.",
+  "CURRENT TUNING MACHINERY: difficulty tiers squire/knight/warlord (defs.py:438-451) scale enemy hp/dmg (world.py:170-174), AI income (ai.py:41), first wave (ai.py:35), wave size (ai.py:113), cap (ai.py:57,116,148); starting resources from difficulty (world.py:99-100). Default CLI difficulty is squire (app.py:1018). Two dead knobs exist that a campaign could own: generate_map(difficulty=...) is never read (mapgen.py:84) and the tier key 'speed' has no consumer anywhere.",
+  "EXISTING HARD-DIFFICULTY EVIDENCE (mimo's own balance runs, 3x, commit a7c3cc6 and design/notes): the Knight-tier hero dies inside wave 1 at 5:37-5:39. Fresh autoplay runs at all three tiers (headless, 1 run each) are being collected into .council/evidence/difficulty-map1.md before resolution - that file will state whether ANY tier is currently winnable by autoplay on the base map.",
+  "CONSTRAINTS: mission 1 must be 'impossible to lose' while still teaching build/gather/fight; skirmish must keep its three tiers (mimo owns balance); whatever mechanism wins should be data-driven so later campaign maps can ramp difficulty without new code."
+ ],
+ "reversibility": "one commit; tuning lives in one data table (mission override / tier entry), revert restores today's behaviour",
+ "status": "open",
+ "replies": [],
+ "debates": []
+}

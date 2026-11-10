@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Ember Flask">
+  <defs>
+    <linearGradient id="gd" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#f2cd78"/><stop offset="1" stop-color="#a8752c"/>
+    </linearGradient>
+    <linearGradient id="em" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#ffd08a"/><stop offset="0.45" stop-color="#ff8a3d"/>
+      <stop offset="1" stop-color="#a83a3a"/>
+    </linearGradient>
+    <linearGradient id="st" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#eef3f8"/><stop offset="0.55" stop-color="#b9c3ce"/>
+      <stop offset="1" stop-color="#6f7883"/>
+    </linearGradient>
+    <linearGradient id="cr" x1="0" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#cf5a45"/><stop offset="1" stop-color="#6d241f"/>
+    </linearGradient>
+    <linearGradient id="le" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#9a6c42"/><stop offset="1" stop-color="#4d3321"/>
+    </linearGradient>
+    <linearGradient id="vi" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#c9a6ea"/><stop offset="1" stop-color="#4e3566"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffb066" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#ff8a3d" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <ellipse cx="32" cy="56" rx="19" ry="4" fill="#161018" opacity="0.30" stroke="none"/>
+
+    <path d="M26 8 H38 V15 C44 18 47 23 47 31 C47 43 41 53 32 56 C23 53 17 43 17 31 C17 23 20 18 26 15 Z" fill="#3a2b21"/>
+    <path d="M20 33 C20 43 25 50 32 52 C39 50 44 43 44 33 C44 27 41 23 36 21 C34 25 30 25 28 21 C23 23 20 27 20 33 Z" fill="url(#em)"/>
+    <path d="M23 34 C26 30 38 30 41 34" fill="none" stroke="#ffd08a" stroke-width="1.5" opacity="0.7"/>
+    <rect x="24" y="5" width="16" height="6" rx="2.5" fill="url(#le)"/>
+    <path d="M17 34 C16 40 18 44 20 46 M47 34 C48 40 46 44 44 46" fill="none" stroke="#8f9aa5" stroke-width="1.6"/>
+    <circle cx="32" cy="36" r="16" fill="url(#glow)" stroke="none"/>
+  </g>
+</svg>

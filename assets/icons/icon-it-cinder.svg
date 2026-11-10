@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Cinder Plate">
+  <defs>
+    <linearGradient id="gd" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#f2cd78"/><stop offset="1" stop-color="#a8752c"/>
+    </linearGradient>
+    <linearGradient id="em" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#ffd08a"/><stop offset="0.45" stop-color="#ff8a3d"/>
+      <stop offset="1" stop-color="#a83a3a"/>
+    </linearGradient>
+    <linearGradient id="st" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#eef3f8"/><stop offset="0.55" stop-color="#b9c3ce"/>
+      <stop offset="1" stop-color="#6f7883"/>
+    </linearGradient>
+    <linearGradient id="cr" x1="0" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#cf5a45"/><stop offset="1" stop-color="#6d241f"/>
+    </linearGradient>
+    <linearGradient id="le" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#9a6c42"/><stop offset="1" stop-color="#4d3321"/>
+    </linearGradient>
+    <linearGradient id="vi" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#c9a6ea"/><stop offset="1" stop-color="#4e3566"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffb066" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#ff8a3d" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <ellipse cx="32" cy="56" rx="19" ry="4" fill="#161018" opacity="0.30" stroke="none"/>
+
+    <path d="M18 14 L28 9 L32 15 L36 9 L46 14 L50 26 L44 30 L44 47 C44 51 38 53 32 53 C26 53 20 51 20 47 L20 30 L14 26 Z" fill="url(#st)"/>
+    <path d="M24 20 H40 L38 27 H26 Z" fill="#6f7883"/>
+    <path d="M26 30 H38 L36 44 H28 Z" fill="url(#em)"/>
+    <path d="M32 33 L34 39 L30 39 Z" fill="#ffe0b0" stroke="none"/>
+    <path d="M28 9 L32 15 L36 9" fill="none" stroke="#d9a441" stroke-width="2"/>
+    <circle cx="20" cy="22" r="2.4" fill="url(#gd)"/><circle cx="44" cy="22" r="2.4" fill="url(#gd)"/>
+    <circle cx="32" cy="36" r="14" fill="url(#glow)" stroke="none"/>
+  </g>
+</svg>

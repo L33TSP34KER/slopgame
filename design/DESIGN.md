@@ -51,6 +51,32 @@ Q **Ember Lance** (nuke + brief stun) · W **Aegis** (shield) ·
 E **Consecrate** (AoE damage + ally heal) · R **Daybreak** (ult: big AoE stun).
 Death → revive at Altar after 45 s (or instantly for gold). XP bar in HUD.
 
+## Items / purveyor
+
+The hero carries a six-slot satchel, bought at the Emberhold purveyor (`P`, the
+Shop button, or the hero's Purveyor command). Trading needs Aldric within reach
+of a Hall, Keep or Altar of Embers, so the shopping trip is a decision, not a
+menu — but nothing is lost crafting on the counter.
+
+- **Six components** — Ashwood Blade 240g, Iron Buckler 220g, Ember Tonic 260g,
+  Kindled Focus 240g, Trail Greaves 210g, Whetstone 280g — each a small stack
+  of one stat.
+- **Seven forged items** combine two components plus a forge fee and are
+  strictly better than their parts: Ember Warbrand (damage/attack speed),
+  Ashen Bulwark (armor/health), Cinder Plate (damage/armor), Pyre Heart
+  (health/mana/regen), Windstep Boots (speed/attack speed), Ashen Step
+  (blink active, 16 s), Ember Flask (heal-over-time active, 45 s).
+- **Two masterworks** combine two forged items: Marshal's Regalia (all-round)
+  and Warsong Talisman (aggression).
+- One copy of each item; components are consumed by the forge. A purchase is
+  refused when parts are missing, gold is short, or the satchel is full.
+  Right-click a slot to sell for 50% of the item's whole tree. Actives cost no
+  mana, only a cooldown, and clicking one starts its targeting (blink) or
+  fires it (heal).
+- Item stats are applied as deltas on the entity, so level growth and the
+  blacksmith's global upgrades are never overwritten; the satchel is carried
+  through death and restored with the revived hero.
+
 ## Mission
 
 Intro card + camera pan (skippable). Objective: **destroy the Necropolis.**

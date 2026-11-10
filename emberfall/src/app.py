@@ -61,9 +61,10 @@ def open_window(fullscreen, size=None):
 
 class Game:
     def __init__(self, args=None):
-        self.args = args or argparse.Namespace(difficulty="knight", qa=False, shot=None,
+        self.args = args or argparse.Namespace(difficulty="squire", qa=False, shot=None,
                                                frames=0, scene="base", speed=1.0,
-                                               fullscreen=False, music=0.5, sfx=0.72, autoplay=False)
+                                               fullscreen=False, music=0.5, sfx=0.72, autoplay=False,
+                                               autoshop=False)
         pygame.mixer.pre_init(44100, -16, 2, 512)
         os.environ.setdefault("SDL_VIDEO_CENTERED", "1")
         os.environ.setdefault("SDL_VIDEO_X11_WMCLASS", "Emberfall")
@@ -93,6 +94,9 @@ class Game:
         self.selection = []
         self.control_groups = {}
         self.build_menu = False
+        self.shop_open = False
+        self.autoshop = bool(getattr(self.args, "autoshop", False))
+        self.auto_shop_t = 0.0
         self.placement = None
         self.attack_move_mode = False
         self.targeting = None
@@ -141,7 +145,7 @@ class Game:
             self.state = "intro"
             self.world.started = False
             self.world.mode = "intro"
-        if scene in ("base", "battle", "qa", "play"):
+        if scene in ("base", "battle", "qa", "play", "shop"):
             self.world.gold = 4200
             self.world.lumber = 1800
             self.world.food_extra = 18
@@ -164,6 +168,18 @@ class Game:
                 self.world.explored[i] = 1
             self.center_camera(22, 69)
             self.select([self.world.hero])
+        if scene == "shop":
+            hero = self.world.hero
+            hero.x, hero.y = 24, 72
+            self.world.update_fog(force=True)
+            self.select([hero])
+            self.center_camera(24, 70)
+            for iid in ("blade", "whet", "buckler", "tonic", "greaves", "focus"):
+                self.world.buy_item(hero, iid, quiet=True)
+            for iid in ("warbrand", "bulwark", "ashenstep"):
+                self.world.buy_item(hero, iid, quiet=True)
+            self.shop_open = True
+            self.ui.shop_open = True
         if scene == "battle":
             enemy = self.world.spawn_unit("ghoul", 29, 71, ENEMY)
             enemy2 = self.world.spawn_unit("fiend", 31, 70, ENEMY)
@@ -206,6 +222,8 @@ class Game:
         self.renderer.game = self.world
         self.selection = []
         self.build_menu = False
+        self.shop_open = False
+        self.ui.shop_open = False
         self.placement = None
         self.attack_move_mode = False
         self.targeting = None
@@ -385,6 +403,18 @@ class Game:
     def cast_at(self, mx, my):
         if not self.targeting:
             return
+        if "item" in self.targeting:
+            slot = self.targeting["item"]
+            iid = self.targeting.get("iid")
+            hero = self.world.hero
+            tile = self.renderer.screen_to_tile(mx, my, self.camera)
+            if hero and 0 <= slot < len(hero.items) and (iid is None or hero.items[slot] == iid):
+                self.world.use_item(hero, slot, (tile[0] + 0.5, tile[1] + 0.5))
+            else:
+                self.world.alert("The item is no longer in that slot.")
+            self.targeting = None
+            self.world.targeting = None
+            return
         aid = self.targeting["aid"]
         hero = self.world.hero
         tile = self.renderer.screen_to_tile(mx, my, self.camera)
@@ -405,7 +435,7 @@ class Game:
         if k == "menu":
             act = a.get("action")
             if act == "campaign":
-                self.start_mission("knight", skip_intro=False)
+                self.start_mission(self.difficulty, skip_intro=False)
             elif act == "skirmish":
                 self.state = "skirmish"
                 self.state_before = "title"
@@ -417,6 +447,8 @@ class Game:
                 self.state = "play"
                 w.paused = False
             elif act == "pause":
+                self.shop_open = False
+                self.ui.shop_open = False
                 self.state = "paused"
                 w.paused = True
             elif act == "restart":
@@ -436,6 +468,9 @@ class Game:
                 self.state = self.state_before
             elif act == "objectives":
                 self.ui.show_objectives = not self.ui.show_objectives
+            elif act == "shop":
+                self.shop_open = not self.shop_open
+                self.ui.shop_open = self.shop_open
             elif act == "vol":
                 f = a.get("field"); d = a.get("delta", 0)
                 if f == "music":
@@ -461,6 +496,44 @@ class Game:
         if k == "buildback":
             self.ui.build_menu = False
             self.build_menu = False
+            return
+        if k == "shop":
+            self.shop_open = not self.shop_open
+            self.ui.shop_open = self.shop_open
+            return
+        if k == "shopclose":
+            self.shop_open = False
+            self.ui.shop_open = False
+            return
+        if k == "buy":
+            w.buy_item(w.hero, a["item"])
+            return
+        if k == "sell":
+            w.sell_item(w.hero, a["slot"])
+            return
+        if k == "slot":
+            slot = a.get("slot", -1)
+            hero = w.hero
+            if not hero or not (0 <= slot < len(hero.items)):
+                return
+            if a.get("button", 1) == 3:
+                w.sell_item(hero, slot)
+                return
+            iid = hero.items[slot]
+            act = ITEMS[iid].get("active")
+            if not act:
+                w.alert(f"{ITEMS[iid]['name']} is passive — right-click it to sell.")
+                return
+            # you step away from the counter to use what you bought: the
+            # purveyor panel is modal, so an active always closes it first
+            self.shop_open = False
+            self.ui.shop_open = False
+            if act.get("kind") == "blink":
+                self.targeting = {"item": slot, "iid": iid, "range": act["range"]}
+                w.targeting = self.targeting
+                w.alert("Choose where to step.")
+            else:
+                w.use_item(hero, slot)
             return
         if k == "train":
             w.cmd_train(a["building"], a["unit"])
@@ -549,8 +622,16 @@ class Game:
                     self.attack_move_mode = False; self.world.attack_move_mode = False; return
             act = self.ui.take_action((mx, my), ev.button)
             if act:
+                if self.state == "play" and self.shop_open and \
+                        act.get("kind") not in ("buy", "slot", "shopclose", "shop", "menu"):
+                    return
                 act["button"] = ev.button
                 self.handle_action(act)
+                return
+            if self.state == "play" and self.shop_open:
+                if ev.button == 3:
+                    self.shop_open = False
+                    self.ui.shop_open = False
                 return
             if self.state in ("title", "skirmish", "intro", "paused", "victory", "defeat", "settings", "controls", "credits"):
                 return
@@ -631,6 +712,10 @@ class Game:
         k = ev.key
         mods = pygame.key.get_mods()
         if k == pygame.K_ESCAPE:
+            if self.shop_open:
+                self.shop_open = False
+                self.ui.shop_open = False
+                return
             if self.placement:
                 self.placement = None; self.world.placement = None; return
             if self.targeting:
@@ -660,6 +745,10 @@ class Game:
             self.ui.cycle_subgroup(); return
         if k == pygame.K_o:
             self.ui.show_objectives = not self.ui.show_objectives; return
+        if k == pygame.K_p:
+            self.shop_open = not self.shop_open
+            self.ui.shop_open = self.shop_open
+            return
         if k == pygame.K_F11 or (k in (pygame.K_RETURN, pygame.K_KP_ENTER) and (mods & pygame.KMOD_ALT)):
             self.toggle_fullscreen()
             return
@@ -802,6 +891,11 @@ class Game:
             foes = w.nearest_enemy(hero, 6)
             if foes:
                 w.cmd_cast(hero, "ember-lance", foes)
+            if self.autoshop and t > self.auto_shop_t:
+                self.auto_shop_t = t + 5.0
+                for iid in AUTO_SHOP_ORDER:
+                    if w.buy_item(hero, iid, quiet=True):
+                        break
 
     def draw(self):
         scr = self.screen
@@ -879,6 +973,12 @@ class Game:
             wave=getattr(getattr(w, "ai", None), "wave", 0),
             hall=max([b.hp for b in w.buildings_of(PLAYER) if b.bid in ("townhall", "keep")] or [0]),
             mode=w.state, upgrades=sorted(w.upgrades),
+            items=list(w.hero.items) if w.hero else [],
+            hero_dmg=[round(w.hero.dmg_min, 1), round(w.hero.dmg_max, 1)] if w.hero else None,
+            hero_armor=w.hero.armor if w.hero else None,
+            hero_hp=[int(w.hero.hp), int(w.hero.max_hp)] if w.hero else None,
+            shop=w.shop_in_range(w.hero) if w.hero else False,
+            shop_open=self.shop_open,
             music=getattr(self.audio, "_current", None), sfx_loaded=len(self.audio.sfx),
             unit_px=next(([int(v) for v in self.screen_pos(u)]
                           for u in w.units_of(PLAYER)
@@ -915,15 +1015,17 @@ class Game:
 
 def parse_args(argv=None):
     p = argparse.ArgumentParser(description="Emberfall — native isometric RTS")
-    p.add_argument("--difficulty", default="knight", choices=list(DIFFICULTY.keys()))
+    p.add_argument("--difficulty", default="squire", choices=list(DIFFICULTY.keys()))
     p.add_argument("--qa", action="store_true")
-    p.add_argument("--scene", default="base", choices=["title", "intro", "base", "battle", "victory", "defeat", "qa", "play", "siege"])
+    p.add_argument("--scene", default="base", choices=["title", "intro", "base", "battle", "victory", "defeat", "qa", "play", "siege", "shop"])
     p.add_argument("--shot", default=None)
     p.add_argument("--frames", type=int, default=0)
     p.add_argument("--speed", type=float, default=1.0)
     p.add_argument("--music", type=float, default=0.5)
     p.add_argument("--sfx", type=float, default=0.72)
     p.add_argument("--autoplay", action="store_true")
+    p.add_argument("--autoshop", action="store_true",
+                   help="autoplay also buys and forges hero items at the Emberhold")
     p.add_argument("--fullscreen", action="store_true",
                    help="start in fullscreen (F11 toggles at runtime)")
     return p.parse_args(argv)

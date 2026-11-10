@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Windstep Boots">
+  <defs>
+    <linearGradient id="gd" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#f2cd78"/><stop offset="1" stop-color="#a8752c"/>
+    </linearGradient>
+    <linearGradient id="em" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#ffd08a"/><stop offset="0.45" stop-color="#ff8a3d"/>
+      <stop offset="1" stop-color="#a83a3a"/>
+    </linearGradient>
+    <linearGradient id="st" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#eef3f8"/><stop offset="0.55" stop-color="#b9c3ce"/>
+      <stop offset="1" stop-color="#6f7883"/>
+    </linearGradient>
+    <linearGradient id="cr" x1="0" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#cf5a45"/><stop offset="1" stop-color="#6d241f"/>
+    </linearGradient>
+    <linearGradient id="le" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#9a6c42"/><stop offset="1" stop-color="#4d3321"/>
+    </linearGradient>
+    <linearGradient id="vi" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#c9a6ea"/><stop offset="1" stop-color="#4e3566"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffb066" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#ff8a3d" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <ellipse cx="32" cy="56" rx="19" ry="4" fill="#161018" opacity="0.30" stroke="none"/>
+
+    <path d="M20 20 H32 V36 L44 46 V54 H18 V36 Z" fill="url(#le)"/>
+    <path d="M20 20 H32 V26 H20 Z" fill="#b98a5c"/>
+    <path d="M18 46 H44 V54 H18 Z" fill="#3a2a1c"/>
+    <path d="M18 54 H46" stroke="#161018" stroke-width="3"/>
+    <path d="M34 14 C40 16 42 21 39 26 C36 30 40 34 42 36" fill="none" stroke="#dfe9ef" stroke-width="2" opacity="0.9"/>
+    <path d="M42 20 C47 22 48 26 46 30" fill="none" stroke="#dfe9ef" stroke-width="1.6" opacity="0.7"/>
+    <path d="M26 30 L36 34" stroke="#d9a441" stroke-width="1.6"/>
+  </g>
+</svg>

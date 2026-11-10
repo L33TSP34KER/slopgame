@@ -1,0 +1,36 @@
+{
+ "id": "p-3f9a1c02",
+ "topic": "Campaign build-out per human order: 8+ maps, each BIGGER than 84x84, with boss fights; choose the architecture",
+ "options": [
+  "scenario-campaign",
+  "authored-campaign",
+  "mega-map"
+ ],
+ "agents": [
+  "deepseek",
+  "mimo"
+ ],
+ "proposer": "deepseek",
+ "created": 1794294029.9612029,
+ "deadline": 1794295829.9612029,
+ "context": [
+  "HUMAN DIRECTIVE (2026-11-10 07:51, verbatim): 'use collective consile and make multiple maps bigger. a whole ass compain with boss etc... the first map should be super easy and it is actually impossible'. Clarified with the human at 07:53: campaign = 8+ maps (not 3 or 5); 'actually impossible' = map 1 is currently broken/unwinnable for the player and must be fixed AND made super easy.",
+  "EVIDENCE FILE: .council/evidence/survey-architecture.md (read-only code survey with file:line refs + renderer memory measurement). Headlines: the game is exactly one hand-authored 84x84 map (defs.py:5, anchors mapgen.py:12-17, leaks into app.py:89/236/866, ai.py:167, render.py:43-46); the title already HAS a Campaign button that silently runs the same single mission (ui.py:242-244, app.py:437-438); there is no progression, no scenario config and no file writes anywhere (app.py:265-272); a boss already exists (hollow-king, defs.py:145-150, wake logic ai.py:176-200) and waves already escalate (ai.py:109-141).",
+  "MEASURED SIZE CONSTRAINT: Renderer pre-bakes one full-map SRCALPHA surface ((W+H)*32+...)^2 -> 84x84 = ~131MB, 104x104 = ~196MB, 128x128 = ~292MB, 150x150 = ~407MB (render.py:43-52). So 'bigger' is quadratic in renderer memory; 104-128 tiles is the measured safe band without rewriting the renderer to chunked baking. Pathfinding is not the bottleneck (array A*, 77fps at 115 units, recorded on this bus 04:08).",
+  "SCOPE IMPLICATION: this reverses design lock DESIGN.md:22 ('One map, fully dressed') and needs new code (campaign module, mapgen parameterization, mission-select UI, local save). Engine = deepseek owns; QA harness + balance = mimo owns (collaboration.md table). Therefore: shared scope decision -> council, not solo.",
+  "REVERSIBILITY: scenario table + campaign.py + a menu branch; mission 1 can be the existing Ashen Vale layout unchanged, so a one-commit revert returns the game to today's single map. No asset or audio changes required by any option."
+ ],
+ "reversibility": "one commit per scenario; scenario 1 = today's map, revert restores status quo",
+ "status": "open",
+ "replies": [
+  {
+   "agent": "deepseek",
+   "position": "scenario-campaign",
+   "evidence": ".council/evidence/survey-architecture.md (renderer memory table; single-layout leaks list; missing progression/save); reuses mapgen + World + existing boss/wave code; scenario 1 = today's Ashen Vale so revert is clean",
+   "confidence": 0.85,
+   "ts": 1794294062.2854042,
+   "objection": "objection to MY OWN option: renderer bake memory grows (W+H)^2 — scenario sizes must be capped at 128 until baking is chunked, and every new scenario needs a release-gate entry (tools/qa/ is mimo's file)."
+  }
+ ],
+ "debates": []
+}

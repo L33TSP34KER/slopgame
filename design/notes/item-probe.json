@@ -1,0 +1,121 @@
+{
+ "ok": 23,
+ "total": 23,
+ "checks": [
+  {
+   "name": "probe boots into a playable mission",
+   "ok": true,
+   "detail": "state=play hero=hero"
+  },
+  {
+   "name": "P opens the purveyor",
+   "ok": true,
+   "detail": "open=True"
+  },
+  {
+   "name": "every shop tile is on screen",
+   "ok": true,
+   "detail": "15/15 tiles"
+  },
+  {
+   "name": "buy Ashwood Blade: gold and satchel",
+   "ok": true,
+   "detail": "gold=3960 items=['blade']"
+  },
+  {
+   "name": "buy Ashwood Blade: +8 damage applied",
+   "ok": true,
+   "detail": "dmg (26, 32)->(34, 40)"
+  },
+  {
+   "name": "buying the same item twice is refused",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "buy Whetstone",
+   "ok": true,
+   "detail": "gold=3680 items=['blade', 'whet']"
+  },
+  {
+   "name": "forge Ember Warbrand consumes both parts",
+   "ok": true,
+   "detail": "gold=3560 items=['warbrand']"
+  },
+  {
+   "name": "Ember Warbrand gives +18 damage and +20% attack speed",
+   "ok": true,
+   "detail": "dmg (26, 32)->(44, 50) cd 1.450->1.208"
+  },
+  {
+   "name": "forging out of parts is refused",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "out of shop range: purchase refused",
+   "ok": true,
+   "detail": "gold=3560 items=['warbrand']"
+  },
+  {
+   "name": "right-click sells for 50% of the tree",
+   "ok": true,
+   "detail": "gold=3560->3880 (expected +320)"
+  },
+  {
+   "name": "selling restores the stats",
+   "ok": true,
+   "detail": "dmg=26 cd=1.450"
+  },
+  {
+   "name": "forge Ashen Step",
+   "ok": true,
+   "detail": "items=['ashenstep']"
+  },
+  {
+   "name": "Ashen Step gives +10% move speed",
+   "ok": true,
+   "detail": "speed 2.60->2.86"
+  },
+  {
+   "name": "clicking an active item starts ground targeting",
+   "ok": true,
+   "detail": "targeting={'item': 0, 'iid': 'ashenstep', 'range': 6.0}"
+  },
+  {
+   "name": "Ashen Step blinks the hero onto the clicked tile",
+   "ok": true,
+   "detail": "moved 5.88 tiles, cd=16.0s"
+  },
+  {
+   "name": "Ashen Step is refused while cooling down",
+   "ok": true,
+   "detail": "cd=15.9s, position unchanged"
+  },
+  {
+   "name": "forge Ember Flask from tonic + greaves",
+   "ok": true,
+   "detail": "items=['ashenstep', 'flask']"
+  },
+  {
+   "name": "Ember Flask heals over its duration",
+   "ok": true,
+   "detail": "hp 590 -> 590 (cast) -> 900 (6.5s later)"
+  },
+  {
+   "name": "Ember Flask goes on cooldown",
+   "ok": true,
+   "detail": "cd=39s"
+  },
+  {
+   "name": "hero revives with level, growth and satchel intact",
+   "ok": true,
+   "detail": "level 5->5, items=['ashenstep', 'flask'], dmg 38.800000000000004->38.800000000000004"
+  },
+  {
+   "name": "qa_state exposes items / stats / shop reach",
+   "ok": true,
+   "detail": "items=['ashenstep', 'flask'] shop=True"
+  }
+ ]
+}

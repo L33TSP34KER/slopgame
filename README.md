@@ -35,6 +35,8 @@ Useful flags:
 | `A` | Attack-move (click a point) |
 | `S` / `H` | Stop / hold position |
 | `B` | Build menu (workers), then pick a structure |
+| `P` | Purveyor: buy components, forge items, sell (hero near Hall/Keep/Altar) |
+| Click satchel slot / right-click | Use an active item / sell it for 50% |
 | `Q W E R` | Hero abilities: Ember Lance · Aegis · Consecrate · Daybreak |
 | `1–9` / `Ctrl+1–9` | Recall / assign control group |
 | `Space` / `F1` | Center on Aldric / idle worker |
@@ -52,6 +54,9 @@ Useful flags:
   ford, and the Hollow King as the final wall.
 - Economy, supply, upgrades, fog of war, minimap, command card, tooltips,
   control groups, construction, queues, rally points, bounties.
+- Hero items: 15-piece shop (six components, seven forged, two masterworks)
+  with recipes, forge fees, a six-slot satchel, 50% sell-back and two actives
+  (Ashen Step blink, Ember Flask heal). Opens with `P` at the Emberhold.
 - Audio: 20 SFX and three seamless music beds (menu / battle / night), mixed at
   a −18 dB bed.
 - Victory/defeat with stats, pause/settings/controls/credits, difficulty select.
@@ -68,9 +73,19 @@ EMBERFALL_QA=state SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
   .venv/bin/python -m emberfall.main --qa --scene play --autoplay --speed 4 --frames 4000
 ```
 
-Scenes: `title intro base battle siege victory defeat play`. `EMBERFALL_QA=state`
+Scenes: `title intro base battle siege victory defeat play shop`. `EMBERFALL_QA=state`
 prints one JSON line per simulated second (fps, resources, unit counts, wave,
-selection, music).
+selection, music, hero items and hero stats).
+
+Item shop / crafting probe (23 checks, drives the real UI hit-test path):
+
+```bash
+.venv/bin/python tools/item_probe.py       # -> design/notes/item-probe.md
+```
+
+`--autoshop` makes `--autoplay` keep the hero shopping, so long demo/soak runs
+exercise the satchel too. Item icons are generated from SVG sources:
+`tools/make_item_icons.py`.
 
 ## Architecture
 

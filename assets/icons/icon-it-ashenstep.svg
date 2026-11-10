@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Ashen Step">
+  <defs>
+    <linearGradient id="gd" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#f2cd78"/><stop offset="1" stop-color="#a8752c"/>
+    </linearGradient>
+    <linearGradient id="em" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#ffd08a"/><stop offset="0.45" stop-color="#ff8a3d"/>
+      <stop offset="1" stop-color="#a83a3a"/>
+    </linearGradient>
+    <linearGradient id="st" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#eef3f8"/><stop offset="0.55" stop-color="#b9c3ce"/>
+      <stop offset="1" stop-color="#6f7883"/>
+    </linearGradient>
+    <linearGradient id="cr" x1="0" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#cf5a45"/><stop offset="1" stop-color="#6d241f"/>
+    </linearGradient>
+    <linearGradient id="le" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#9a6c42"/><stop offset="1" stop-color="#4d3321"/>
+    </linearGradient>
+    <linearGradient id="vi" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#c9a6ea"/><stop offset="1" stop-color="#4e3566"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffb066" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#ff8a3d" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g stroke="#161018" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <ellipse cx="32" cy="56" rx="19" ry="4" fill="#161018" opacity="0.30" stroke="none"/>
+
+    <path d="M16 34 C22 30 26 24 32 24 C38 24 44 30 46 36 C40 40 36 46 30 46 C24 46 20 40 16 34 Z" fill="url(#vi)"/>
+    <path d="M20 35 C25 32 27 27 32 27 C37 27 41 32 43 36 C38 39 35 43 30 43 C25 43 23 39 20 35 Z" fill="#2a1d3c"/>
+    <path d="M30 30 L33 36 L30 42 L27 36 Z" fill="#ffd08a" stroke="none"/>
+    <path d="M32 8 L32 20 M20 14 L26 22 M44 14 L38 22" stroke="#b58ad2" stroke-width="2" opacity="0.85"/>
+    <circle cx="22" cy="46" r="2" fill="#cfc4dd" stroke="none"/>
+    <circle cx="40" cy="48" r="1.6" fill="#cfc4dd" stroke="none"/>
+    <circle cx="32" cy="34" r="20" fill="url(#glow)" stroke="none"/>
+  </g>
+</svg>

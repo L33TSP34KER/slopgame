@@ -289,6 +289,136 @@ UPGRADES = {
         apply="armor", amount=3),
 }
 
+# ------------------------------------------------------------------- items
+# The hero's satchel: six slots, bought at the Emberhold and forged from
+# components in the field (Dota/LoL idiom).  A forged item is never worse than
+# the sum of its parts — the recipe fee buys the upgrade, the compact slot and
+# the active.
+ITEM_SLOTS = 6
+SHOP_RADIUS = 7.0
+SELL_RATE = 0.5
+SHOP_BUILDINGS = ("townhall", "keep", "altar")
+
+ITEMS = {
+    # ---- components -------------------------------------------------------
+    "blade": dict(
+        id="blade", name="Ashwood Blade", icon="it-blade", tier=1,
+        cost=dict(g=240), stats=dict(dmg=8),
+        desc="A long ash haft with a folded edge. +8 attack damage."),
+    "buckler": dict(
+        id="buckler", name="Iron Buckler", icon="it-buckler", tier=1,
+        cost=dict(g=220), stats=dict(armor=3),
+        desc="A fist of banded iron. +3 armor."),
+    "tonic": dict(
+        id="tonic", name="Ember Tonic", icon="it-tonic", tier=1,
+        cost=dict(g=260), stats=dict(hp=160),
+        desc="Burns going down, burns coming back. +160 max health."),
+    "focus": dict(
+        id="focus", name="Kindled Focus", icon="it-focus", tier=1,
+        cost=dict(g=240), stats=dict(mana=90, mana_regen=0.8),
+        desc="A shard of the old fire. +90 max mana, +0.8 mana/s."),
+    "greaves": dict(
+        id="greaves", name="Trail Greaves", icon="it-greaves", tier=1,
+        cost=dict(g=210), stats=dict(move=0.08),
+        desc="Waxed leather that never takes the road badly. +8% move speed."),
+    "whet": dict(
+        id="whet", name="Whetstone", icon="it-whet", tier=1,
+        cost=dict(g=280), stats=dict(aspeed=0.12),
+        desc="Grit for the edge and the shoulder behind it. +12% attack speed."),
+    # ---- forged ----------------------------------------------------------
+    "warbrand": dict(
+        id="warbrand", name="Ember Warbrand", icon="it-warbrand", tier=2,
+        parts=["blade", "whet"], cost=dict(g=120),
+        stats=dict(dmg=18, aspeed=0.20),
+        desc="A blade quenched in the first fire. +18 damage, +20% attack speed."),
+    "bulwark": dict(
+        id="bulwark", name="Ashen Bulwark", icon="it-bulwark", tier=2,
+        parts=["buckler", "tonic"], cost=dict(g=150),
+        stats=dict(armor=6, hp=300),
+        desc="A wall you carry. +6 armor, +300 max health."),
+    "cinder": dict(
+        id="cinder", name="Cinder Plate", icon="it-cinder", tier=2,
+        parts=["blade", "buckler"], cost=dict(g=130),
+        stats=dict(dmg=14, armor=6),
+        desc="Scale over mail, still warm from the forge. +14 damage, +6 armor."),
+    "pyre": dict(
+        id="pyre", name="Pyre Heart", icon="it-pyre", tier=2,
+        parts=["tonic", "focus"], cost=dict(g=150),
+        stats=dict(hp=350, mana=150, hp_regen=2.2),
+        desc="A coal that will not die, set in the chest. +350 health, +150 mana, +2.2 health/s."),
+    "windstep": dict(
+        id="windstep", name="Windstep Boots", icon="it-windstep", tier=2,
+        parts=["greaves", "whet"], cost=dict(g=140),
+        stats=dict(move=0.15, aspeed=0.22),
+        desc="Silent on stone, quicker on grass. +15% move speed, +22% attack speed."),
+    "ashenstep": dict(
+        id="ashenstep", name="Ashen Step", icon="it-ashenstep", tier=2,
+        parts=["greaves", "focus"], cost=dict(g=180),
+        stats=dict(move=0.10, mana=70),
+        active=dict(kind="blink", range=6.0, cooldown=16),
+        desc="Step through the ash and arrive elsewhere. Active: blink up to 6 tiles (16s)."),
+    "flask": dict(
+        id="flask", name="Ember Flask", icon="it-flask", tier=2,
+        parts=["tonic", "greaves"], cost=dict(g=150),
+        stats=dict(hp=140, hp_regen=1.5),
+        active=dict(kind="heal", amount=300, duration=6, cooldown=45),
+        desc="A soldier's last kindness. Active: restore 300 health over 6s (45s)."),
+    # ---- masterwork ------------------------------------------------------
+    "regalia": dict(
+        id="regalia", name="Marshal's Regalia", icon="it-regalia", tier=3,
+        parts=["cinder", "pyre"], cost=dict(g=400),
+        stats=dict(dmg=20, armor=9, hp=450, mana=180, hp_regen=1.2),
+        desc="The Emberhold's own coat of war. +20 damage, +9 armor, +450 health, +180 mana."),
+    "warsong": dict(
+        id="warsong", name="Warsong Talisman", icon="it-warsong", tier=3,
+        parts=["warbrand", "windstep"], cost=dict(g=380),
+        stats=dict(dmg=26, aspeed=0.32, move=0.14),
+        desc="It remembers a charge that never broke. +26 damage, +32% attack speed, +14% move speed."),
+}
+
+# what an automated hero buys, cheapest first, so a demo satchel fills naturally
+AUTO_SHOP_ORDER = ["blade", "whet", "buckler", "tonic", "greaves", "focus",
+                   "warbrand", "bulwark", "cinder", "pyre", "windstep",
+                   "ashenstep", "flask", "regalia", "warsong"]
+
+SHOP_GROUPS = [
+    ("COMPONENTS", ["blade", "buckler", "tonic", "focus", "greaves", "whet"]),
+    ("FORGED", ["warbrand", "bulwark", "cinder", "pyre", "windstep", "ashenstep", "flask"]),
+    ("MASTERWORK", ["regalia", "warsong"]),
+]
+
+STAT_LABEL = dict(dmg="attack damage", armor="armor", hp="max health", mana="max mana",
+                  move="move speed", aspeed="attack speed", hp_regen="health/s",
+                  mana_regen="mana/s", sight="sight")
+
+
+def item_tree_cost(iid):
+    """Total gold a fresh copy of `iid` costs, recipe fees included."""
+    it = ITEMS[iid]
+    return it.get("cost", {}).get("g", 0) + sum(item_tree_cost(p) for p in it.get("parts", []))
+
+
+def item_sell_value(iid):
+    return int(item_tree_cost(iid) * SELL_RATE)
+
+
+def item_stat_lines(iid):
+    """Human-readable stat lines for tooltips."""
+    out = []
+    for k, v in ITEMS[iid].get("stats", {}).items():
+        if k in ("move", "aspeed"):
+            out.append(f"+{int(round(v * 100))}% {STAT_LABEL[k]}")
+        elif k in ("hp_regen", "mana_regen"):
+            out.append(f"+{v:g} {STAT_LABEL[k]}")
+        else:
+            out.append(f"+{v:g} {STAT_LABEL[k]}")
+    act = ITEMS[iid].get("active")
+    if act:
+        out.append(f"Active: {'blink' if act['kind'] == 'blink' else 'heal'} "
+                   f"({act['cooldown']}s cooldown)")
+    return out
+
+
 BUILD_MENU = ["farm", "barracks", "mill", "blacksmith", "sanctum", "tower", "altar", "keep"]
 PLAYER_TRAIN = {
     "townhall": ["worker"], "keep": ["worker"],
@@ -306,14 +436,17 @@ FACTION = {
 }
 
 DIFFICULTY = {
-    "squire": dict(id="squire", name="Squire", income=0.75, hp=0.72, dmg=0.78,
-                   wave_gap=1.30, wave_size=0.70, speed=0.95,
-                   blurb="The Host is slow to wake. For learning the vale."),
-    "knight": dict(id="knight", name="Knight", income=1.0, hp=1.0, dmg=1.0,
-                   wave_gap=1.0, wave_size=1.0, speed=1.0,
-                   blurb="A war worth fighting. The intended balance."),
-    "warlord": dict(id="warlord", name="Warlord", income=1.3, hp=1.32, dmg=1.24,
-                    wave_gap=0.78, wave_size=1.30, speed=1.05,
+    "squire": dict(id="squire", name="Squire", income=0.62, hp=0.55, dmg=0.55,
+                   wave_gap=1.75, wave_size=0.55, speed=0.92,
+                   first_wave=315.0, cap=26, start_gold=1200, start_lumber=350,
+                   blurb="A forgiving first watch. Learn the vale, build wide, push late."),
+    "knight": dict(id="knight", name="Knight", income=0.85, hp=0.84, dmg=0.84,
+                   wave_gap=1.18, wave_size=0.85, speed=1.0,
+                   first_wave=275.0, cap=36, start_gold=1000, start_lumber=300,
+                   blurb="A fair war. The intended balance."),
+    "warlord": dict(id="warlord", name="Warlord", income=1.25, hp=1.22, dmg=1.16,
+                    wave_gap=0.82, wave_size=1.22, speed=1.05,
+                    first_wave=235.0, cap=48, start_gold=850, start_lumber=260,
                     blurb="The vale drowns. Only a hard, fast game survives."),
 }
 

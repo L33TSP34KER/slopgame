@@ -32,6 +32,7 @@ class UI:
         self.mouse = (0, 0)
         self.show_objectives = False
         self.build_menu = False
+        self.shop_open = False
         self.subgroup = 0
         self.release_pos = None
         self.pulse = 0.0
@@ -313,8 +314,9 @@ class UI:
         diff = self.t(w.diff["name"].upper(), 11, GOLD, "sans")
         scr.blit(diff, (SCREEN_W // 2 - diff.get_width() // 2, 32))
         # objectives / menu
-        self.button(pygame.Rect(1228, 8, 168, 30), "Objectives  [O]", ("pause", {}) if False else ("objectives", {}))
-        self.button(pygame.Rect(1406, 8, 172, 30), "Menu  [Esc]", ("pause", {}))
+        self.button(pygame.Rect(1198, 8, 158, 30), "Objectives  [O]", ("objectives", {}))
+        self.button(pygame.Rect(1364, 8, 116, 30), "Shop  [P]", ("shop", {}))
+        self.button(pygame.Rect(1488, 8, 96, 30), "Menu", ("pause", {}))
         # alerts
         y = 58
         for a in w._alerts[-3:]:
@@ -337,8 +339,10 @@ class UI:
         self.draw_command_card()
         self.draw_center_panel()
         self.draw_minimap()
-        # autosave hint
-        if w.time < 12:
+        if self.shop_open:
+            self.draw_shop_panel()
+        # autosave hint (not over the purveyor)
+        if w.time < 12 and not self.shop_open:
             hint = self.t("Right-click: move / attack / gather   ·   A: attack-move   ·   B: build", 13, PARCH_D, "sans")
             scr.blit(hint, (SCREEN_W // 2 - hint.get_width() // 2, 680))
 
@@ -405,11 +409,10 @@ class UI:
                 nxt = HERO_LEVELS[min(len(HERO_LEVELS) - 1, e.level)]
                 prev = HERO_LEVELS[max(0, e.level - 1)]
                 self.bar(pygame.Rect(180, 800, 200, 5), (e.xp - prev) / max(1, nxt - prev), GOLD)
-                for i, aid in enumerate(("ember-lance", "aegis", "consecrate", "daybreak")):
-                    a = ABILITIES[aid]
-                    col = GOLD if e.level >= a["unlock"] else MUTED
-                    key = self.t(a["hotkey"], 11, col, "sans")
-                    g.screen.blit(key, (180 + i * 24, 810))
+                for i in range(ITEM_SLOTS):
+                    rr = pygame.Rect(180 + i * 34, 810, 30, 30)
+                    self.draw_item_slot(rr, e.items[i] if i < len(e.items) else None,
+                                        i, hero=e)
             else:
                 dmg = f"ATK {e.dmg_min}-{e.dmg_max}   ARM {e.armor}"
                 dt = self.t(dmg, 12, PARCH_D, "sans")
@@ -499,6 +502,182 @@ class UI:
                         g.screen.blit(cdv, (x + 8, r.y + 134))
         self.add(pygame.Rect(r.x, r.y, r.w, r.h), kind="noop")
 
+    # ---------------------------------------------------------------- items / shop
+    def item_state(self, iid, hero=None):
+        g = self.g; w = g.world
+        hero = hero or w.hero
+        it = ITEMS[iid]
+        owned = bool(hero) and iid in hero.items
+        parts = it.get("parts", [])
+        have = sum(1 for p in parts if hero and p in hero.items)
+        fee = it.get("cost", {}).get("g", 0)
+        ready = (not parts) or have == len(parts)
+        return dict(owned=owned, have=have, need=len(parts), fee=fee, ready=ready,
+                    afford=w.gold >= fee, in_range=w.shop_in_range(hero),
+                    parts=parts)
+
+    def item_lines(self, iid, include_recipe=True):
+        it = ITEMS[iid]
+        lines = item_stat_lines(iid)
+        if include_recipe and it.get("parts"):
+            lines.append("Recipe: " + " + ".join(ITEMS[p]["name"] for p in it["parts"]))
+        return lines
+
+    def draw_item_slot(self, rect, iid, slot, hero=None):
+        g = self.g; w = g.world
+        hero = hero or w.hero
+        pygame.draw.rect(g.screen, (22, 18, 15), rect, border_radius=4)
+        if not iid:
+            pygame.draw.rect(g.screen, (62, 51, 40), rect, 1, border_radius=4)
+            return
+        it = ITEMS[iid]
+        pygame.draw.rect(g.screen, GOLD if it.get("active") else BRASS, rect, 1, border_radius=4)
+        ic = self.icon(it["icon"], rect.w - 8)
+        g.screen.blit(ic, (rect.centerx - ic.get_width() // 2, rect.y + 4))
+        cd = hero.item_cd.get(iid, 0) if hero else 0
+        if cd > 0:
+            ov = pygame.Surface(rect.size, pygame.SRCALPHA)
+            ov.fill((8, 8, 12, 165))
+            g.screen.blit(ov, rect.topleft)
+            t = self.t(str(int(math.ceil(cd))), 14, PARCH, "sans")
+            g.screen.blit(t, (rect.centerx - t.get_width() // 2, rect.centery - 8))
+        elif it.get("active"):
+            pygame.draw.polygon(g.screen, GOLD_L, ((rect.right - 9, rect.y + 4),
+                                                   (rect.right - 4, rect.y + 4),
+                                                   (rect.right - 4, rect.y + 9)))
+        lines = self.item_lines(iid)
+        lines.append(f"Sells for {item_sell_value(iid)}g — right-click")
+        self.add(rect, kind="slot", slot=slot, label=it["name"], desc=it["desc"], lines=lines)
+
+    def shop_tile(self, rect, iid, hero):
+        g = self.g; w = g.world
+        st = self.item_state(iid, hero)
+        it = ITEMS[iid]
+        hover = rect.collidepoint(self.mouse)
+        ok = st["ready"] and st["afford"] and not st["owned"]
+        pygame.draw.rect(g.screen, (52, 42, 31) if hover else (36, 29, 23), rect, border_radius=5)
+        if st["owned"]:
+            bd = GREEN
+        elif hover and ok:
+            bd = GOLD_L
+        elif st["ready"] and not st["owned"]:
+            bd = GOLD
+        else:
+            bd = (88, 75, 58)
+        pygame.draw.rect(g.screen, bd, rect, 1, border_radius=5)
+        ic = self.icon(it["icon"], rect.w - 14)
+        if not st["ready"] or st["owned"]:
+            ic = ic.copy()
+            ic.set_alpha(96 if not st["ready"] else 170)
+        g.screen.blit(ic, (rect.centerx - ic.get_width() // 2, rect.y + 6))
+        strip = pygame.Rect(rect.x + 1, rect.bottom - 17, rect.w - 2, 16)
+        pygame.draw.rect(g.screen, (18, 14, 12), strip, border_radius=3)
+        if st["owned"]:
+            txt, col = "OWNED", GREEN
+        elif st["ready"]:
+            txt, col = (f"forge {st['fee']}g" if st["parts"] else f"{st['fee']}g"),                        (GOLD if st["afford"] else (196, 120, 96))
+        else:
+            txt, col = f"{st['have']}/{st['need']} parts", MUTED
+        pt = self.t(txt, 10, col, "sans")
+        g.screen.blit(pt, (rect.centerx - pt.get_width() // 2, rect.bottom - 16))
+        lines = self.item_lines(iid)
+        if st["owned"]:
+            lines.append("OWNED — right-click it in the satchel to sell")
+        elif st["parts"]:
+            names = " + ".join(ITEMS[p]["name"] for p in st["parts"])
+            lines.append(f"Forge fee {st['fee']}g — needs {names}")
+        else:
+            lines.append(f"Price {st['fee']}g")
+        lines.append(f"Full tree {item_tree_cost(iid)}g · sells for {item_sell_value(iid)}g")
+        self.add(rect, kind="buy", item=iid, label=it["name"], desc=it["desc"],
+                 lines=lines)
+
+    def draw_shop_panel(self):
+        g = self.g; w = g.world
+        hero = w.hero
+        r = pygame.Rect(286, 62, 1028, 634)
+        self.overlay(96)
+        self.panel(r, (30, 23, 18), BRASS, 252)
+        title = self.t("THE EMBERHOLD PURVEYOR", 20, GOLD_L, "display")
+        g.screen.blit(title, (r.x + 18, r.y + 10))
+        sub = self.t("Buy components, then forge them into one stronger item — every stat carries over.",
+                     12, PARCH_D, "sans")
+        g.screen.blit(sub, (r.x + 18, r.y + 36))
+        gi = self.icon("gold", 22)
+        g.screen.blit(gi, (r.right - 214, r.y + 17))
+        gt = self.t(fmt(w.gold), 20, PARCH, "display")
+        g.screen.blit(gt, (r.right - 186, r.y + 14))
+        self.button(pygame.Rect(r.right - 116, r.y + 12, 98, 28), "Close [P]", ("shopclose", {}))
+        self.line(r.x + 352, r.y + 62, r.x + 352, r.bottom - 16, (92, 74, 50))
+        # ---- hero + satchel
+        x0, y0 = r.x + 18, r.y + 64
+        por = pygame.Rect(x0, y0, 96, 96)
+        pygame.draw.rect(g.screen, (18, 14, 12), por)
+        if hero:
+            im = self.art.portrait(hero.rig, hero.team, 88)
+            g.screen.blit(im, (por.centerx - im.get_width() // 2, por.centery - im.get_height() // 2))
+        pygame.draw.rect(g.screen, BRASS, por, 1)
+        if hero:
+            nm = self.t("Marshal Aldric", 18, PARCH, "display")
+            g.screen.blit(nm, (x0 + 108, y0))
+            sub2 = self.t(f"Emberhold · level {hero.level}", 12, MUTED, "sans")
+            g.screen.blit(sub2, (x0 + 108, y0 + 22))
+            self.bar(pygame.Rect(x0 + 108, y0 + 42, 140, 15), hero.hp / max(1, hero.max_hp), GREEN)
+            hp = self.t(f"{int(hero.hp)}/{int(hero.max_hp)}", 11, PARCH, "sans")
+            g.screen.blit(hp, (x0 + 254, y0 + 43))
+            self.bar(pygame.Rect(x0 + 108, y0 + 62, 140, 13), hero.mana / max(1, hero.max_mana), BLUE)
+            mana = self.t(f"{int(hero.mana)}/{int(hero.max_mana)}", 11, PARCH, "sans")
+            g.screen.blit(mana, (x0 + 254, y0 + 61))
+            st1 = self.t(f"ATK {hero.dmg_min:.0f}-{hero.dmg_max:.0f}   ARM {hero.armor:.0f}   "
+                         f"SPD {hero.cooldown:.2f}s", 11, PARCH_D, "sans")
+            g.screen.blit(st1, (x0 + 108, y0 + 78))
+            st2 = self.t(f"MOVE {hero.speed:.2f}   REGEN {hero.hp_regen:g} hp/s", 11, PARCH_D, "sans")
+            g.screen.blit(st2, (x0 + 108, y0 + 92))
+        lab = self.t("SATCHEL", 12, GOLD, "display")
+        g.screen.blit(lab, (x0, y0 + 112))
+        hint = self.t("left-click an active · right-click to sell", 10, MUTED, "sans")
+        g.screen.blit(hint, (x0 + 66, y0 + 114))
+        for i in range(ITEM_SLOTS):
+            col, row = i % 3, i // 3
+            rr = pygame.Rect(x0 + col * 110, y0 + 136 + row * 112, 100, 100)
+            iid = hero.items[i] if hero and i < len(hero.items) else None
+            self.draw_item_slot(rr, iid, i, hero)
+            if iid:
+                nm = self.t(ITEMS[iid]["name"], 10, PARCH_D, "sans")
+                g.screen.blit(nm, (rr.x, rr.bottom + 2))
+        if not w.shop_in_range(hero):
+            wr = pygame.Rect(x0, r.bottom - 78, 330, 60)
+            self.panel(wr, (70, 30, 26), (176, 84, 72), 244)
+            t1 = self.t("OUT OF REACH", 14, (240, 172, 150), "display")
+            g.screen.blit(t1, (wr.x + 10, wr.y + 6))
+            t2 = self.art.text_wrap("Aldric must stand near the Hall, Keep or Altar of Embers to trade.",
+                                    11, 306, PARCH_D)
+            g.screen.blit(t2, (wr.x + 10, wr.y + 26))
+        # ---- shelves
+        x1, yy = r.x + 372, r.y + 64
+        cell, step = 92, 106
+        for gtitle, ids in SHOP_GROUPS:
+            per_row = 6 if len(ids) <= 6 else 4
+            gl = self.t(gtitle, 12, GOLD, "display")
+            g.screen.blit(gl, (x1, yy))
+            yy += 18
+            for i, iid in enumerate(ids):
+                cx = x1 + (i % per_row) * step
+                cy = yy + (i // per_row) * (cell + 22)
+                tile = pygame.Rect(cx, cy, cell, cell)
+                self.shop_tile(tile, iid, hero)
+                nm = self.t(ITEMS[iid]["name"], 10,
+                            PARCH if hero and iid in hero.items else PARCH_D, "sans")
+                g.screen.blit(nm, (cx + max(0, (cell - nm.get_width()) // 2), cy + cell + 3))
+                it = ITEMS[iid]
+                for k in range(len(it.get("parts", []))):
+                    st = self.item_state(iid, hero)
+                    filled = k < st["have"]
+                    pygame.draw.circle(g.screen, GOLD if filled else (78, 66, 50),
+                                       (cx + 7 + k * 8, cy + 7), 3)
+            rows = (len(ids) + per_row - 1) // per_row
+            yy += rows * (cell + 22) + 8
+
     # ---------------------------------------------------------------- commands
     def commands(self):
         g = self.g; w = g.world
@@ -570,6 +749,8 @@ class UI:
                             desc="Cancel the current order."))
             out.append(dict(id="hold", icon="hold", label="Hold", hotkey="H", kind="hold", enabled=True,
                             desc="Hold position and fight anything in reach."))
+            out.append(dict(id="shop", icon="it-bag", label="Purveyor", hotkey="P", kind="shop", enabled=True,
+                            desc="The Emberhold purveyor. Buy components, forge them into one stronger item, drink or blink."))
             return out
         if any(u.worker for u in sel):
             out.append(dict(id="build", icon="build", label="Build", hotkey="B", kind="buildmenu", enabled=True,
@@ -714,6 +895,7 @@ class UI:
         name = a.get("label") or a.get("id", "")
         desc = a.get("desc", "")
         lines = []
+        extra = a.get("lines") or []
         if a.get("cost"):
             lines.append(self.cost(a["cost"]) + (f"   {a['time']}s" if a.get("time") else ""))
         if a.get("food"):
@@ -724,7 +906,7 @@ class UI:
             lines.append("Requires: " + str(a["req"]))
         wide = 330
         dtxt = self.art.text_wrap(desc, 13, wide - 20, PARCH_D) if desc else None
-        h = 34 + (dtxt.get_height() if dtxt else 0) + len(lines) * 16 + 8
+        h = 34 + (dtxt.get_height() if dtxt else 0) + (len(lines) + len(extra)) * 16 + 10
         mx, my = self.mouse
         x = clamp(mx + 18, 0, SCREEN_W - wide - 6)
         y = clamp(my - h - 12, 6, SCREEN_H - h - 6)
@@ -740,6 +922,11 @@ class UI:
         for line in lines:
             lt = self.t(line, 12, GOLD if "mana" in line or "Food" in line else PARCH_D, "sans")
             g.screen.blit(lt, (r.x + 10, yy)); yy += 15
+        for line in extra:
+            col = GOLD_L if line.startswith("+") or line.startswith("Active") else \
+                  MUTED if line.startswith(("Recipe", "Full tree", "Sells")) else PARCH_D
+            lt = self.t(line, 12, col, "sans")
+            g.screen.blit(lt, (r.x + 10, yy)); yy += 16
 
     # ---------------------------------------------------------------- overlays
     def overlay(self, alpha=150):

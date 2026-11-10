@@ -22,7 +22,9 @@ class Entity:
         "slow_amt", "summon_t", "scan_t", "home", "bounty", "xp_value", "blocked_tiles",
         "research", "research_t", "owner", "anim_speed", "scale", "summon_life", "boss",
         "attack_anim", "ranged", "heal", "rig", "slow_hit", "worker", "hero_revive_t", "poison",
-        "last_sfx", "stuck_t", "last_pos", "camp", "eff_speed", "path_fail", "alert_ready", "evade"
+        "last_sfx", "stuck_t", "last_pos", "camp", "eff_speed", "path_fail", "alert_ready", "evade",
+        "items", "item_stats", "item_cd", "atk_base_cd", "speed_base", "hp_regen",
+        "mana_regen", "hot_t", "hot_amt"
     )
 
     def __init__(self, **kw):
@@ -63,6 +65,13 @@ class Entity:
         self.research = None
         self.research_t = 0.0
         self.hero_revive_t = 0.0
+        self.items = []
+        self.item_stats = {}
+        self.item_cd = {}
+        self.hp_regen = 0.0
+        self.mana_regen = 0.0
+        self.hot_t = 0.0
+        self.hot_amt = 0.0
         for k, v in kw.items():
             setattr(self, k, v)
 
@@ -87,15 +96,16 @@ class World:
         self.vis = bytearray(map_obj.w * map_obj.h)
         self.explored = bytearray(map_obj.w * map_obj.h)
         self.fog_t = 0.0
-        self.gold = 800
-        self.lumber = 220
+        self.gold = int(self.diff.get("start_gold", 800))
+        self.lumber = int(self.diff.get("start_lumber", 220))
         self.upgrades = set()
         self.dmg_bonus = 0
         self.armor_bonus = 0
         self.hero = None
         self.food_extra = 0
         self.stats = dict(kills=0, losses=0, gold_gathered=0, lumber_gathered=0,
-                          units_trained=0, buildings_raised=0, damage=0, abilities=0)
+                          units_trained=0, buildings_raised=0, damage=0, abilities=0,
+                          items=0, item_uses=0)
         self.events = []
         self.state = "playing"
         self.end_t = 0.0
@@ -164,6 +174,11 @@ class World:
             e.dmg_max = int(e.dmg_max * self.diff["dmg"])
         e.anim_speed = 1.0
         e.eff_speed = d["speed"]
+        # item scaling needs the untouched bases: attack speed divides the
+        # base cooldown and move speed multiplies the base speed, so level
+        # growth and item deltas never compound into each other.
+        e.atk_base_cd = d["cooldown"]
+        e.speed_base = d["speed"]
         # deterministic scatter so trains and QA batches never fully stack
         jx = ((e.uid * 37) % 7 - 3) * 0.11
         jy = ((e.uid * 53) % 7 - 3) * 0.11
@@ -523,6 +538,178 @@ class World:
             b.rally = (x, y)
             self.play("click")
 
+    # ------------------------------------------------------------------- items
+    def shop_in_range(self, hero):
+        """The purveyor trades at the Emberhold: hall, keep or altar, in reach."""
+        if not hero or not hero.alive:
+            return False
+        for b in self.buildings_of(PLAYER):
+            if b.bid not in SHOP_BUILDINGS or b.build_progress < 1:
+                continue
+            cx, cy = b.x + b.bw / 2 - 0.5, b.y + b.bh / 2 - 0.5
+            if dist(hero.x, hero.y, cx, cy) <= SHOP_RADIUS + max(b.bw, b.bh) * 0.35:
+                return True
+        return False
+
+    def _item_totals(self, hero):
+        agg = {}
+        for iid in hero.items:
+            for k, v in ITEMS[iid].get("stats", {}).items():
+                agg[k] = agg.get(k, 0) + v
+        return agg
+
+    def refresh_hero_items(self, hero):
+        """Apply the difference between the old and new item stat totals.
+
+        Only deltas are written onto the entity, so level-up growth and the
+        blacksmith's global bonuses stay intact when an item is forged or sold.
+        """
+        if not hero or not hero.is_hero:
+            return
+        new = self._item_totals(hero)
+        old = hero.item_stats or {}
+
+        dh = new.get("hp", 0) - old.get("hp", 0)
+        if dh:
+            hero.max_hp = max(1, hero.max_hp + dh)
+            if dh > 0:
+                hero.hp += dh
+            hero.hp = min(hero.hp, hero.max_hp)
+        dm = new.get("mana", 0) - old.get("mana", 0)
+        if dm:
+            hero.max_mana = max(0, hero.max_mana + dm)
+            if dm > 0:
+                hero.mana += dm
+            hero.mana = min(hero.mana, hero.max_mana)
+        dd = new.get("dmg", 0) - old.get("dmg", 0)
+        if dd:
+            hero.dmg_min = max(1, hero.dmg_min + dd)
+            hero.dmg_max = max(1, hero.dmg_max + dd)
+        da = new.get("armor", 0) - old.get("armor", 0)
+        if da:
+            hero.armor = max(0, hero.armor + da)
+        ds = new.get("sight", 0) - old.get("sight", 0)
+        if ds:
+            hero.sight = max(1, hero.sight + ds)
+        use = new.get("aspeed", 0)
+        base = getattr(hero, "atk_base_cd", None) or hero.cooldown or 1.0
+        hero.cooldown = base / (1.0 + use)
+        mv = new.get("move", 0)
+        base_sp = getattr(hero, "speed_base", None) or hero.speed or 1.0
+        hero.speed = base_sp * (1.0 + mv)
+        hero.hp_regen = new.get("hp_regen", 0)
+        hero.mana_regen = new.get("mana_regen", 0)
+        hero.item_stats = new
+
+    def hero_item_index(self, hero, iid):
+        if not hero:
+            return -1
+        try:
+            return hero.items.index(iid)
+        except ValueError:
+            return -1
+
+    def buy_item(self, hero, iid, quiet=False):
+        if iid not in ITEMS:
+            return False
+        it = ITEMS[iid]
+
+        def fail(msg):
+            if not quiet:
+                self.alert(msg)
+                self.play("error")
+            return False
+
+        if not hero or not hero.alive:
+            return fail("Aldric is not here to trade.")
+        if not self.shop_in_range(hero):
+            return fail("The purveyor trades at the Emberhold — return to the Hall, Keep or Altar.")
+        if iid in hero.items:
+            return fail(f"You already carry {it['name']}.")
+        parts = list(it.get("parts", []))
+        missing = [p for p in parts if p not in hero.items]
+        if missing:
+            return fail(f"{it['name']} needs " + " + ".join(ITEMS[p]["name"] for p in missing) + ".")
+        if len(hero.items) - len(parts) >= ITEM_SLOTS:
+            return fail("The satchel is full — sell something first.")
+        fee = it.get("cost", {}).get("g", 0)
+        if not self.pay(dict(g=fee)):
+            return fail(f"Not enough gold ({fee} needed).")
+        for p in parts:
+            hero.items.remove(p)
+        hero.items.append(iid)
+        self.refresh_hero_items(hero)
+        if not quiet:
+            if parts:
+                self.alert(f"Forged {it['name']}.")
+                self.play("level")
+            else:
+                self.alert(f"Bought {it['name']}.")
+                self.play("gold")
+        self.stats["items"] = self.stats.get("items", 0) + 1
+        return True
+
+    def sell_item(self, hero, slot):
+        if not hero or not (0 <= slot < len(hero.items)):
+            return False
+        iid = hero.items[slot]
+        it = ITEMS[iid]
+        value = item_sell_value(iid)
+        hero.items.pop(slot)
+        self.gold += value
+        hero.item_cd.pop(iid, None)
+        self.refresh_hero_items(hero)
+        self.alert(f"Sold {it['name']} for {value} gold.")
+        self.play("gold")
+        return True
+
+    def use_item(self, hero, slot, target=None):
+        """Activate the item in `slot` (only Forged actives have one)."""
+        if not hero or not hero.alive or not (0 <= slot < len(hero.items)):
+            return False
+        iid = hero.items[slot]
+        act = ITEMS[iid].get("active")
+        if not act:
+            self.alert(f"{ITEMS[iid]['name']} has no active.")
+            return False
+        cd = hero.item_cd.get(iid, 0)
+        if cd > 0:
+            self.alert(f"{ITEMS[iid]['name']} is not ready ({int(math.ceil(cd))}s).")
+            self.play("error")
+            return False
+        if act["kind"] == "blink":
+            if not target:
+                return False
+            tx, ty = float(target[0]), float(target[1])
+            d = dist(hero.x, hero.y, tx, ty)
+            if d > act["range"]:
+                f = act["range"] / max(1e-6, d)
+                tx, ty = hero.x + (tx - hero.x) * f, hero.y + (ty - hero.y) * f
+            dest = nearest_walkable(self.map, int(tx), int(ty), self.blocked,
+                                    prefer=(int(hero.x), int(hero.y)))
+            if not dest:
+                self.alert("No ground to step onto there.")
+                self.play("error")
+                return False
+            ox, oy = hero.x, hero.y
+            hero.x, hero.y = float(dest[0]) + 0.5, float(dest[1]) + 0.5
+            hero.path = None
+            hero.order = None
+            hero.target = None
+            self.burst(ox, oy, (150, 150, 190), 14, 1.0)
+            self.burst(hero.x, hero.y, (210, 210, 240), 14, 1.0)
+            self.play("magic")
+        else:  # heal over time
+            dur = float(act.get("duration", 6))
+            hero.hot_t = dur
+            hero.hot_amt = float(act.get("amount", 300)) / max(0.001, dur)   # hp per second
+            self.burst(hero.x, hero.y, (255, 170, 90), 16, 1.0)
+            self.play("holy")
+        hero.item_cd[iid] = float(act["cooldown"])
+        self.stats["item_uses"] = self.stats.get("item_uses", 0) + 1
+        return True
+
+
     def cmd_cast(self, hero, aid, target=None):
         if not hero or not hero.alive or not hero.is_hero:
             return
@@ -672,6 +859,19 @@ class World:
         # mana
         if u.max_mana:
             u.mana = min(u.max_mana, u.mana + dt * 2.2)
+        # item regen, drink-over-time and item cooldowns (hero only)
+        if u.is_hero:
+            if u.hp_regen and u.hp < u.max_hp:
+                u.hp = min(u.max_hp, u.hp + u.hp_regen * dt)
+            if u.mana_regen:
+                u.mana = min(u.max_mana, u.mana + u.mana_regen * dt)
+            if u.hot_t > 0:
+                step = min(u.hot_t, dt)
+                u.hot_t -= step
+                u.hp = min(u.max_hp, u.hp + u.hot_amt * step)
+            if u.item_cd:
+                for k in list(u.item_cd):
+                    u.item_cd[k] = max(0.0, u.item_cd[k] - dt)
         for k in list(u.abil_cd):
             u.abil_cd[k] = max(0.0, u.abil_cd[k] - dt)
         if u.attack_cd > 0:
@@ -1321,9 +1521,21 @@ class World:
                 if altars:
                     spot = self.find_spawn_spot(altars[0])
                 if spot:
-                    self.hero = self.spawn_unit("hero", spot[0], spot[1], PLAYER)
-                    self.hero.level = h.level
-                    self.hero.xp = h.xp
+                    hero2 = self.spawn_unit("hero", spot[0], spot[1], PLAYER)
+                    # revive restores the fallen hero's growth and his satchel:
+                    # level 1 stats would silently delete both level-ups and items.
+                    for _ in range(1, h.level):
+                        hero2.max_hp += HERO_GROWTH["hp"]
+                        hero2.max_mana += HERO_GROWTH["mana"]
+                        hero2.dmg_min += HERO_GROWTH["dmg"]
+                        hero2.dmg_max += HERO_GROWTH["dmg"]
+                    hero2.level = h.level
+                    hero2.xp = h.xp
+                    hero2.items = list(h.items)
+                    hero2.hp = hero2.max_hp
+                    hero2.mana = hero2.max_mana
+                    self.refresh_hero_items(hero2)
+                    self.hero = hero2
                     self.hero.alert_ready = True
                     self.alert("Marshal Aldric returns to the fight.")
                     self.play("level")

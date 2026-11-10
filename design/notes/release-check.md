@@ -1,6 +1,6 @@
-# release-check — 2026-11-09 21:20:24
+# release-check — 2026-11-10 07:56:43
 
-**0 FAIL / 0 WARN / 37 checks**
+**0 FAIL / 0 WARN / 44 checks**
 
 | check | status | detail |
 |---|---|---|
@@ -40,5 +40,12 @@
 | doc:design/ASSET-CONTRACT.md | PASS | present |
 | doc:collaboration.md | PASS | present |
 | doc:README run instructions | PASS | mentions the run command |
+| report:controls | PASS | 0 failing line(s), last run 0.1h ago (qa-input-01.md) |
+| report:display/input | PASS | 0 failing line(s), last run 10.6h ago (qa-display.md) |
+| report:real-X window | PASS | 0 failing line(s), last run 12.0h ago (qa-xwindow.md) |
+| report:collision | PASS | 0 failing line(s), last run 7.3h ago (qa-collision.md) |
+| report:animation | PASS | 0 failing line(s), last run 9.6h ago (anim-audit-01.md) |
+| report:features | PASS | 0 failing line(s), last run 10.0h ago (feature-audit-01.md) |
+| report:map structure | PASS | 0 failing line(s), last run 23.1h ago (map-audit-01.md) |
 | map:audit | PASS | PASS: 0 findings |
 
