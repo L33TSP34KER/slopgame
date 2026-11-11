@@ -301,6 +301,73 @@ def _is_boss(kind):
     return bool(d.get("boss"))
 
 
+# ---- camp shaping (council p-c4f1a9e2: tiered respawning camps) ----------
+# PROVISIONAL (deepseek lane): every count below is a starting offer to mimo's
+# balance lane, not a settled number.  Anchors are mapgen's (validated on all
+# ten layouts); this rewrites ROSTERS only, plus the mission-1 trim.
+_CAMP_SLOTS = {
+    "warren": [("goblin", 0, 0), ("goblin", -2, 1), ("goblin", 1.6, -1.4),
+               ("goblin", 2, 1.4), ("goblin-brute", 0, 2)],
+    "camp": [("goblin-brute", 0, 0), ("goblin", 1.6, 1), ("goblin", -1.6, 1),
+             ("goblin", 1.6, -1), ("goblin-brute", -0.4, 2.2), ("goblin", -1.6, -1)],
+    "ancient": [("ashen-colossus", 0, 0), ("goblin-brute", 2.2, 1),
+                ("goblin", -2.2, 1), ("goblin", 0, -2.2),
+                ("goblin-brute", -2.4, -1.2), ("goblin", 2.6, -1.4)],
+}
+_MISSION1_WEAK_CAMP = [("goblin", 0, 0), ("goblin", -2, 1), ("goblin", 1.8, -1.2)]
+
+
+def _mission_index(sc):
+    idx = sc.get("_index")
+    if isinstance(idx, int) and idx >= 0:
+        return idx
+    try:
+        return max(0, int(str(sc.get("id", "m1"))[1:]) - 1)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _camp_roster(tier, idx):
+    """(type, ox, oy) spawn slots for a camp of `tier` on mission `idx` (0-based)."""
+    slots = _CAMP_SLOTS.get(tier, _CAMP_SLOTS["warren"])
+    if tier == "ancient":
+        n = 4 + (1 if idx >= 4 else 0) + (1 if idx >= 7 else 0)
+    elif tier == "camp":
+        n = 4 + (1 if idx >= 3 else 0) + (1 if idx >= 6 else 0)
+    else:
+        n = 3 + (1 if idx >= 4 else 0) + (1 if idx >= 7 else 0)
+    return slots[:max(1, min(len(slots), n))]
+
+
+def _set_roster(camp, specs):
+    camp["units"] = [dict(type=t, x=camp["x"] + ox, y=camp["y"] + oy)
+                     for (t, ox, oy) in specs]
+
+
+def _shape_camps(sc, m):
+    """Mission-1 trim + per-mission camp roster scaling (runs pre-World)."""
+    idx = _mission_index(sc)
+    side = m.starts.get(PLAYER) or {}
+    spawn = side.get("camera") or (m.w * 0.3, m.h * 0.8)
+
+    def d2(c):
+        return (c["x"] - spawn[0]) ** 2 + (c["y"] - spawn[1]) ** 2
+
+    if idx == 0:
+        # mission 1 contract (p-7b4e55d1 + p-c4f1a9e2): TWO warrens and ONE
+        # weak camp, NO ancient — nothing on this map may ever threaten the
+        # hall, and the practice coin stays a short trip from it.
+        warrens = sorted((c for c in m.camps if c.get("tier") == "warren"), key=d2)
+        camps = sorted((c for c in m.camps if c.get("tier") == "camp"), key=d2)
+        if camps:
+            _set_roster(camps[0], _MISSION1_WEAK_CAMP)
+        m.camps[:] = warrens[:2] + camps[:1]
+        return m
+    for c in m.camps:
+        _set_roster(c, _camp_roster(c.get("tier", "warren"), idx))
+    return m
+
+
 def apply_scenario(sc, m):
     """Shape the generated map's starting armies for this mission.
 
@@ -338,6 +405,8 @@ def apply_scenario(sc, m):
             footmen = [i for i, u in enumerate(pl.get("units") or []) if u[0] == "footman"]
             if footmen:
                 pl["units"].pop(footmen[-1])
+    # camp rosters/trim (p-c4f1a9e2) — after the armies above, still pre-World
+    _shape_camps(sc, m)
     return m
 
 

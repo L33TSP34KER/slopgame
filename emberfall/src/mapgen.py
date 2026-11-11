@@ -652,17 +652,26 @@ def generate_map(seed=20261109, difficulty="knight", w=None, h=None, variant=Non
     m.add_prop("fire", 74.0 * kx, 29.0 * ky, scale=0.55, block=False, glow=True)
 
     # ---- camps / creeps ---------------------------------------------
-    def camp(cx, cy, units, name):
-        camp = dict(x=cx, y=cy, units=[], name=name, cleared=False, bounty=0)
+    def camp(cx, cy, units, name, tier="warren", clear_r=3):
+        """Drop a neutral camp at an anchor.
+
+        `tier` (council p-c4f1a9e2) is bookkeeping the world reads to scale
+        the respawn timer and the clear bonus: "warren" | "camp" | "ancient".
+        Anchors must be passed through X()/Y() by the caller so every size
+        keeps the same layout; the clearing below removes blocking trees so
+        the anchor itself is walkable at any scale.
+        """
+        camp = dict(x=cx, y=cy, units=[], name=name, cleared=False, bounty=0,
+                    tier=tier)
         for (ut, ox, oy) in units:
             ux, uy = cx + ox, cy + oy
             camp["units"].append(dict(type=ut, x=ux, y=uy))
         m.camps.append(camp)
-        clear_area(cx, cy, 3)
+        clear_area(cx, cy, clear_r)
         # open the camp clearing for real: clear_area only marks the map, so remove
         # blocking trees/rocks and their props as well (Thornwood sat in a tree shaft).
-        for yy in range(int(cy) - 3, int(cy) + 4):
-            for xx in range(int(cx) - 3, int(cx) + 4):
+        for yy in range(int(cy) - clear_r, int(cy) + clear_r + 1):
+            for xx in range(int(cx) - clear_r, int(cx) + clear_r + 1):
                 if not m.inb(xx, yy):
                     continue
                 i = m.i(xx, yy)
@@ -673,15 +682,36 @@ def generate_map(seed=20261109, difficulty="knight", w=None, h=None, variant=Non
                         m.wood.pop((xx, yy), None)
                         m.tree_props.pop((xx, yy), None)
                     m.blocked[i] = 0
-        m.add_prop("fire", cx + 0.5, cy + 0.5, scale=0.55, block=False, glow=True)
+        m.add_prop("fire", cx + 0.5, cy + 0.5,
+                   scale=0.95 if tier == "ancient" else 0.55, block=False, glow=True)
         m.add_prop("bone", cx + 0.2, cy + 0.9, variant=0, scale=0.8)
+        if tier == "ancient":
+            m.add_prop("bone", cx - 0.9, cy + 0.4, variant=1, scale=1.1)
+            m.add_prop("rock", cx + 1.1, cy - 0.7, variant=2, scale=1.0, block=False)
         return camp
 
+    # four warrens, exactly as they have always been (weak goblin camps)
     camp(X(39), Y(32), [("goblin-brute", 0, 0), ("goblin", 1, 1), ("goblin", -1, 1), ("goblin", 1, -1)],
          "Mesa Warren")
     camp(X(74), Y(63), [("goblin", 0, 0), ("goblin", 2, 0), ("goblin", 1, -2)], "Thornwood Warren")
     camp(X(13), Y(27), [("goblin", 0, 0), ("goblin", -2, 1)], "Westford Warren")
     camp(X(48), Y(58), [("goblin", 0, 0), ("goblin", -2, 0)], "Crossroads Warren")
+    # two medium warbands + ONE ancient lair (p-c4f1a9e2). Anchors were picked
+    # by a grid search over all ten layouts (default 84x84 + the nine campaign
+    # seeds/sizes/flips): flat ground, no mine/hall/camp within 5, reachable
+    # from the player spawn on every map before this comment existed.
+    camp(X(56), Y(53),
+         [("goblin-brute", 0, 0), ("goblin", 1.5, 1), ("goblin", -1.5, 1),
+          ("goblin", 1.5, -1), ("goblin", -1.5, -1)],
+         "Ashenfield Camp", tier="camp")
+    camp(X(62), Y(29),
+         [("goblin-brute", 0, 0), ("goblin", 1.5, 0.5), ("goblin", -1.5, 0.5),
+          ("goblin", 0, 1.8)],
+         "Kingsroad Camp", tier="camp")
+    camp(X(44), Y(23),
+         [("ashen-colossus", 0, 0), ("goblin-brute", 2, 1), ("goblin", -2, 1),
+          ("goblin", 0, -2)],
+         "Ashen Barrow", tier="ancient", clear_r=4)
 
     # ---- starts ------------------------------------------------------
     player_buildings = [dict(type="townhall", x=hall_x, y=hall_y),

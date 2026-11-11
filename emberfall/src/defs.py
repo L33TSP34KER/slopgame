@@ -193,6 +193,20 @@ UNITS = {
         dmg=(52, 66), range=1.7, cooldown=2.1, speed=1.9, sight=12,
         food=0, bounty=500, xp=1200, radius=0.8, enemy=True, boss=True,
         desc="The crownless thing that wears the vale like a grave. It will not kneel."),
+    # ---- neutral ancient (council p-c4f1a9e2: the one mini-boss per map).
+    # Art is a rig REUSE: the Hollow King's Flare sheet under a NEUTRAL team
+    # tint, so the ancient reads as a boss silhouette without violet Host
+    # colour (render takes rig + team only; entity `scale` is not a render
+    # input, so the size story has to come from the rig's own UNIT_SCALE).
+    "ashen-colossus": _unit(
+        id="ashen-colossus", name="Ashen Colossus", icon="hollow-king",
+        rig="hollow-king",
+        hp=2600, armor=4, armor_type="heavy", damage_type="normal",
+        dmg=(44, 58), range=1.7, cooldown=2.6, speed=1.7, sight=10,
+        food=0, bounty=300, xp=420, radius=0.8, neutral=True, boss=True,
+        scale=1.0,
+        desc="The ancient that beds down in the old barrows. Slow to wake, "
+             "slower to fall — and it does not fall empty-handed."),
     "hero": _unit(
         id="hero", name="Marshal Aldric", icon="hero", rig="hero",
         hp=800, mana=220, armor=3, armor_type="heavy", damage_type="normal",
@@ -344,6 +358,21 @@ SHOP_RADIUS = 7.0
 SELL_RATE = 0.5
 SHOP_BUILDINGS = ("townhall", "keep", "altar")
 
+# ---- camp tiers (council p-c4f1a9e2: respawning farm camps) ---------------
+# PROVISIONAL — every number in this block is mine (deepseek) and is offered
+# to mimo's balance lane as a starting point, not a settled value.
+CAMP_TIERS = ("warren", "camp", "ancient")
+# (base seconds, jitter seconds) after a camp empties until it re-stirs
+CAMP_RESPAWN = dict(warren=(95.0, 15.0), camp=(130.0, 20.0), ancient=(240.0, 25.0))
+# camp-clear gold: first clear pays 1.5x, every respawn-clear pays 0.6x
+CAMP_CLEAR_GOLD = dict(warren=120, camp=200, ancient=420)
+CAMP_CLEAR_FIRST_MULT = 1.5
+CAMP_CLEAR_REPEAT_MULT = 0.6
+# hard ceiling on live neutral creeps so respawns can never snowball perf
+NEUTRAL_LIVE_CAP = 40
+# what the Ashen Colossus leaves behind, in grant order
+ANCIENT_RELICS = ("ashen-heart", "colossus-fist")
+
 ITEMS = {
     # ---- components -------------------------------------------------------
     "blade": dict(
@@ -419,6 +448,23 @@ ITEMS = {
         parts=["warbrand", "windstep"], cost=dict(g=380),
         stats=dict(dmg=26, aspeed=0.32, move=0.14),
         desc="It remembers a charge that never broke. +26 damage, +32% attack speed, +14% move speed."),
+    # ---- relics (drop only: the Ashen Colossus, council p-c4f1a9e2) -------
+    # PROVISIONAL (deepseek lane, offered to mimo's balance lane). Not in any
+    # shop group and not in AUTO_SHOP_ORDER — granted on an ancient kill; the
+    # `cost` only exists so the satchel sell-back and the full-satchel gold
+    # compensation have a number to work from.
+    "ashen-heart": dict(
+        id="ashen-heart", name="Ashen Heart", icon="it-pyre", tier=3,
+        relic=True, cost=dict(g=600),
+        stats=dict(hp=420, hp_regen=3.2),
+        desc="A coal the size of a fist, torn from the Colossus. "
+             "+420 max health, +3.2 health/s."),
+    "colossus-fist": dict(
+        id="colossus-fist", name="Colossus Grip", icon="it-warbrand", tier=3,
+        relic=True, cost=dict(g=600),
+        stats=dict(dmg=30, aspeed=0.12),
+        desc="The Colossus closed its hand once and kept what it held. "
+             "+30 attack damage, +12% attack speed."),
 }
 
 # what an automated hero buys, cheapest first, so a demo satchel fills naturally

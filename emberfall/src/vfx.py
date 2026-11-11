@@ -19,6 +19,7 @@ Integration contract (kept small on purpose so no other module knows internals):
     vfx.spawn_poof(x, y, h, team)           # world.kill    — death ash
     vfx.spawn_boss_wake(boss)               # ai.check_boss — violet shockwave
     vfx.spawn_dust(x, y, rad)               # app.place_building
+    vfx.spawn_camp_glow(x, y)               # world camp respawn / ancient drop
     vfx.update(dt)                          # app.Game.update (after world)
     vfx.draw(screen, renderer, camera, t)   # app.Game.draw (world -> UI)
     vfx.reset()                             # start_mission / to_title
@@ -360,6 +361,21 @@ def spawn_dust(x, y, rad=2.0):
     _cull_push(_pops, dict(kind="ring", x=x, y=y, t=0.0, dur=0.45,
                            color=DUST, r0=0.25, r1=rad, w=3), MAX_POPS)
     _spawn_motes(x, y, 0.25, 8, DUST, life=0.7, power=0.9)
+
+
+def spawn_camp_glow(x, y):
+    """world camp respawn / ancient drop: the ground breathes dust and coin.
+
+    Additive cue only (council p-c4f1a9e2) — one soft ground puff, one slow
+    ring and a handful of motes drawn from the existing capped pools, so a
+    re-stir is visible without adding a single per-frame allocation.
+    """
+    _cull_push(_pops, dict(kind="scorch", x=x, y=y, t=0.0, dur=1.1,
+                           color=DUST, rad=2.6, peak=70), MAX_POPS)
+    _cull_push(_pops, dict(kind="ring", x=x, y=y, t=0.0, dur=0.9,
+                           color=DUST, r0=0.3, r1=3.4, w=3), MAX_POPS)
+    _spawn_motes(x, y, 0.4, 12, DUST, life=1.4, power=1.2)
+    _spawn_motes(x, y, 0.5, 6, GOLD, life=1.7, power=1.0)
 
 
 def spawn_poof(x, y, h, team):

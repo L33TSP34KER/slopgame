@@ -131,6 +131,10 @@ class World:
         self.ai = None
         self._alerts = []
         self.camp_cleared = set()
+        # p-c4f1a9e2: respawn bookkeeping only — name -> world time to re-stir,
+        # and how many times a camp has been cleared (first clear pays 1.5x).
+        self.camp_respawn = {}
+        self.camp_clears = {}
         self.mission = dict(main=OBJECTIVE_MAIN, bonus=OBJECTIVE_BONUS, hint="")
         self._spawn_start()
 
@@ -1420,18 +1424,123 @@ class World:
                            "Marshal Aldric has fallen. He will muster at the Hall.")
                 self.play("alert")
         if tgt.team == NEUTRAL:
-            self.check_camp(tgt)
+            # p-c4f1a9e2: the ancient drops its relics on ITS death (not on the
+            # camp's full clear), and only when the player landed the blow.
+            if src_team == PLAYER and getattr(tgt, "boss", False):
+                self.drop_ancient_relic(tgt)
+            self.check_camp(tgt, src_team)
 
-    def check_camp(self, u):
+    def check_camp(self, u, src_team=None):
+        """A camp emptied: pay the clearer and schedule the re-stir.
+
+        Respawn is pure camp_cleared bookkeeping — the camp dict and its
+        anchors never move, only its units are re-spawned from the stored
+        roster. Bonus gold is credited to the killing blow's team and only
+        the PLAYER team is ever paid (neutral infighting does not exist).
+        """
         name = getattr(u, "camp", None)
         if not name or name in self.camp_cleared:
             return
         alive = [e for e in self.entities if e.alive and e.team == NEUTRAL and getattr(e, "camp", "") == name]
         if not alive:
             self.camp_cleared.add(name)
-            self.gold += 120
-            self.alert(f"{name} cleared. +120 gold")
-            self.play("gold")
+            camp = self._camp_def(name)
+            tier = (camp or {}).get("tier", "warren")
+            clears = self.camp_clears.get(name, 0)
+            self.camp_clears[name] = clears + 1
+            # every cleared camp re-stirs on its tier timer (capped live pool)
+            base, jitter = CAMP_RESPAWN.get(tier, CAMP_RESPAWN["warren"])
+            self.camp_respawn[name] = self.time + max(15.0, base + self.rng.uniform(-jitter, jitter))
+            if src_team == PLAYER and camp is not None:
+                mult = CAMP_CLEAR_FIRST_MULT if clears == 0 else CAMP_CLEAR_REPEAT_MULT
+                bonus = int(CAMP_CLEAR_GOLD.get(tier, 120) * mult)
+                self.gold += bonus
+                self.alert(f"{name} cleared. +{bonus} gold")
+                self.play("gold")
+
+    def _camp_def(self, name):
+        for c in self.map.camps:
+            if c.get("name") == name:
+                return c
+        return None
+
+    def update_camp_respawns(self):
+        """Re-stir every camp whose timer came due (ticked from update_mission).
+
+        The live neutral pool is hard-capped so a long idle game can never
+        snowball the sim: when the pool is full the respawn is postponed, not
+        dropped.
+        """
+        if self.state != "playing" or not self.camp_respawn:
+            return
+        for name, due in list(self.camp_respawn.items()):
+            if self.time < due:
+                continue
+            camp = self._camp_def(name)
+            if camp is None:
+                self.camp_respawn.pop(name, None)
+                continue
+            live = sum(1 for e in self.entities if e.alive and e.team == NEUTRAL)
+            if live >= NEUTRAL_LIVE_CAP:
+                self.camp_respawn[name] = self.time + 15.0
+                continue
+            self.camp_respawn.pop(name, None)
+            self.camp_cleared.discard(name)
+            for c in camp.get("units", ()):
+                u = self.spawn_unit(c["type"], c["x"], c["y"], NEUTRAL)
+                u.home = (camp["x"], camp["y"])
+                u.camp = camp["name"]
+            tier = camp.get("tier", "warren")
+            ax, ay = camp["x"] + 0.5, camp["y"] + 0.5
+            vfx.spawn_camp_glow(ax, ay)          # soft dust + coin motes
+            if tier == "ancient":
+                self.alert(f"{name} breathes again — the {UNITS.get(camp['units'][0]['type'], {}).get('name', 'ancient')} has risen.")
+                self.play("roar")
+            elif tier == "camp":
+                self.alert(f"{name} re-stirs — the warband has come back to roost.")
+                self.play("alert")
+            else:
+                self.alert(f"{name} re-stirs with coin in its teeth.")
+                self.play("alert")
+
+    def grant_relic(self, iid):
+        """Hand a relic to the Marshal under the satchel rules.
+
+        Returns "keep" when the hero took it, otherwise the gold paid as
+        compensation (one-copy or full satchel both pay out instead).
+        """
+        it = ITEMS.get(iid)
+        if it is None:
+            return 0
+        pay = item_sell_value(iid)
+        hero = self.hero
+        if hero and hero.alive and iid not in hero.items and len(hero.items) < ITEM_SLOTS:
+            hero.items.append(iid)
+            self.refresh_hero_items(hero)
+            return "keep"
+        self.gold += pay
+        return pay
+
+    def drop_ancient_relic(self, boss):
+        """Ancient kill: relics into the satchel, coin when it cannot take them."""
+        nm = UNITS.get(getattr(boss, "kind", ""), {}).get("name", "The ancient")
+        got, coin = 0, 0
+        for iid in ANCIENT_RELICS:
+            res = self.grant_relic(iid)
+            if res == "keep":
+                got += 1
+            else:
+                coin += int(res)
+        if got and not coin:
+            self.alert(f"{nm} falls — a relic claims its place in the Marshal's satchel.")
+        elif got:
+            self.alert(f"{nm} falls — relics take the satchel; {coin} gold spills to the Marshal.")
+        else:
+            self.alert(f"{nm} falls — the satchel had no room; {coin} gold takes the relics' place.")
+        self.play("roar")
+        vfx.spawn_camp_glow(boss.x, boss.y)
+        if self.game:
+            self.game.shake(9, 0.5)
 
     def gain_xp(self, hero, amount):
         if not hero or not hero.alive:
@@ -1527,6 +1636,7 @@ class World:
     def update_mission(self, dt):
         if not self.started or self.state != "playing":
             return
+        self.update_camp_respawns()   # p-c4f1a9e2: camps re-stir on their tier timer
         t = self.time
         if t > 90 and "stir" not in self.announced:
             self.announced["stir"] = 1
