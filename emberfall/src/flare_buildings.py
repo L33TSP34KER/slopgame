@@ -27,11 +27,16 @@ LAYERS = {
                ("undead_crypt", 0.5, -0.05, 0.12, (0.8, 0.7, 1.0))],
     "bonetower": [("human_guard_tower", 1.0, 0.0, 0.0, (0.62, 0.54, 0.82))],
     "altarhollow": [("undead_bone_ritual", 1.0, 0.0, 0.0, (0.85, 0.75, 1.0))],
+    # Wayfarer's Exchange (p-c4f1a9e2): the already-attributed log-cabin crop
+    # under a warm trade tint, dressed in _fx as a counter (lantern, coin sign,
+    # crates) so it never reads as the player's farm — zero new extraction,
+    # zero LICENSES-FLARE.md work.
+    "wayfarer": [("human_house_farm", 0.94, 0.0, 0.0, (1.0, 0.9, 0.74))],
 }
 TARGET_W = {"townhall": 250, "keep": 270, "farm": 145, "barracks": 205, "mill": 195,
             "blacksmith": 195, "sanctum": 195, "tower": 95, "altar": 120,
             "necropolis": 380, "ziggurat": 135, "crypt": 195, "slaughterhouse": 205,
-            "temple": 195, "bonetower": 95, "altarhollow": 190}
+            "temple": 195, "bonetower": 95, "altarhollow": 190, "wayfarer": 150}
 BANNER = {PLAYER: (172, 58, 48), ENEMY: (110, 74, 150), NEUTRAL: (140, 120, 80)}
 
 
@@ -180,6 +185,28 @@ class BuildingArt:
                     pygame.draw.line(s, (74, 98, 44), (xx, yy), (xx + 8, yy), 2)
                     pygame.draw.circle(s, (188, 162, 74), (int(xx + 4), int(yy - 3)), 2)
             pygame.draw.ellipse(s, (110, 86, 42), (cx + tw * 0.30, base_y - 10, 22, 10))
+        elif bid == "wayfarer":
+            # a coinwright's counter, not a farm: lantern over the door, a
+            # hanging coin sign on its post, crates of stock on the porch
+            glow(cx - tw * 0.16, base_y - th * 0.44, 30, (255, 196, 96), 110)
+            flame(cx - tw * 0.16, base_y - th * 0.34, 26, (255, 205, 110))
+            sgn = cx + tw * 0.44
+            pygame.draw.line(s, (74, 56, 36), (sgn, base_y - 2),
+                             (sgn, base_y - th * 0.60), 4)
+            sy = base_y - th * 0.60 - 15
+            pygame.draw.rect(s, (52, 40, 28), (sgn - 21, sy - 16, 42, 32),
+                             border_radius=4)
+            pygame.draw.rect(s, (98, 78, 48), (sgn - 19, sy - 14, 38, 28), 2,
+                             border_radius=4)
+            pygame.draw.circle(s, (74, 56, 36), (sgn, sy), 9)
+            pygame.draw.circle(s, GOLD, (sgn, sy), 8)
+            pygame.draw.circle(s, (238, 206, 130), (sgn - 2, sy - 2), 4)
+            for ox in (-0.34, 0.30):
+                bx0 = cx + tw * ox
+                pygame.draw.rect(s, (96, 70, 42),
+                                 (bx0 - 13, base_y - 21, 26, 19), border_radius=2)
+                pygame.draw.line(s, (64, 46, 28), (bx0 - 13, base_y - 12),
+                                 (bx0 + 13, base_y - 12), 2)
         elif bid == "barracks":
             # training yard: weapon rack + dummy, distinct from the town hall
             for i in range(4):

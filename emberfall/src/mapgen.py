@@ -282,6 +282,15 @@ def _flip_map(m, variant, spawn, route_targets):
         camx, camy = side["camera"]
         side["camera"] = ((W - 1 - camx) if fx else camx,
                           (H - 1 - camy) if fy else camy)
+    # the Exchange mirrors by the same footprint rule as a building, so its
+    # cleared 3x3 (already flipped as tile data) matches its stored origin
+    ss = getattr(m, "secret_shop", None)
+    if ss:
+        sbw, sbh = BUILDINGS["wayfarer"]["size"]
+        if fx:
+            ss["x"] = W - ss["x"] - sbw
+        if fy:
+            ss["y"] = H - ss["y"] - sbh
 
     # ---- cheap connectivity sanity check on the mirrored result --------
     problems = []
@@ -712,6 +721,31 @@ def generate_map(seed=20261109, difficulty="knight", w=None, h=None, variant=Non
          [("ashen-colossus", 0, 0), ("goblin-brute", 2, 1), ("goblin", -2, 1),
           ("goblin", 0, -2)],
          "Ashen Barrow", tier="ancient", clear_r=4)
+
+    # ---- the Wayfarer's Exchange (secret shop, p-c4f1a9e2) ---------------
+    # Grid-searched on all ten layouts (default + nine campaign seeds/sizes/
+    # flips): flat 3x3, >=6 from every mine/camp/start footprint, reachable
+    # from the player spawn, and blocking its footprint never severs a key
+    # point. Enemy side of centre — the trip out there is the price of the
+    # stock. The footprint is opened here so pocket sealing runs past it.
+    ss_x, ss_y = X(45), Y(12)
+    m.secret_shop = dict(x=ss_x, y=ss_y)
+    for yy in range(ss_y - 1, ss_y + 4):
+        for xx in range(ss_x - 1, ss_x + 4):
+            if not m.inb(xx, yy):
+                continue
+            i = m.i(xx, yy)
+            if m.blocked[i]:
+                if (xx, yy) in m.wood:
+                    for pr in m.tree_props.get((xx, yy), []):
+                        pr["gone"] = True
+                    m.wood.pop((xx, yy), None)
+                    m.tree_props.pop((xx, yy), None)
+                m.blocked[i] = 0
+            m.clear[i] = 1
+            for pr in m.props:
+                if pr.get("block") and int(pr["x"]) == xx and int(pr["y"]) == yy:
+                    pr["gone"] = True
 
     # ---- starts ------------------------------------------------------
     player_buildings = [dict(type="townhall", x=hall_x, y=hall_y),

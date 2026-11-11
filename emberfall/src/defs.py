@@ -323,6 +323,15 @@ BUILDINGS = {
         id="altarhollow", name="Altar of the Hollow", icon="altarhollow", rig="altarhollow",
         hp=900, armor=3, size=(3, 3), sight=7, height=64, enemy=True,
         desc="The King's throne of bone."),
+    # ---- secret shop (council p-c4f1a9e2) ---------------------------------
+    # A neutral, destructible trading post somewhere risky on the map. It
+    # trades through the same panel as the Purveyor but with its own stock;
+    # when it falls it rebuilds itself after SECRET_SHOP_RESPAWN seconds.
+    "wayfarer": _building(
+        id="wayfarer", name="Wayfarer's Exchange", icon="it-bag", rig="wayfarer",
+        hp=1500, armor=3, size=(3, 3), sight=7, height=54,
+        desc="A coinwright's hut pitched where the roads cross. Distant stock, "
+             "honest coin, no questions about the blood on your boots."),
 }
 
 UPGRADES = {
@@ -372,6 +381,11 @@ CAMP_CLEAR_REPEAT_MULT = 0.6
 NEUTRAL_LIVE_CAP = 40
 # what the Ashen Colossus leaves behind, in grant order
 ANCIENT_RELICS = ("ashen-heart", "colossus-fist")
+# seconds the Wayfarer's Exchange takes to rebuild after it is torn down
+SECRET_SHOP_RESPAWN = 180.0
+# how far from the Exchange's centre the Marshal may trade (same reach rule
+# as the Purveyor: SHOP_RADIUS plus a footprint term)
+SECRET_SHOP_RADIUS = SHOP_RADIUS
 
 ITEMS = {
     # ---- components -------------------------------------------------------
@@ -465,6 +479,43 @@ ITEMS = {
         stats=dict(dmg=30, aspeed=0.12),
         desc="The Colossus closed its hand once and kept what it held. "
              "+30 attack damage, +12% attack speed."),
+    # ---- secret stock (council p-c4f1a9e2) — Wayfarer's Exchange only ----
+    # PROVISIONAL (deepseek lane, offered to mimo's balance lane): exclusive,
+    # no recipe tree, priced as slot-efficient one-item purchases next to the
+    # ~1600g masterwork trees. `secret=True` is what routes them through the
+    # Exchange's reach check in world.buy_item; none of them appear in
+    # SHOP_GROUPS or AUTO_SHOP_ORDER, so the Purveyor never sells them.
+    "waystone": dict(
+        id="waystone", name="Waystone Shard", icon="it-ashenstep", tier=3,
+        secret=True, cost=dict(g=850),
+        stats=dict(mana=70),
+        active=dict(kind="blink", range=9.0, cooldown=26),
+        desc="A chip of a road that no longer goes anywhere. +70 max mana. "
+             "Active: blink up to 9 tiles (26s)."),
+    "oldroad-bulwark": dict(
+        id="oldroad-bulwark", name="Bulwark of the Old Road", icon="it-bulwark", tier=3,
+        secret=True, cost=dict(g=1050),
+        stats=dict(armor=9, hp=340, hp_regen=3.0),
+        desc="Every traveller who ever leaned on it left a little of their luck. "
+             "+9 armor, +340 max health, +3 health/s."),
+    "tithe": dict(
+        id="tithe", name="Merchant's Tithe", icon="gold", tier=3,
+        secret=True, cost=dict(g=1150),
+        stats=dict(hp=120, gold_rate=1.2),
+        desc="Old debts, quietly collected. +120 max health, +1.2 gold/s "
+             "while the Marshal draws breath."),
+    "warpike": dict(
+        id="warpike", name="Ashen Warpike", icon="it-warbrand", tier=3,
+        secret=True, cost=dict(g=1250),
+        stats=dict(dmg=34, aspeed=0.15),
+        desc="Pulled from the Barrow, still warm. +34 attack damage, "
+             "+15% attack speed."),
+    "longroad-lantern": dict(
+        id="longroad-lantern", name="Lantern of Long Roads", icon="it-flask", tier=3,
+        secret=True, cost=dict(g=750),
+        stats=dict(sight=4, move=0.12, hp_regen=2.0),
+        desc="It shows you the road, and the road you, for miles. +4 sight, "
+             "+12% move speed, +2 health/s."),
 }
 
 # what an automated hero buys, cheapest first, so a demo satchel fills naturally
@@ -478,9 +529,15 @@ SHOP_GROUPS = [
     ("MASTERWORK", ["regalia", "warsong"]),
 ]
 
+# stock of the remote, destructible Wayfarer's Exchange (p-c4f1a9e2)
+SECRET_SHOP_GROUPS = [
+    ("ROAD RELICS", ["waystone", "longroad-lantern", "tithe"]),
+    ("HARD GOODS", ["oldroad-bulwark", "warpike"]),
+]
+
 STAT_LABEL = dict(dmg="attack damage", armor="armor", hp="max health", mana="max mana",
                   move="move speed", aspeed="attack speed", hp_regen="health/s",
-                  mana_regen="mana/s", sight="sight")
+                  mana_regen="mana/s", sight="sight", gold_rate="gold/s")
 
 
 def item_tree_cost(iid):

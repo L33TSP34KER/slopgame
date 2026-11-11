@@ -135,6 +135,12 @@ class World:
         # and how many times a camp has been cleared (first clear pays 1.5x).
         self.camp_respawn = {}
         self.camp_clears = {}
+        # p-c4f1a9e2: the Wayfarer's Exchange (secret shop) — live building,
+        # where it stands, and when it rebuilds after being torn down.
+        self.secret_shop = None
+        self.secret_shop_pos = None
+        self.secret_shop_respawn_t = 0.0
+        self._tithe_acc = 0.0
         self.mission = dict(main=OBJECTIVE_MAIN, bonus=OBJECTIVE_BONUS, hint="")
         self._spawn_start()
 
@@ -154,6 +160,13 @@ class World:
                 u = self.spawn_unit(c["type"], c["x"], c["y"], NEUTRAL)
                 u.home = (camp["x"], camp["y"])
                 u.camp = camp["name"]
+        ss = getattr(self.map, "secret_shop", None)
+        if ss:
+            # the Exchange stands where mapgen charted it (scale-aware, shared
+            # by every size); NEUTRAL so nobody owns it and anybody may break it
+            self.secret_shop_pos = (float(ss["x"]), float(ss["y"]))
+            self.secret_shop = self.spawn_building("wayfarer", ss["x"], ss["y"],
+                                                   NEUTRAL, complete=True, progress=1.0)
         self.update_fog(force=True)
         self._build_grid()
 
@@ -556,6 +569,31 @@ class World:
                 return True
         return False
 
+    def secret_shop_in_range(self, hero):
+        """The Wayfarer's Exchange trades at its own counter — same reach rule
+        as the Purveyor (SHOP_RADIUS + a footprint term), no matter who owns
+        the ground: the building is NEUTRAL and may be dead while we ask."""
+        b = self.secret_shop
+        if not hero or not hero.alive or not b or not b.alive:
+            return False
+        if b.build_progress < 1:
+            return False
+        cx, cy = b.x + b.bw / 2 - 0.5, b.y + b.bh / 2 - 0.5
+        return dist(hero.x, hero.y, cx, cy) <= SECRET_SHOP_RADIUS + max(b.bw, b.bh) * 0.35
+
+    def shop_kind(self, hero):
+        """Which counter the Marshal is standing at: 'secret' | 'purveyor' | None.
+
+        The Exchange wins a tie (placement keeps it clear of every hall, so a
+        tie cannot happen on the shipped layouts) and the panel in ui.py keys
+        its title and stock off this.
+        """
+        if self.secret_shop_in_range(hero):
+            return "secret"
+        if self.shop_in_range(hero):
+            return "purveyor"
+        return None
+
     def _item_totals(self, hero):
         agg = {}
         for iid in hero.items:
@@ -627,7 +665,12 @@ class World:
 
         if not hero or not hero.alive:
             return fail("Aldric is not here to trade.")
-        if not self.shop_in_range(hero):
+        if it.get("secret"):
+            # exclusive stock routes through the Exchange's counter, not the
+            # Emberhold's (p-c4f1a9e2) — same reach rule, different building
+            if not self.secret_shop_in_range(hero):
+                return fail("The Wayfarer's Exchange trades only where it stands — Aldric is out of reach.")
+        elif not self.shop_in_range(hero):
             return fail("The purveyor trades at the Emberhold — return to the Hall, Keep or Altar.")
         if iid in hero.items:
             return fail(f"You already carry {it['name']}.")
@@ -1399,6 +1442,10 @@ class World:
                 self.game.shake(9, 0.5)
             if tgt.bid == "necropolis":
                 self.end_mission("victory")
+            elif tgt.bid == "wayfarer":
+                # the Exchange is a setback, not a deletion (p-c4f1a9e2)
+                self.secret_shop_respawn_t = self.time + SECRET_SHOP_RESPAWN
+                self.alert("The Wayfarer's Exchange is torn down — the coinwright returns in 3 minutes.")
         else:
             if src_team == PLAYER:
                 self.stats["kills"] += 1
@@ -1502,6 +1549,52 @@ class World:
             else:
                 self.alert(f"{name} re-stirs with coin in its teeth.")
                 self.play("alert")
+
+    def update_secret_shop(self):
+        """Rebuild the Wayfarer's Exchange on its slot after SECRET_SHOP_RESPAWN.
+
+        If somebody built over the ruins the rebuild waits (never overwrites a
+        live footprint), so the loss stays a setback instead of deleting the
+        counter forever.
+        """
+        if self.state != "playing":
+            return
+        b = self.secret_shop
+        if b is not None and b.alive:
+            return
+        if self.secret_shop_respawn_t <= 0 or self.time < self.secret_shop_respawn_t:
+            return
+        if not self.secret_shop_pos:
+            self.secret_shop_respawn_t = 0.0
+            return
+        x, y = int(self.secret_shop_pos[0]), int(self.secret_shop_pos[1])
+        bw, bh = BUILDINGS["wayfarer"]["size"]
+        if any((xx, yy) in self.blocked
+               for yy in range(y, y + bh) for xx in range(x, x + bw)):
+            self.secret_shop_respawn_t = self.time + 15.0
+            return
+        self.secret_shop_respawn_t = 0.0
+        self.secret_shop = self.spawn_building("wayfarer", x, y, NEUTRAL,
+                                               complete=True, progress=1.0)
+        self.alert("The Wayfarer's Exchange raises its lantern again.")
+        self.play("build_done")
+        vfx.spawn_camp_glow(x + bw / 2, y + bh / 2)
+
+    def tick_secret_items(self, dt):
+        """PROVISIONAL secret-stock income: Merchant's Tithe pays 1.2 gold/s
+        while the Marshal draws breath (integer accumulation keeps self.gold
+        an int like every other income path)."""
+        h = self.hero
+        if not h or not h.alive:
+            return
+        rate = (h.item_stats or {}).get("gold_rate", 0)
+        if rate <= 0:
+            return
+        self._tithe_acc += rate * dt
+        if self._tithe_acc >= 1.0:
+            take = int(self._tithe_acc)
+            self.gold += take
+            self._tithe_acc -= take
 
     def grant_relic(self, iid):
         """Hand a relic to the Marshal under the satchel rules.
@@ -1637,6 +1730,8 @@ class World:
         if not self.started or self.state != "playing":
             return
         self.update_camp_respawns()   # p-c4f1a9e2: camps re-stir on their tier timer
+        self.update_secret_shop()     # p-c4f1a9e2: the Exchange rebuilds itself
+        self.tick_secret_items(dt)    # p-c4f1a9e2: Merchant's Tithe income
         t = self.time
         if t > 90 and "stir" not in self.announced:
             self.announced["stir"] = 1

@@ -1146,13 +1146,21 @@ class UI:
     def draw_shop_panel(self):
         g = self.g; w = g.world
         hero = w.hero
+        # p-c4f1a9e2: one panel, two counters — the Marshal's current reach
+        # picks the title, the stock list and the out-of-reach advice.
+        secret = w.shop_kind(hero) == "secret"
+        groups = SECRET_SHOP_GROUPS if secret else SHOP_GROUPS
+        in_reach = (w.secret_shop_in_range(hero) if secret else w.shop_in_range(hero))
         r = pygame.Rect(286, 62, 1028, 634)
         self.overlay(96)
         self.panel(r, (30, 23, 18), BRASS, 252)
-        title = self.head("THE EMBERHOLD PURVEYOR", 20, GOLD_L, "display", track=2)
+        title = self.head("THE WAYFARER'S EXCHANGE" if secret else "THE EMBERHOLD PURVEYOR",
+                          20, GOLD_L, "display", track=2)
         g.screen.blit(title, (r.x + 18, r.y + 10))
-        sub = self.t("Buy components, then forge them into one stronger item — every stat carries over.",
-                     12, PARCH_D, "sans")
+        sub = ("Secret stock, remote counter, final prices — the coinwright asks no questions."
+               if secret else
+               "Buy components, then forge them into one stronger item — every stat carries over.")
+        sub = self.t(sub, 12, PARCH_D, "sans")
         g.screen.blit(sub, (r.x + 18, r.y + 36))
         gi = self.icon("gold", 22)
         g.screen.blit(gi, (r.right - 214, r.y + 17))
@@ -1196,18 +1204,21 @@ class UI:
             if iid:
                 nm = self.t(ITEMS[iid]["name"], 11, PARCH_D, "sans")
                 g.screen.blit(nm, (rr.x, rr.bottom + 2))
-        if not w.shop_in_range(hero):
+        if not in_reach:
             wr = pygame.Rect(x0, r.bottom - 78, 330, 60)
             self.panel(wr, (70, 30, 26), (176, 84, 72), 244)
             t1 = self.head("OUT OF REACH", 14, (240, 172, 150), "display", track=2)
             g.screen.blit(t1, (wr.x + 10, wr.y + 6))
-            t2 = self.art.text_wrap("Aldric must stand near the Hall, Keep or Altar of Embers to trade.",
-                                    11, 306, PARCH_D)
+            t2 = self.art.text_wrap(
+                ("The Exchange trades only where it stands — Aldric must be at the hut."
+                 if secret else
+                 "Aldric must stand near the Hall, Keep or Altar of Embers to trade."),
+                11, 306, PARCH_D)
             g.screen.blit(t2, (wr.x + 10, wr.y + 26))
         # ---- shelves
         x1, yy = r.x + 372, r.y + 64
         cell, step = 92, 106
-        for gtitle, ids in SHOP_GROUPS:
+        for gtitle, ids in groups:
             per_row = 6 if len(ids) <= 6 else 4
             gl = self.head(gtitle, 12, GOLD, "display", track=2)
             g.screen.blit(gl, (x1, yy))
@@ -1255,6 +1266,14 @@ class UI:
         if first.is_building:
             b = first
             train = PLAYER_TRAIN.get(b.bid, [])
+            if b.bid == "wayfarer":
+                # the neutral Exchange is selectable like any structure; give it
+                # the one command it exists for (p-c4f1a9e2)
+                out.append(dict(id="shop", icon="it-bag", label="Exchange", hotkey="P",
+                                kind="shop", enabled=True,
+                                desc="Trade at the Wayfarer's Exchange. Distant stock, "
+                                     "final prices, no questions."))
+                return out
             for i, ut in enumerate(train):
                 d = UNITS[ut]
                 req = d.get("requires")

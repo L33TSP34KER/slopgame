@@ -115,3 +115,75 @@ same proportions.
 | `tools/qa/map_audit.py --json` | **PASS**, 0 findings (15 key points, all reachable, both bases reach all) |
 | `tools/campaign_probe.py --no-win` | **ALL PASS** (9-matrix + m1 contract + progression) |
 | smoke: clear → respawn cycle, relic keep/fallback | pass (see probe matrix, Stage 4) |
+
+---
+
+## STAGE 2 — the secret shop (Wayfarer's Exchange)
+
+### Mechanics (file:line)
+
+| mechanic | where |
+|---|---|
+| neutral structure (HP 1500, 3x3, NEUTRAL) | `emberfall/src/defs.py:330` |
+| 180 s rebuild timer + reach radius | `emberfall/src/defs.py:385,388` |
+| 5 exclusive items (`secret=True`, no recipe tree) | `emberfall/src/defs.py:485-515` |
+| secret stock groups (panel shelves) | `emberfall/src/defs.py:533` |
+| scale-aware placement (base 45,12 → `X()/Y()`) + footprint opened pre-sealing | `emberfall/src/mapgen.py:732` |
+| mirror rule for flipped campaign maps | `emberfall/src/mapgen.py:287` |
+| spawned NEUTRAL at world start | `emberfall/src/world.py:168` |
+| reach check (same shape as the Purveyor) | `emberfall/src/world.py:572` |
+| counter chooser used by UI + buy routing | `emberfall/src/world.py:584` |
+| secret-vs-purveyor reach routing inside `buy_item` | `emberfall/src/world.py:668` |
+| destroy → toast + 180 s rebuild schedule | `emberfall/src/world.py:1447` (kill), `world.py:1553` (tick; never overwrites a live footprint) |
+| Merchant's Tithe income tick (integer accumulator) | `emberfall/src/world.py:1583` |
+| panel: title, sub-line, stock list, out-of-reach advice switch on the counter | `emberfall/src/ui.py:1151-1152,1160` |
+| selectable structure gets an "Exchange [P]" command | `emberfall/src/ui.py:1272` |
+| art: existing Flare crop, zero new extraction | `emberfall/src/flare_buildings.py:34,188` |
+
+### Art + licence status
+
+`assets/flare/buildings/` has **no** market/tent/cart crop (contents: 8 human
+buildings + 6 undead ruins). The closest already-attributed fit for a *hut*
+is `human_house_farm.png` (log cabin with a banner), catalogued under the new
+id at `flare_buildings.py:34` with a warm trade tint (1.0, 0.9, 0.74) and a
+purpose-drawn `_fx` dressing at `flare_buildings.py:188` — lantern glow over
+the door, hanging coin sign on a post, two crates on the porch — so it never
+reads as the player's farm (which gets crop rows instead).
+
+**LICENSES flag status: none needed, none sent.** No new crop was extracted,
+`tools/flare_buildings.py` and `LICENSES-FLARE.md` were not touched, and the
+licence gate still reports attribution complete (release_check `license:flare`
+PASS).
+
+### Exclusive stock (PROVISIONAL — mimo's balance lane)
+
+| item | cost | stats / active |
+|---|---|---|
+| Waystone Shard | 850 | +70 mana, **active blink 9 tiles / 26 s** |
+| Bulwark of the Old Road | 1050 | +9 armor, +340 hp, +3 hp/s |
+| Merchant's Tithe | 1150 | +120 hp, **+1.2 gold/s** |
+| Ashen Warpike | 1250 | +34 dmg, +15 % attack speed |
+| Lantern of Long Roads | 750 | +4 sight, +12 % move, +2 hp/s |
+
+Priced against the ~1600 g masterwork trees as slot-efficient one-item
+purchases; none of them is in `SHOP_GROUPS` or `AUTO_SHOP_ORDER`, so the
+Purveyor never sells them. Icons re-use existing `assets/icons` keys
+(`it-ashenstep`, `it-bulwark`, `gold`, `it-warbrand`, `it-flask`) — assets are
+read-only for this lane, so no new icon files were added.
+
+### Anchor evidence
+
+Grid-searched the 3x3 footprint on all ten layouts: flat ground, ≥4 from every
+start footprint, ≥6 from every mine/camp, reachable from the player spawn, and
+**blocking the footprint must not sever any key point** (flood re-run with the
+3x3 blocked). 35 candidates survived all maps; the shipped one is base
+**(45, 12)** — north-centre, enemy side of the map, ~60 tiles from the Emberhold
+hall (the trip *is* the risk).
+
+### Stage 2 gates
+
+| gate | result |
+|---|---|
+| `tools/qa/release_check.py` | **0 FAIL / 0 WARN / 44 checks** |
+| `tools/campaign_probe.py --no-win` | **ALL PASS** |
+| smoke (9 maps spawn the Exchange, reach/buy/sell/refuse, destroy→rebuild, tithe, both panel modes draw) | pass |
